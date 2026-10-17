@@ -133,7 +133,7 @@ def call_gemini_api(prompt):
         raise ValueError("st.secrets['api_keys']['gemini_keys'] altında hiç Gemini API Key tanımlanmamış.")
     
     last_error = None
-    models_to_try = ["gemini-3.8-flash", "gemini-2.0-flash", "gemini-1.5-flash"]
+    models_to_try = ["gemini-3.6-flash", "gemini-2.0-flash", "gemini-1.5-flash"]
     
     for key in GEMINI_KEYS:
         client = genai.Client(api_key=key)
