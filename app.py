@@ -1,4 +1,5 @@
 import streamlit as st
+import streamlit.components.v1 as components
 import json
 import re
 import random
@@ -7,137 +8,14 @@ from groq import Groq
 from google import genai
 
 # ==========================================
-# 1. SAYFA VE PROFESYONEL SUDOKU TEMA AYARLARI
+# 1. SAYFA KONFİGÜRASYONU
 # ==========================================
 st.set_page_config(
-    page_title="Cyber Sudoku Nexus",
+    page_title="Pro Sudoku Studio",
     page_icon="🧩",
     layout="wide",
     initial_sidebar_state="expanded"
 )
-
-st.markdown("""
-<style>
-    .stApp {
-        background-color: #f8fafc;
-        color: #0f172a;
-    }
-    
-    section[data-testid="stSidebar"] {
-        background-color: #ffffff;
-        border-right: 2px solid #e2e8f0;
-    }
-
-    /* Sudoku Tahtası Dış Çerçevesi */
-    .sudoku-board-wrapper {
-        background: #334155;
-        padding: 4px;
-        border-radius: 8px;
-        box-shadow: 0 10px 25px rgba(0,0,0,0.15);
-        display: inline-block;
-        margin: auto;
-    }
-
-    /* Hücre Kutuları - Keskin Kenarlıklar ve Net Kareler */
-    div[data-baseweb="input"] {
-        aspect-ratio: 1 / 1 !important;
-        width: 100% !important;
-        max-width: 52px !important;
-        height: 52px !important;
-        border-radius: 0px !important;
-        border: 1px solid #94a3b8 !important;
-        background-color: #ffffff !important;
-        display: flex !important;
-        align-items: center !important;
-        justify-content: center !important;
-        margin: 0 !important;
-    }
-    
-    div[data-baseweb="input"]:focus-within {
-        border-color: #f97316 !important;
-        box-shadow: inset 0 0 0 2px #f97316 !important;
-        z-index: 10;
-    }
-    
-    /* Kullanıcının Yazdığı Rakamlar */
-    .stTextInput input {
-        text-align: center !important;
-        font-weight: 800 !important;
-        font-size: 1.3rem !important;
-        color: #0f172a !important;
-        background-color: transparent !important;
-        padding: 0 !important;
-    }
-
-    /* Sabit Hücreler (AI Verileri) */
-    .fixed-cell {
-        aspect-ratio: 1 / 1 !important;
-        width: 100% !important;
-        max-width: 52px !important;
-        height: 52px !important;
-        background-color: #e2e8f0;
-        color: #0f172a;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        border: 1px solid #94a3b8;
-        font-weight: 900;
-        font-size: 1.3rem;
-        user-select: none;
-        margin: 0;
-    }
-
-    /* Kalın Blok Kenarlıkları */
-    .block-border-right {
-        border-right: 3px solid #0f172a !important;
-    }
-    .block-border-bottom {
-        border-bottom: 3px solid #0f172a !important;
-    }
-    
-    /* Büyük Turuncu Butonlar */
-    div.stButton > button:first-child {
-        width: 100%;
-        border-radius: 8px;
-        font-weight: 800;
-        font-size: 1.05rem;
-        background: #f97316;
-        color: #ffffff;
-        border: none;
-        padding: 12px 0;
-        transition: all 0.2s ease;
-        box-shadow: 0 4px 12px rgba(249, 115, 22, 0.3);
-        margin-top: 10px;
-    }
-    div.stButton > button:first-child:hover {
-        background: #ea580c;
-        box-shadow: 0 6px 18px rgba(249, 115, 22, 0.5);
-        transform: translateY(-2px);
-    }
-    
-    .timer-card {
-        background: #ffffff;
-        border: 2px solid #f97316;
-        padding: 10px 18px;
-        border-radius: 8px;
-        text-align: center;
-        font-weight: 800;
-        font-size: 1.1rem;
-        color: #ea580c;
-        box-shadow: 0 2px 8px rgba(249, 115, 22, 0.15);
-        margin-bottom: 15px;
-    }
-    
-    .welcome-card {
-        background: #ffffff;
-        border: 2px solid #fed7aa;
-        padding: 30px;
-        border-radius: 12px;
-        box-shadow: 0 4px 15px rgba(0, 0, 0, 0.05);
-        margin-top: 15px;
-    }
-</style>
-""", unsafe_allow_html=True)
 
 # ==========================================
 # 2. SECRETS OKUMA
@@ -208,7 +86,7 @@ def call_groq_api(prompt):
 def call_gemini_api(prompt):
     if not GEMINI_KEYS:
         raise ValueError("Gemini anahtarı yok.")
-    models_to_try = ["gemini-3.6-flash", "gemini-2.0-flash", "gemini-1.5-flash"]
+    models_to_try = ["gemini-3.8-flash", "gemini-2.0-flash", "gemini-1.5-flash"]
     for key in GEMINI_KEYS:
         client = genai.Client(api_key=key)
         for model_name in models_to_try:
@@ -248,38 +126,7 @@ def generate_sudoku_ai(sub_box_size, difficulty):
     return generate_local_sudoku(sub_box_size, difficulty), "Yerel Algoritma"
 
 # ==========================================
-# 5. KONTROL FONKSİYONLARI
-# ==========================================
-def is_valid_sudoku(grid, sub_size):
-    N = sub_size * sub_size
-    for i in range(N):
-        row_vals = [grid[i][j] for j in range(N) if grid[i][j] != 0]
-        col_vals = [grid[j][i] for j in range(N) if grid[j][i] != 0]
-        if len(row_vals) != len(set(row_vals)) or len(col_vals) != len(set(col_vals)):
-            return False
-
-    for r in range(0, N, sub_size):
-        for c in range(0, N, sub_size):
-            block_vals = []
-            for i in range(sub_size):
-                for j in range(sub_size):
-                    val = grid[r+i][c+j]
-                    if val != 0:
-                        block_vals.append(val)
-            if len(block_vals) != len(set(block_vals)):
-                return False
-    return True
-
-def is_solved(grid, sub_size):
-    N = sub_size * sub_size
-    for r in range(N):
-        for c in range(N):
-            if grid[r][c] == 0:
-                return False
-    return is_valid_sudoku(grid, sub_size)
-
-# ==========================================
-# 6. STATE YÖNETİMİ
+# 5. STATE YÖNETİMİ
 # ==========================================
 if "sub_size" not in st.session_state:
     st.session_state.sub_size = 3
@@ -287,19 +134,13 @@ if "board" not in st.session_state:
     st.session_state.board = None
 if "initial_board" not in st.session_state:
     st.session_state.initial_board = None
-if "active_service" not in st.session_state:
-    st.session_state.active_service = None
 if "game_started" not in st.session_state:
     st.session_state.game_started = False
-if "game_won" not in st.session_state:
-    st.session_state.game_won = False
-if "start_time" not in st.session_state:
-    st.session_state.start_time = None
-if "elapsed_time" not in st.session_state:
-    st.session_state.elapsed_time = 0
+if "active_service" not in st.session_state:
+    st.session_state.active_service = None
 
 # ==========================================
-# 7. YAN PANEL
+# 6. YAN PANEL KONTROLLERİ
 # ==========================================
 with st.sidebar:
     st.title("🧩 Sudoku Ayarları")
@@ -334,7 +175,7 @@ with st.sidebar:
     
     st.markdown("---")
     
-    if st.button("🚀 Oyuna Başla"):
+    if st.button("🚀 Oyuna Başla", use_container_width=True):
         with st.spinner("Bulmaca Hazırlanıyor..."):
             grid, service = generate_sudoku_ai(selected_sub_size, difficulty)
             if grid:
@@ -343,139 +184,270 @@ with st.sidebar:
                 st.session_state.initial_board = [row[:] for row in grid]
                 st.session_state.active_service = service
                 st.session_state.game_started = True
-                st.session_state.game_won = False
-                st.session_state.start_time = time.time()
-                st.session_state.elapsed_time = 0
                 st.rerun()
 
     if st.session_state.game_started:
-        if st.button("🛑 Oyunu Bitir"):
+        if st.button("🛑 Oyunu Bitir", use_container_width=True):
             st.session_state.game_started = False
             st.session_state.board = None
             st.session_state.initial_board = None
-            st.session_state.game_won = False
             st.rerun()
 
     if st.session_state.active_service:
-        st.success(f"Motor: **{st.session_state.active_service}**")
+        st.success(f"Aktif AI Motoru: **{st.session_state.active_service}**")
 
 # ==========================================
-# 8. ANA EKRAN & OYUN AKIŞI
+# 7. MAIN INTERFACE & HTML5 CANVAS SUDOKU ENGINE
 # ==========================================
-st.title("🧩 Modern Sudoku Studio")
+st.title("🧩 Modern Pro Sudoku Studio")
 
 if not st.session_state.game_started:
     st.markdown("""
-    <div class="welcome-card">
+    <div style="background: #ffffff; border: 2px solid #fed7aa; padding: 30px; border-radius: 12px; margin-top: 15px; box-shadow: 0 4px 15px rgba(0,0,0,0.05);">
         <h2 style="color: #ea580c; margin-top: 0;">✨ Hoş Geldiniz!</h2>
-        <p style="font-size: 1.05rem; line-height: 1.6; color: #334155;">
-            Yenilenen profesyonel tasarımı ve net kenar çizgileriyle <b>Modern Sudoku Studio</b> platformuna hoş geldiniz. 
-            Sol menüden matris boyutunu ve zorluk derecesini seçip <b>"Oyuna Başla"</b> butonuna basarak oynayabilirsiniz.
+        <p style="font-size: 1.1rem; line-height: 1.6; color: #334155;">
+            Sıfır gecikmeli, tam uyumlu ve net kenarlıklara sahip yeni Sudoku platformumuza hoş geldiniz.
+            Sol menüden zorluk derecesini ve matris boyutunu seçip <b>"Oyuna Başla"</b> butonuna basarak anında oynamaya başlayabilirsiniz.
         </p>
         <hr style="border-color: #fed7aa; margin: 15px 0;">
         <p style="color: #f97316; font-weight: 700;">
-            🚀 Başlamak için sol menüden turuncu butona tıklayın!
+            🚀 Oyuna başlamak için sol paneli kullanın.
         </p>
     </div>
     """, unsafe_allow_html=True)
 else:
     sub_size = st.session_state.sub_size
     N = sub_size * sub_size
-    
-    top_col1, top_col2 = st.columns([2, 1])
-    with top_col1:
-        st.markdown(f"**Boyut:** {N}x{N} | **Toplam Kare:** {N*N} | **Blok:** {sub_size}x{sub_size}")
-    with top_col2:
-        if not st.session_state.game_won and st.session_state.start_time:
-            current_elapsed = int(time.time() - st.session_state.start_time)
-            m, s = divmod(current_elapsed, 60)
-            st.markdown(f'<div class="timer-card">⏱️ Geçen Süre: {m:02d}:{s:02d}</div>', unsafe_allow_html=True)
-        else:
-            m, s = divmod(int(st.session_state.elapsed_time), 60)
-            st.markdown(f'<div class="timer-card">⏱️ Çözüm Süresi: {m:02d}:{s:02d}</div>', unsafe_allow_html=True)
+    initial_grid_json = json.dumps(st.session_state.initial_board)
 
-    def update_cell(r, c):
-        val = st.session_state[f"cell_{r}_{c}"]
-        if val.isdigit():
-            num = int(val)
-            if 1 <= num <= N:
-                st.session_state.board[r][c] = num
-            else:
-                st.session_state.board[r][c] = 0
-        else:
-            st.session_state.board[r][c] = 0
-            
-        if is_solved(st.session_state.board, sub_size) and not st.session_state.game_won:
-            st.session_state.game_won = True
-            if st.session_state.start_time:
-                st.session_state.elapsed_time = time.time() - st.session_state.start_time
+    # HTML5/JS Sudoku Bileseni
+    custom_sudoku_component = f"""
+    <!DOCTYPE html>
+    <html>
+    <head>
+        <meta charset="utf-8">
+        <style>
+            * {{
+                box-sizing: border-box;
+                font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+            }}
+            body {{
+                background-color: #f8fafc;
+                margin: 0;
+                padding: 10px;
+                display: flex;
+                flex-direction: column;
+                align-items: center;
+            }}
+            .header-bar {{
+                width: 100%;
+                max-width: 600px;
+                display: flex;
+                justify-content: space-between;
+                align-items: center;
+                background: #ffffff;
+                padding: 12px 20px;
+                border: 2px solid #ea580c;
+                border-radius: 10px;
+                margin-bottom: 20px;
+                box-shadow: 0 4px 12px rgba(234, 88, 12, 0.1);
+            }}
+            .timer-title {{
+                font-size: 1.1rem;
+                font-weight: 800;
+                color: #ea580c;
+            }}
+            .timer-clock {{
+                font-size: 1.2rem;
+                font-weight: 900;
+                color: #0f172a;
+                font-mono: monospace;
+            }}
+            .sudoku-container {{
+                display: inline-block;
+                background: #0f172a;
+                padding: 4px;
+                border-radius: 8px;
+                box-shadow: 0 10px 25px rgba(0,0,0,0.15);
+            }}
+            .grid {{
+                display: grid;
+                grid-template-columns: repeat({N}, 1fr);
+                gap: 1px;
+                background-color: #cbd5e1;
+            }}
+            .cell {{
+                width: {520 // N}px;
+                height: {520 // N}px;
+                background-color: #ffffff;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                font-size: {max(1.0, 2.2 - (N * 0.08))}rem;
+                font-weight: 800;
+                color: #0f172a;
+                outline: none;
+                border: none;
+                text-align: center;
+                user-select: none;
+                margin: 0;
+                padding: 0;
+                transition: background-color 0.15s ease;
+            }}
+            .cell:focus {{
+                background-color: #ffedd5 !important;
+                box-shadow: inset 0 0 0 2px #f97316;
+            }}
+            .fixed {{
+                background-color: #f1f5f9;
+                color: #ea580c;
+                font-weight: 900;
+                cursor: not-allowed;
+            }}
+            .border-right {{
+                border-right: 3px solid #0f172a !important;
+            }}
+            .border-bottom {{
+                border-bottom: 3px solid #0f172a !important;
+            }}
+            .win-banner {{
+                display: none;
+                width: 100%;
+                max-width: 600px;
+                background: #dcfce7;
+                border: 2px solid #22c55e;
+                color: #15803d;
+                padding: 16px;
+                border-radius: 10px;
+                text-align: center;
+                font-weight: 800;
+                font-size: 1.2rem;
+                margin-top: 20px;
+            }}
+        </style>
+    </head>
+    <body>
 
-    # Sağ/Orta Ortalanmış Düzen
-    _, main_col, _ = st.columns([1, 6, 1])
-    
-    with main_col:
-        st.markdown('<div class="sudoku-board-wrapper">', unsafe_allow_html=True)
-        for r in range(N):
-            cols = st.columns(N, gap="small")
-            for c in range(N):
-                val = st.session_state.board[r][c]
-                is_read_only = (st.session_state.initial_board[r][c] != 0)
-                
-                border_class = ""
-                if (c + 1) % sub_size == 0 and c < N - 1:
-                    border_class += " block-border-right"
-                if (r + 1) % sub_size == 0 and r < N - 1:
-                    border_class += " block-border-bottom"
-                
-                cell_key = f"cell_{r}_{c}"
-                
-                with cols[c]:
-                    if is_read_only:
-                        st.markdown(
-                            f'<div class="fixed-cell {border_class}">{val}</div>', 
-                            unsafe_allow_html=True
-                        )
-                    else:
-                        current_str = str(val) if val != 0 else ""
-                        st.text_input(
-                            label=f"r{r}c{c}",
-                            value=current_str,
-                            key=cell_key,
-                            max_chars=2 if N > 9 else 1,
-                            label_visibility="collapsed",
-                            on_change=update_cell,
-                            args=(r, c)
-                        )
-        st.markdown('</div>', unsafe_allow_html=True)
+        <div class="header-bar">
+            <div class="timer-title">⏱️ Geçen Süre</div>
+            <div class="timer-clock" id="timer">00:00</div>
+        </div>
 
-    if st.session_state.game_won:
-        m, s = divmod(int(st.session_state.elapsed_time), 60)
-        st.balloons()
-        st.success(f"🎉 TEBRİKLER! Bulmacayı toplam **{m} dakika {s} saniyede** kusursuz bir şekilde tamamladınız!")
+        <div class="sudoku-container">
+            <div class="grid" id="sudoku-grid"></div>
+        </div>
 
-    st.markdown("---")
-    
-    col_btn1, col_btn2 = st.columns(2)
-    with col_btn1:
-        if st.button("🔍 Hamleleri Kontrol Et"):
-            if is_valid_sudoku(st.session_state.board, sub_size):
-                if is_solved(st.session_state.board, sub_size):
-                    if not st.session_state.game_won:
-                        st.session_state.game_won = True
-                        if st.session_state.start_time:
-                            st.session_state.elapsed_time = time.time() - st.session_state.start_time
-                    m, s = divmod(int(st.session_state.elapsed_time), 60)
-                    st.balloons()
-                    st.success(f"🎉 TEBRİKLER! Bulmacayı **{m} dakika {s} saniyede** başarıyla tamamladınız!")
-                else:
-                    st.info("👍 Şimdiye kadarki tüm hamleleriniz kurallara uygun. Çözmeye devam edin!")
-            else:
-                st.error("⚠️ Dikkat! Tahtada çakışan (kural dışı) rakamlar var. Kontrol ediniz.")
-                
-    with col_btn2:
-        if st.button("🔄 Oyunu Sıfırla"):
-            st.session_state.board = [row[:] for row in st.session_state.initial_board]
-            st.session_state.game_won = False
-            st.session_state.start_time = time.time()
-            st.session_state.elapsed_time = 0
-            st.rerun()
+        <div class="win-banner" id="win-banner">
+            🎉 TEBRİKLER! Bulmacayı <span id="final-time"></span> sürede kusursuz tamamladınız!
+        </div>
+
+        <script>
+            const N = {N};
+            const subSize = {sub_size};
+            const initialBoard = {initial_grid_json};
+            let currentBoard = JSON.parse(JSON.stringify(initialBoard));
+            let startTime = Date.now();
+            let timerInterval = null;
+            let isCompleted = false;
+
+            // Timer Başlatma
+            function startTimer() {{
+                timerInterval = setInterval(() => {{
+                    if (isCompleted) return;
+                    let elapsedSeconds = Math.floor((Date.now() - startTime) / 1000);
+                    let m = Math.floor(elapsedSeconds / 60).toString().padStart(2, '0');
+                    let s = (elapsedSeconds % 60).toString().padStart(2, '0');
+                    document.getElementById('timer').innerText = m + ":" + s;
+                }}, 1000);
+            }}
+
+            // Sudoku Çözüm Kontrolü
+            function checkSudokuSolved() {{
+                for (let r = 0; r < N; r++) {{
+                    for (let c = 0; c < N; c++) {{
+                        if (currentBoard[r][c] === 0) return false;
+                    }}
+                }}
+
+                // Satır ve Sütun Kontrolü
+                for (let i = 0; i < N; i++) {{
+                    let rowSet = new Set();
+                    let colSet = new Set();
+                    for (let j = 0; j < N; j++) {{
+                        let rVal = currentBoard[i][j];
+                        let cVal = currentBoard[j][i];
+                        if (rowSet.has(rVal) || colSet.has(cVal)) return false;
+                        rowSet.add(rVal);
+                        colSet.add(cVal);
+                    }}
+                }}
+
+                // Blok Kontrolü
+                for (let r = 0; r < N; r += subSize) {{
+                    for (let c = 0; c < N; c += subSize) {{
+                        let blockSet = new Set();
+                        for (let i = 0; i < subSize; i++) {{
+                            for (let j = 0; j < subSize; j++) {{
+                                let val = currentBoard[r + i][c + j];
+                                if (blockSet.has(val)) return false;
+                                blockSet.add(val);
+                            }}
+                        }}
+                    }}
+                }}
+                return true;
+            }}
+
+            // Grid Render
+            const gridEl = document.getElementById('sudoku-grid');
+            for (let r = 0; r < N; r++) {{
+                for (let c = 0; c < N; c++) {{
+                    const input = document.createElement('input');
+                    input.type = 'text';
+                    input.maxLength = N > 9 ? 2 : 1;
+                    input.classList.add('cell');
+
+                    if ((c + 1) % subSize === 0 && c < N - 1) input.classList.add('border-right');
+                    if ((r + 1) % subSize === 0 && r < N - 1) input.classList.add('border-bottom');
+
+                    if (initialBoard[r][c] !== 0) {{
+                        input.value = initialBoard[r][c];
+                        input.classList.add('fixed');
+                        input.readOnly = true;
+                    }} else {{
+                        input.addEventListener('input', (e) => {{
+                            if (isCompleted) return;
+                            let val = e.target.value.trim();
+                            if (/^\d+$/.test(val)) {{
+                                let num = parseInt(val, 10);
+                                if (num >= 1 && num <= N) {{
+                                    currentBoard[r][c] = num;
+                                }} else {{
+                                    e.target.value = '';
+                                    currentBoard[r][c] = 0;
+                                }}
+                            }} else {{
+                                e.target.value = '';
+                                currentBoard[r][c] = 0;
+                            }}
+
+                            // Anlık Bitiş Kontrolü
+                            if (checkSudokuSolved()) {{
+                                isCompleted = true;
+                                clearInterval(timerInterval);
+                                document.getElementById('final-time').innerText = document.getElementById('timer').innerText;
+                                document.getElementById('win-banner').style.display = 'block';
+                            }}
+                        }});
+                    }}
+                    gridEl.appendChild(input);
+                }
+            }}
+
+            startTimer();
+        </script>
+    </body>
+    </html>
+    """
+
+    components.html(custom_sudoku_component, height=750, scrolling=False)
