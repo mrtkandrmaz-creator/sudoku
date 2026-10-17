@@ -217,7 +217,6 @@ else:
     N = sub_size * sub_size
     initial_grid_json = json.dumps(st.session_state.initial_board)
 
-    # Profesyonel Tailwind Destekli Bileşen (F-string parantezleri tam uyumlu kaçışlı)
     custom_sudoku_component = f"""
     <!DOCTYPE html>
     <html>
@@ -363,6 +362,8 @@ else:
                 for (let c = 0; c < N; c++) {{
                     const input = document.createElement('input');
                     input.type = 'text';
+                    input.inputMode = 'numeric'; // Sadece sayısal klavye tetiklemesi için
+                    input.pattern = '[0-9]*';
                     input.maxLength = N > 9 ? 2 : 1;
                     input.className = 'sudoku-cell';
 
