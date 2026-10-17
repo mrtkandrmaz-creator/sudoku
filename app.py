@@ -6,7 +6,7 @@ from groq import Groq
 from google import genai
 
 # ==========================================
-# 1. SAYFA VE TEMA AYARLARI (Görsel Temaya Uygun Minimalist CSS)
+# 1. SAYFA VE TEMA AYARLARI (Modern Minimalist CSS)
 # ==========================================
 st.set_page_config(
     page_title="Pro Sudoku AI Studio",
@@ -17,63 +17,57 @@ st.set_page_config(
 
 st.markdown("""
 <style>
-    /* Arka Plan */
+    /* Genel Arka Plan ve Tipografi */
     .stApp {
         background-color: #f8fafc;
         color: #1e293b;
     }
     
-    /* Text Input Alanlarının CSS Özelleştirmesi */
+    /* Text Input Kutuları */
     div[data-baseweb="input"] {
-        border-radius: 4px !important;
+        border-radius: 6px !important;
         border: 1px solid #cbd5e1 !important;
         background-color: #ffffff !important;
-        height: 48px !important;
+        height: 50px !important;
     }
     
     div[data-baseweb="input"]:focus-within {
-        border-color: #64748b !important;
-        box-shadow: 0 0 0 2px rgba(100, 116, 139, 0.2) !important;
+        border-color: #3b82f6 !important;
+        box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.2) !important;
     }
     
-    /* Rakamların Metin Özellikleri ve Ortalanması */
+    /* Rakam Stili */
     .stTextInput input {
         text-align: center !important;
-        font-weight: 600 !important;
+        font-weight: 700 !important;
         font-size: 1.4rem !important;
-        color: #1e293b !important;
+        color: #0f172a !important;
         padding: 0 !important;
     }
 
-    /* Sabit (AI Tarafından Verilen) Rakam Hücreleri */
+    /* Sabit (AI) Hücreler */
     .fixed-cell {
         background-color: #f1f5f9;
         color: #334155;
         text-align: center;
-        line-height: 48px;
-        height: 48px;
-        border-radius: 4px;
-        border: 1px solid #e2e8f0;
+        line-height: 50px;
+        height: 50px;
+        border-radius: 6px;
+        border: 1px solid #cbd5e1;
         font-weight: 700;
         font-size: 1.4rem;
         user-select: none;
     }
 
-    /* Görseldeki Çizgi Kalınlıkları ve Blok Ayrımı */
+    /* Blok Kalın Çizgileri */
     .block-border-right {
-        border-right: 3px solid #64748b !important;
-        padding-right: 4px !important;
+        border-right: 3px solid #475569 !important;
     }
     .block-border-bottom {
-        border-bottom: 3px solid #64748b !important;
-        padding-bottom: 4px !important;
+        border-bottom: 3px solid #475569 !important;
     }
     
-    /* Streamlit varsayılan boşluklarını daraltma */
-    [data-testid="column"] {
-        padding: 1px !important;
-    }
-    
+    /* Buton Tasarımları */
     .stButton>button {
         width: 100%;
         border-radius: 8px;
@@ -82,10 +76,25 @@ st.markdown("""
         color: #ffffff;
         border: none;
         padding: 10px 0;
+        transition: all 0.2s;
     }
     .stButton>button:hover {
         background-color: #475569;
         color: #ffffff;
+    }
+    
+    /* Modern Sayaç Kutusu */
+    .timer-card {
+        background: #ffffff;
+        border: 1px solid #e2e8f0;
+        padding: 12px 20px;
+        border-radius: 10px;
+        text-align: center;
+        font-weight: 600;
+        font-size: 1.1rem;
+        color: #334155;
+        box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+        margin-bottom: 20px;
     }
 </style>
 """, unsafe_allow_html=True)
@@ -134,15 +143,12 @@ def generate_local_sudoku(sub_size, difficulty):
     return board
 
 # ==========================================
-# 4. AI ENTEGRASYONU (Groq + Gemini GenAI SDK)
+# 4. AI ENTEGRASYONU
 # ==========================================
 def call_groq_api(prompt):
     if not GROQ_KEYS:
-        raise ValueError("st.secrets['api_keys']['groq_keys'] altında hiç Groq API Key tanımlanmamış.")
-    
-    last_error = None
+        raise ValueError("Groq anahtarı yok.")
     models_to_try = ["llama-3.3-70b-versatile", "llama3-70b-8192", "mixtral-8x7b-32768"]
-    
     for key in GROQ_KEYS:
         client = Groq(api_key=key)
         for model in models_to_try:
@@ -150,92 +156,63 @@ def call_groq_api(prompt):
                 completion = client.chat.completions.create(
                     model=model,
                     messages=[
-                        {"role": "system", "content": "Sen sadece geçerli JSON döndüren bir Sudoku motorusun. Yanıtında hiçbir markdown veya ekstra açıklama metni olmamalıdır."},
+                        {"role": "system", "content": "Sen sadece geçerli JSON döndüren bir Sudoku motorusun. Yanıtında ekstra açıklama olmasın."},
                         {"role": "user", "content": prompt}
                     ],
                     temperature=0.2,
                     response_format={"type": "json_object"}
                 )
                 return completion.choices[0].message.content
-            except Exception as e:
-                last_error = e
+            except Exception:
                 continue
-            
-    raise ValueError(f"Tüm Groq API anahtarları/modelleri başarısız oldu. Son Hata: {last_error}")
+    raise ValueError("Groq başarısız.")
 
 def call_gemini_api(prompt):
     if not GEMINI_KEYS:
-        raise ValueError("st.secrets['api_keys']['gemini_keys'] altında hiç Gemini API Key tanımlanmamış.")
-    
-    last_error = None
+        raise ValueError("Gemini anahtarı yok.")
     models_to_try = ["gemini-3.6-flash", "gemini-2.0-flash", "gemini-1.5-flash"]
-    
     for key in GEMINI_KEYS:
         client = genai.Client(api_key=key)
         for model_name in models_to_try:
             try:
-                response = client.models.generate_content(
-                    model=model_name,
-                    contents=prompt,
-                )
+                response = client.models.generate_content(model=model_name, contents=prompt)
                 return response.text
-            except Exception as e:
-                last_error = e
+            except Exception:
                 continue
-
-    raise ValueError(f"Tüm Gemini API anahtarları/modelleri başarısız oldu. Son Hata: {last_error}")
+    raise ValueError("Gemini başarısız.")
 
 def generate_sudoku_ai(sub_box_size, difficulty):
     N = sub_box_size * sub_box_size
     prompt = f"""
-    {N}x{N} boyutunda ({sub_box_size}x{sub_box_size} alt bloklardan oluşan) geçerli ve çözülebilir bir Sudoku tahtası üret.
-    Zorluk Seviyesi: {difficulty}.
-    
-    Kurallar:
-    - Rakamlar 1 ile {N} arasında olmalıdır.
-    - Boş hücreleri 0 (sıfır) ile temsil et.
-    - Çıktı kesinlikle geçerli bir JSON olmalıdır.
-    
-    JSON Formatı Örneği:
-    {{
-        "grid": [
-            [0, 1, ...],
-            [...]
-        ]
-    }}
+    {N}x{N} boyutunda ({sub_box_size}x{sub_box_size} alt bloklu) geçerli ve çözülebilir bir Sudoku üret.
+    Zorluk: {difficulty}.
+    Boş hücreleri 0 yap. Kesinlikle geçerli JSON döndür:
+    {{"grid": [[...]]}}
     """
-    
-    raw_response = None
-    used_service = None
-
     try:
-        raw_response = call_groq_api(prompt)
-        used_service = "Groq API"
-    except Exception as e_groq:
+        raw = call_groq_api(prompt)
+        service = "Groq API"
+    except Exception:
         try:
-            raw_response = call_gemini_api(prompt)
-            used_service = "Gemini API"
-        except Exception as e_gemini:
-            st.warning("API yanıt vermediği için yerel algoritma ile bulmaca oluşturuldu.")
+            raw = call_gemini_api(prompt)
+            service = "Gemini API"
+        except Exception:
             grid = generate_local_sudoku(sub_box_size, difficulty)
-            return grid, "Yerel Algoritma (Offline)"
+            return grid, "Yerel Algoritma"
 
     try:
-        clean_json = re.sub(r'```json\s*|\s*```', '', raw_response).strip()
+        clean_json = re.sub(r'```json\s*|\s*```', '', raw).strip()
         data = json.loads(clean_json)
         grid = data.get("grid", [])
-        
         if len(grid) == N and all(len(row) == N for row in grid):
-            return grid, used_service
-        else:
-            grid = generate_local_sudoku(sub_box_size, difficulty)
-            return grid, "Yerel Algoritma (Yedek)"
+            return grid, service
     except Exception:
-        grid = generate_local_sudoku(sub_box_size, difficulty)
-        return grid, "Yerel Algoritma (Yedek)"
+        pass
+    
+    return generate_local_sudoku(sub_box_size, difficulty), "Yerel Algoritma"
 
 # ==========================================
-# 5. YARDIMCI VE KONTROL FONKSİYONLARI
+# 5. KONTROL FONKSİYONLARI
 # ==========================================
 def is_valid_sudoku(grid, sub_size):
     N = sub_size * sub_size
@@ -266,7 +243,7 @@ def is_solved(grid, sub_size):
     return is_valid_sudoku(grid, sub_size)
 
 # ==========================================
-# 6. STATE (DURUM) YÖNETİMİ
+# 6. STATE YÖNETİMİ
 # ==========================================
 if "sub_size" not in st.session_state:
     st.session_state.sub_size = 3
@@ -276,16 +253,18 @@ if "initial_board" not in st.session_state:
     st.session_state.initial_board = None
 if "active_service" not in st.session_state:
     st.session_state.active_service = None
+if "time_left" not in st.session_state:
+    st.session_state.time_left = 600
 
 # ==========================================
-# 7. YAN PANEL (KONTROL MERKEZİ)
+# 7. YAN PANEL
 # ==========================================
 with st.sidebar:
     st.title("🧩 Sudoku Ayarları")
     st.markdown("---")
     
     block_option = st.selectbox(
-        "Izgara / Blok Formatı Seçin:",
+        "Izgara / Blok Formatı:",
         options=["2x2 (4x4 Izgara)", "3x3 (9x9 Standart)", "4x4 (16x16 Izgara)", "5x5 (25x25 Izgara)", "6x6 (36x36 Izgara)"],
         index=1
     )
@@ -307,35 +286,55 @@ with st.sidebar:
     st.markdown("---")
     
     if st.button("🚀 Yeni Oyun Oluştur", type="primary"):
-        with st.spinner("AI Oyunu Hazırlıyor..."):
+        with st.spinner("AI Sudoku Hazırlanıyor..."):
             grid, service = generate_sudoku_ai(selected_sub_size, difficulty)
             if grid:
                 st.session_state.sub_size = selected_sub_size
                 st.session_state.board = [row[:] for row in grid]
                 st.session_state.initial_board = [row[:] for row in grid]
                 st.session_state.active_service = service
+                
+                # Zorluğa göre süre belirleme (Saniye cinsinden)
+                time_map = {"Kolay": 600, "Orta": 900, "Zor": 1200, "Uzman": 1800}
+                st.session_state.time_left = time_map.get(difficulty, 900)
                 st.rerun()
 
     if st.session_state.active_service:
-        st.success(f"Aktif Motor:\n**{st.session_state.active_service}**")
-        
-    st.info(f"Yüklenen Key Sayıları:\n- Groq: **{len(GROQ_KEYS)} Adet**\n- Gemini: **{len(GEMINI_KEYS)} Adet**")
+        st.success(f"Motor: **{st.session_state.active_service}**")
 
 # ==========================================
 # 8. ANA EKRAN & İNTERAKTİF HÜCRELER
 # ==========================================
-st.title("🧩 Sudoku Oyunu")
+st.title("🎮 Modern AI Sudoku")
 
 if st.session_state.board is None:
-    st.warning("Lütfen sol paneldeki **'Yeni Oyun Oluştur'** butonuna basarak oyunu başlatın.")
+    st.warning("Sol panelden **'Yeni Oyun Oluştur'** butonuna basarak oyuna başlayın.")
 else:
     sub_size = st.session_state.sub_size
     N = sub_size * sub_size
     
-    st.caption(f"Boyut: **{N}x{N}** | Bloklar: **{sub_size}x{sub_size}** | Değer Aralığı: **1 - {N}**")
-    
-    # Ortalanmış Sudoku Çerçevesi
-    left_pad, main_col, right_pad = st.columns([1, 10, 1])
+    # Üst Bilgi ve Sayaç Alanı
+    top_col1, top_col2 = st.columns([2, 1])
+    with top_col1:
+        st.markdown(f"**Boyut:** {N}x{N} | **Blok:** {sub_size}x{sub_size}")
+    with top_col2:
+        mins, secs = divmod(st.session_state.time_left, 60)
+        st.markdown(f'<div class="timer-card">⏱️ Kalan Süre: {mins:02d}:{secs:02d}</div>', unsafe_allow_html=True)
+
+    # Anlık Input Güncelleme Fonksiyonu (Enter tuşu gerektirmez)
+    def update_cell(r, c):
+        val = st.session_state[f"cell_{r}_{c}"]
+        if val.isdigit():
+            num = int(val)
+            if 1 <= num <= N:
+                st.session_state.board[r][c] = num
+            else:
+                st.session_state.board[r][c] = 0
+        else:
+            st.session_state.board[r][c] = 0
+
+    # Sudoku Tahtası Yerleşimi
+    _, main_col, _ = st.columns([0.5, 9, 0.5])
     
     with main_col:
         for r in range(N):
@@ -344,14 +343,13 @@ else:
                 val = st.session_state.board[r][c]
                 is_read_only = (st.session_state.initial_board[r][c] != 0)
                 
-                # Blok Ayrım Çizgileri
                 border_class = ""
                 if (c + 1) % sub_size == 0 and c < N - 1:
                     border_class += " block-border-right"
                 if (r + 1) % sub_size == 0 and r < N - 1:
                     border_class += " block-border-bottom"
                 
-                key = f"cell_{r}_{c}"
+                cell_key = f"cell_{r}_{c}"
                 
                 with cols[c]:
                     if is_read_only:
@@ -361,40 +359,31 @@ else:
                         )
                     else:
                         current_str = str(val) if val != 0 else ""
-                        input_val = st.text_input(
+                        st.text_input(
                             label=f"r{r}c{c}",
                             value=current_str,
-                            key=key,
+                            key=cell_key,
                             max_chars=2 if N > 9 else 1,
-                            label_visibility="collapsed"
+                            label_visibility="collapsed",
+                            on_change=update_cell,
+                            args=(r, c)
                         )
-                        
-                        # Girilen metnin rakam kontrolü ve güncellenmesi
-                        if input_val.isdigit():
-                            parsed_val = int(input_val)
-                            if 1 <= parsed_val <= N:
-                                st.session_state.board[r][c] = parsed_val
-                            else:
-                                st.session_state.board[r][c] = 0
-                        else:
-                            st.session_state.board[r][c] = 0
 
     st.markdown("---")
     
     col_btn1, col_btn2 = st.columns(2)
-    
     with col_btn1:
         if st.button("🔍 Hamleleri Kontrol Et"):
             if is_valid_sudoku(st.session_state.board, sub_size):
                 if is_solved(st.session_state.board, sub_size):
                     st.balloons()
-                    st.success("🎉 TEBRİKLER! Bulmacayı eksiksiz ve doğru şekilde çözdünüz!")
+                    st.success("🎉 TEBRİKLER! Bulmacayı mükemmel şekilde tamamladınız!")
                 else:
-                    st.info("👍 Şimdiye kadar girdiğiniz tüm rakamlar kurallara uygun. Çözmeye devam edin!")
+                    st.info("👍 Harika gidiyorsun! Şu ana kadarki hamlelerin kurallara uygun.")
             else:
-                st.error("⚠️ Tahtada çakışan (kural dışı) rakamlar var! Lütfen kontrol edin.")
+                st.error("⚠️ Tahtada kural dışı çakışan rakamlar var!")
                 
     with col_btn2:
-        if st.button("🔄 Sıfırla (Başa Dön)"):
+        if st.button("🔄 Oyunu Sıfırla"):
             st.session_state.board = [row[:] for row in st.session_state.initial_board]
             st.rerun()
