@@ -203,7 +203,7 @@ if not st.session_state.game_started:
     <div style="background: linear-gradient(135deg, #ffffff 0%, #fff7ed 100%); border: 2px solid #fed7aa; padding: 35px; border-radius: 16px; margin-top: 20px; box-shadow: 0 10px 30px rgba(234, 88, 12, 0.08);">
         <h2 style="color: #ea580c; margin-top: 0; font-weight: 800;">✨ Profesyonel Sudoku Deneyimine Hoş Geldiniz</h2>
         <p style="font-size: 1.15rem; line-height: 1.7; color: #334155;">
-            Yenilenen yüksek performanslı HTML5 Canvas mimarisi, kusursuz blok kenarlıkları ve anlık otomatik bitiş algoritmalarıyla donatılmıştır. 
+            Yenilenen esnek mimari ve tam ekran uyumlu ızgara yapısıyla donatılmıştır. 
             Sol panelden matris boyutunu ve zorluk derecesini seçip <b>"Oyuna Başla"</b> butonuna tıklayarak hemen maceraya atılabilirsiniz.
         </p>
         <hr style="border-color: #fed7aa; margin: 20px 0;">
@@ -217,6 +217,9 @@ else:
     N = sub_size * sub_size
     initial_grid_json = json.dumps(st.session_state.initial_board)
 
+    # Dinamik hücre boyutu hesaplama (Büyük ızgaraların ekrana sığması için)
+    cell_size = max(32, min(52, 450 // N))
+
     custom_sudoku_component = f"""
     <!DOCTYPE html>
     <html>
@@ -227,32 +230,35 @@ else:
             body {{
                 background-color: #f8fafc;
                 margin: 0;
-                padding: 10px;
+                padding: 5px;
                 display: flex;
                 flex-direction: column;
                 align-items: center;
-                justify-content: center;
+                justify-content: flex-start;
+                overflow-x: hidden;
             }}
             .sudoku-wrapper {{
                 background: #0f172a;
                 padding: 6px;
                 border-radius: 12px;
                 box-shadow: 0 20px 35px -10px rgba(15, 23, 42, 0.3);
+                max-width: 100%;
+                overflow-x: auto;
             }}
             .grid-container {{
                 display: grid;
-                grid-template-columns: repeat({N}, 1fr);
+                grid-template-columns: repeat({N}, {cell_size}px);
                 gap: 1px;
                 background-color: #475569;
             }}
             .sudoku-cell {{
-                width: {min(520 // N, 65)}px;
-                height: {min(520 // N, 65)}px;
+                width: {cell_size}px;
+                height: {cell_size}px;
                 background-color: #ffffff;
                 display: flex;
                 align-items: center;
                 justify-content: center;
-                font-size: {max(1.1, 2.0 - (N * 0.06))}rem;
+                font-size: {max(0.9, 1.5 - (N * 0.03))}rem;
                 font-weight: 800;
                 color: #0f172a;
                 outline: none;
@@ -285,12 +291,12 @@ else:
     <body>
 
         <!-- Üst Bilgi Kartı -->
-        <div class="w-full max-w-lg flex justify-between items-center bg-white border-2 border-orange-500 px-6 py-3.5 rounded-xl mb-6 shadow-sm">
+        <div class="w-full max-w-md flex justify-between items-center bg-white border-2 border-orange-500 px-5 py-2.5 rounded-xl mb-4 shadow-sm">
             <div class="flex items-center space-x-2">
-                <span class="text-xl">⏱️</span>
-                <span class="font-extrabold text-orange-600 text-base">Geçen Süre:</span>
+                <span class="text-lg">⏱️</span>
+                <span class="font-extrabold text-orange-600 text-sm">Geçen Süre:</span>
             </div>
-            <div id="timer" class="font-black text-slate-800 text-xl tracking-wider font-mono">00:00</div>
+            <div id="timer" class="font-black text-slate-800 text-lg tracking-wider font-mono">00:00</div>
         </div>
 
         <!-- Sudoku Tahtası -->
@@ -299,7 +305,7 @@ else:
         </div>
 
         <!-- Zafer Kutlama Banner -->
-        <div id="win-banner" class="hidden w-full max-w-lg bg-emerald-50 border-2 border-emerald-500 text-emerald-800 p-5 rounded-xl text-center font-extrabold text-lg mt-6 shadow-md animate-bounce">
+        <div id="win-banner" class="hidden w-full max-w-md bg-emerald-50 border-2 border-emerald-500 text-emerald-800 p-4 rounded-xl text-center font-extrabold text-base mt-4 shadow-md animate-bounce">
             🎉 MÜKEMMEL! Bulmacayı <span id="final-time" class="text-emerald-600 underline"></span> sürede kusursuz tamamladınız!
         </div>
 
@@ -312,7 +318,6 @@ else:
             let timerInterval = null;
             let isCompleted = false;
 
-            // Sayaç Fonksiyonu
             function startTimer() {{
                 timerInterval = setInterval(() => {{
                     if (isCompleted) return;
@@ -323,7 +328,6 @@ else:
                 }}, 1000);
             }}
 
-            // Anlık Çözüm Denetleyicisi
             function checkSolved() {{
                 for (let r = 0; r < N; r++) {{
                     for (let c = 0; c < N; c++) {{
@@ -356,13 +360,12 @@ else:
                 return true;
             }}
 
-            // Grid İnşası
             const gridEl = document.getElementById('sudoku-grid');
             for (let r = 0; r < N; r++) {{
                 for (let c = 0; c < N; c++) {{
                     const input = document.createElement('input');
                     input.type = 'text';
-                    input.inputMode = 'numeric'; // Sadece sayısal klavye tetiklemesi için
+                    input.inputMode = 'numeric';
                     input.pattern = '[0-9]*';
                     input.maxLength = N > 9 ? 2 : 1;
                     input.className = 'sudoku-cell';
@@ -395,8 +398,7 @@ else:
                                 isCompleted = true;
                                 clearInterval(timerInterval);
                                 document.getElementById('final-time').innerText = document.getElementById('timer').innerText;
-                                const banner = document.getElementById('win-banner');
-                                banner.classList.remove('hidden');
+                                document.getElementById('win-banner').classList.remove('hidden');
                             }}
                         }});
                     }}
@@ -410,4 +412,6 @@ else:
     </html>
     """
 
-    components.html(custom_sudoku_component, height=680, scrolling=False)
+    # Dinamik iframe yüksekliği hesabı (taşmaları ve kaydırma çubuklarını önlemek için)
+    dynamic_height = max(500, (N * cell_size) + 140)
+    components.html(custom_sudoku_component, height=dynamic_height, scrolling=False)
