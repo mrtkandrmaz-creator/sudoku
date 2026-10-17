@@ -415,7 +415,3 @@ else:
         if st.button("🔄 Oyunu Sıfırla"):
             st.session_state.board = [row[:] for row in st.session_state.initial_board]
             st.rerun()
-
-<FollowUp>
-- Tasarım ve giriş ekranı şimdi tam istediğiniz gibi net ve sorunsuz çalışıyor mu?
-</FollowUp>
