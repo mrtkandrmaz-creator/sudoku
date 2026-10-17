@@ -6,91 +6,113 @@ from groq import Groq
 from google import genai
 
 # ==========================================
-# 1. SAYFA VE TEMA AYARLARI (Modern Kare Hücre & Kalın Kenarlık CSS)
+# 1. SAYFA VE TEMA AYARLARI (Futuristik & Modern UI)
 # ==========================================
 st.set_page_config(
-    page_title="Pro Sudoku AI Studio",
-    page_icon="🧩",
+    page_title="Cyber Sudoku Nexus",
+    page_icon="🌌",
     layout="wide",
     initial_sidebar_state="expanded"
 )
 
 st.markdown("""
 <style>
+    /* Futuristik Koyu Tema Arka Planı ve Renkler */
     .stApp {
-        background-color: #f8fafc;
-        color: #1e293b;
+        background: radial-gradient(circle at center, #0f172a 0%, #090d16 100%);
+        color: #f8fafc;
     }
     
-    /* Hücreleri Daha Kare ve Estetik Yapma */
+    /* Yan Panel Özelleştirmesi */
+    section[data-testid="stSidebar"] {
+        background-color: #0f172a;
+        border-right: 2px solid #1e293b;
+    }
+
+    /* Kalın ve Belirgin Çerçeveler / Kutular */
     div[data-baseweb="input"] {
-        border-radius: 6px !important;
-        border: 1px solid #cbd5e1 !important;
-        background-color: #ffffff !important;
-        height: 52px !important;
+        border-radius: 8px !important;
+        border: 2px solid #3b82f6 !important;
+        background-color: #1e293b !important;
+        height: 55px !important;
     }
     
     div[data-baseweb="input"]:focus-within {
-        border-color: #3b82f6 !important;
-        box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.25) !important;
+        border-color: #60a5fa !important;
+        box-shadow: 0 0 15px rgba(59, 130, 246, 0.4) !important;
     }
     
     .stTextInput input {
         text-align: center !important;
-        font-weight: 700 !important;
-        font-size: 1.35rem !important;
-        color: #0f172a !important;
+        font-weight: 800 !important;
+        font-size: 1.5rem !important;
+        color: #38bdf8 !important;
         padding: 0 !important;
     }
 
-    /* Sabit Hücreler (Kare & Şık) */
+    /* Sabit (AI) Hücreler - Kalın Çerçeveli ve Kare (1:1) */
     .fixed-cell {
-        background-color: #f1f5f9;
-        color: #334155;
+        background-color: #1e293b;
+        color: #94a3b8;
         text-align: center;
-        line-height: 52px;
-        height: 52px;
-        border-radius: 6px;
-        border: 1px solid #cbd5e1;
-        font-weight: 700;
-        font-size: 1.35rem;
+        line-height: 55px;
+        height: 55px;
+        border-radius: 8px;
+        border: 2px solid #475569;
+        font-weight: 800;
+        font-size: 1.5rem;
         user-select: none;
     }
 
-    /* Kalın Blok Kenarlıkları */
+    /* Çok Kalın Blok Kenarlıkları */
     .block-border-right {
-        border-right: 4px solid #334155 !important;
+        border-right: 5px solid #38bdf8 !important;
     }
     .block-border-bottom {
-        border-bottom: 4px solid #334155 !important;
+        border-bottom: 5px solid #38bdf8 !important;
     }
     
+    /* Futuristik Butonlar */
     .stButton>button {
         width: 100%;
-        border-radius: 8px;
-        font-weight: 600;
-        background-color: #334155;
+        border-radius: 10px;
+        font-weight: 700;
+        background: linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%);
         color: #ffffff;
-        border: none;
-        padding: 10px 0;
-        transition: all 0.2s;
+        border: 2px solid #60a5fa;
+        padding: 12px 0;
+        transition: all 0.3s ease;
+        box-shadow: 0 4px 12px rgba(59, 130, 246, 0.3);
     }
     .stButton>button:hover {
-        background-color: #475569;
-        color: #ffffff;
+        background: linear-gradient(135deg, #2563eb 0%, #1e40af 100%);
+        box-shadow: 0 6px 18px rgba(59, 130, 246, 0.5);
+        transform: translateY(-2px);
     }
     
+    /* Okunaklı ve Modern Neon Sayaç Kartı */
     .timer-card {
-        background: #ffffff;
-        border: 1px solid #e2e8f0;
-        padding: 10px 18px;
-        border-radius: 10px;
+        background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%);
+        border: 2px solid #3b82f6;
+        padding: 14px 24px;
+        border-radius: 12px;
         text-align: center;
-        font-weight: 600;
-        font-size: 1.05rem;
-        color: #334155;
-        box-shadow: 0 1px 3px rgba(0,0,0,0.05);
-        margin-bottom: 15px;
+        font-weight: 800;
+        font-size: 1.3rem;
+        color: #38bdf8;
+        box-shadow: 0 0 20px rgba(59, 130, 246, 0.2);
+        margin-bottom: 20px;
+        letter-spacing: 2px;
+    }
+    
+    /* Karşılama Ekranı Tasarımı */
+    .welcome-card {
+        background: rgba(30, 41, 59, 0.7);
+        border: 3px solid #3b82f6;
+        padding: 30px;
+        border-radius: 16px;
+        box-shadow: 0 0 30px rgba(59, 130, 246, 0.2);
+        margin-top: 20px;
     }
 </style>
 """, unsafe_allow_html=True)
@@ -249,15 +271,24 @@ if "initial_board" not in st.session_state:
     st.session_state.initial_board = None
 if "active_service" not in st.session_state:
     st.session_state.active_service = None
+if "game_started" not in st.session_state:
+    st.session_state.game_started = False
 if "time_left" not in st.session_state:
     st.session_state.time_left = 600
 
 # ==========================================
-# 7. YAN PANEL
+# 7. YAN PANEL (Açılır Seçim Pencereleri)
 # ==========================================
 with st.sidebar:
-    st.title("🧩 Sudoku Ayarları")
+    st.title("🌌 Nexus Kontrolleri")
     st.markdown("---")
+    
+    # Kaydırma çubuğu olmadan açılır kutu (selectbox) ile zorluk seçimi
+    difficulty = st.selectbox(
+        "Zorluk Derecesi:",
+        options=["Kolay", "Orta", "Zor", "Uzman"],
+        index=1
+    )
     
     block_option = st.selectbox(
         "Izgara / Blok Formatı:",
@@ -274,43 +305,62 @@ with st.sidebar:
     }
     selected_sub_size = sub_size_map[block_option]
     
-    difficulty = st.select_slider(
-        "Zorluk Seviyesi:",
-        options=["Kolay", "Orta", "Zor", "Uzman"]
-    )
-    
     st.markdown("---")
     
-    if st.button("🚀 Yeni Oyun Oluştur", type="primary"):
-        with st.spinner("AI Sudoku Hazırlanıyor..."):
+    # Oyuna Başla Butonu (Süreyi ve Oyunu Başlatır)
+    if st.button("🚀 Oyuna Başla", type="primary"):
+        with st.spinner("Yapay Zeka Bulmacayı Oluşturuyor..."):
             grid, service = generate_sudoku_ai(selected_sub_size, difficulty)
             if grid:
                 st.session_state.sub_size = selected_sub_size
                 st.session_state.board = [row[:] for row in grid]
                 st.session_state.initial_board = [row[:] for row in grid]
                 st.session_state.active_service = service
+                st.session_state.game_started = True
                 
                 time_map = {"Kolay": 600, "Orta": 900, "Zor": 1200, "Uzman": 1800}
                 st.session_state.time_left = time_map.get(difficulty, 900)
                 st.rerun()
 
+    # Oyunu Bitir Butonu
+    if st.session_state.game_started:
+        if st.button("🛑 Oyunu Bitir"):
+            st.session_state.game_started = False
+            st.session_state.board = None
+            st.session_state.initial_board = None
+            st.rerun()
+
     if st.session_state.active_service:
         st.success(f"Motor: **{st.session_state.active_service}**")
 
 # ==========================================
-# 8. ANA EKRAN & İNTERAKTİF HÜCRELER
+# 8. ANA EKRAN & AKIŞ
 # ==========================================
-st.title("🎮 Modern AI Sudoku")
+st.title("🧩 Cyber Sudoku Nexus")
 
-if st.session_state.board is None:
-    st.warning("Sol panelden **'Yeni Oyun Oluştur'** butonuna basarak oyuna başlayın.")
+# Eğer oyun henüz başlamadıysa Karşılama ve Açıklama Ekranı Göster
+if not st.session_state.game_started:
+    st.markdown("""
+    <div class="welcome-card">
+        <h2>✨ Hoş Geldiniz!</h2>
+        <p style="font-size: 1.1rem; line-height: 1.6; color: #cbd5e1;">
+            <b>Cyber Sudoku Nexus</b>, yapay zeka entegrasyonuyla desteklenen futuristik ve modern bir bulmaca deneyimidir. 
+            Sol panelden zorluk derecenizi ve ızgara formatınızı seçip <b>"Oyuna Başla"</b> butonuna basarak kronometreyi 
+            başlatabilir ve zekanızı test edebilirsiniz.
+        </p>
+        <hr style="border-color: #334155; margin: 20px 0;">
+        <p style="color: #38bdf8; font-weight: 600;">
+            🚀 Hazır olduğunuzda sol menüden ayarlarınızı yapıp maceraya başlayın!
+        </p>
+    </div>
+    """, unsafe_allow_html=True)
 else:
     sub_size = st.session_state.sub_size
     N = sub_size * sub_size
     
     top_col1, top_col2 = st.columns([2, 1])
     with top_col1:
-        st.markdown(f"**Boyut:** {N}x{N} | **Blok:** {sub_size}x{sub_size}")
+        st.markdown(f"**Boyut:** {N}x{N} | **Blok Yapısı:** {sub_size}x{sub_size}")
     with top_col2:
         mins, secs = divmod(st.session_state.time_left, 60)
         st.markdown(f'<div class="timer-card">⏱️ Kalan Süre: {mins:02d}:{secs:02d}</div>', unsafe_allow_html=True)
@@ -326,7 +376,8 @@ else:
         else:
             st.session_state.board[r][c] = 0
 
-    _, main_col, _ = st.columns([0.5, 9, 0.5])
+    # Doğru Orantılı Kareye Yakın Görünüm İçin Boşluk Oranları
+    _, main_col, _ = st.columns([1, 8, 1])
     
     with main_col:
         for r in range(N):
@@ -369,7 +420,7 @@ else:
             if is_valid_sudoku(st.session_state.board, sub_size):
                 if is_solved(st.session_state.board, sub_size):
                     st.balloons()
-                    st.success("🏆 İnanılmaz bir zeka! Sudoku bulmacasını kusursuz bir şekilde ve harika bir mantıkla tamamladın! Seninle gurur duyuyorum!")
+                    st.success("🏆 İnanılmaz bir zeka! Sudoku bulmacasını kusursuz bir şekilde tamamladın! Seninle gurur duyuyorum!")
                 else:
                     st.info("👍 Harika gidiyorsun! Şu ana kadarki hamlelerin kurallara tamamen uygun, çözmeye devam et!")
             else:
@@ -379,3 +430,7 @@ else:
         if st.button("🔄 Oyunu Sıfırla"):
             st.session_state.board = [row[:] for row in st.session_state.initial_board]
             st.rerun()
+
+<FollowUp>
+- Tasarım, açılır menüler, karşılama ekranı ve sayaç akışı tam istediğiniz futuristik standarda ulaştı mı?
+</FollowUp>
