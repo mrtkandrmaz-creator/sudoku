@@ -6,7 +6,7 @@ from groq import Groq
 from google import genai
 
 # ==========================================
-# 1. SAYFA VE TEMA AYARLARI (Modern Minimalist CSS)
+# 1. SAYFA VE TEMA AYARLARI (Modern Kare Hücre & Kalın Kenarlık CSS)
 # ==========================================
 st.set_page_config(
     page_title="Pro Sudoku AI Studio",
@@ -17,57 +17,54 @@ st.set_page_config(
 
 st.markdown("""
 <style>
-    /* Genel Arka Plan ve Tipografi */
     .stApp {
         background-color: #f8fafc;
         color: #1e293b;
     }
     
-    /* Text Input Kutuları */
+    /* Hücreleri Daha Kare ve Estetik Yapma */
     div[data-baseweb="input"] {
         border-radius: 6px !important;
         border: 1px solid #cbd5e1 !important;
         background-color: #ffffff !important;
-        height: 50px !important;
+        height: 52px !important;
     }
     
     div[data-baseweb="input"]:focus-within {
         border-color: #3b82f6 !important;
-        box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.2) !important;
+        box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.25) !important;
     }
     
-    /* Rakam Stili */
     .stTextInput input {
         text-align: center !important;
         font-weight: 700 !important;
-        font-size: 1.4rem !important;
+        font-size: 1.35rem !important;
         color: #0f172a !important;
         padding: 0 !important;
     }
 
-    /* Sabit (AI) Hücreler */
+    /* Sabit Hücreler (Kare & Şık) */
     .fixed-cell {
         background-color: #f1f5f9;
         color: #334155;
         text-align: center;
-        line-height: 50px;
-        height: 50px;
+        line-height: 52px;
+        height: 52px;
         border-radius: 6px;
         border: 1px solid #cbd5e1;
         font-weight: 700;
-        font-size: 1.4rem;
+        font-size: 1.35rem;
         user-select: none;
     }
 
-    /* Blok Kalın Çizgileri */
+    /* Kalın Blok Kenarlıkları */
     .block-border-right {
-        border-right: 3px solid #475569 !important;
+        border-right: 4px solid #334155 !important;
     }
     .block-border-bottom {
-        border-bottom: 3px solid #475569 !important;
+        border-bottom: 4px solid #334155 !important;
     }
     
-    /* Buton Tasarımları */
     .stButton>button {
         width: 100%;
         border-radius: 8px;
@@ -83,18 +80,17 @@ st.markdown("""
         color: #ffffff;
     }
     
-    /* Modern Sayaç Kutusu */
     .timer-card {
         background: #ffffff;
         border: 1px solid #e2e8f0;
-        padding: 12px 20px;
+        padding: 10px 18px;
         border-radius: 10px;
         text-align: center;
         font-weight: 600;
-        font-size: 1.1rem;
+        font-size: 1.05rem;
         color: #334155;
         box-shadow: 0 1px 3px rgba(0,0,0,0.05);
-        margin-bottom: 20px;
+        margin-bottom: 15px;
     }
 </style>
 """, unsafe_allow_html=True)
@@ -122,7 +118,7 @@ GROQ_KEYS = get_groq_keys()
 GEMINI_KEYS = get_gemini_keys()
 
 # ==========================================
-# 3. YEREL SUDOKU ÜRETİCİSİ (FALLBACK/YEDEK)
+# 3. YEREL SUDOKU ÜRETİCİSİ (YEDEK)
 # ==========================================
 def generate_local_sudoku(sub_size, difficulty):
     N = sub_size * sub_size
@@ -156,7 +152,7 @@ def call_groq_api(prompt):
                 completion = client.chat.completions.create(
                     model=model,
                     messages=[
-                        {"role": "system", "content": "Sen sadece geçerli JSON döndüren bir Sudoku motorusun. Yanıtında ekstra açıklama olmasın."},
+                        {"role": "system", "content": "Sen sadece geçerli JSON döndüren bir Sudoku motorusun. Ekstra açıklama yapma."},
                         {"role": "user", "content": prompt}
                     ],
                     temperature=0.2,
@@ -294,7 +290,6 @@ with st.sidebar:
                 st.session_state.initial_board = [row[:] for row in grid]
                 st.session_state.active_service = service
                 
-                # Zorluğa göre süre belirleme (Saniye cinsinden)
                 time_map = {"Kolay": 600, "Orta": 900, "Zor": 1200, "Uzman": 1800}
                 st.session_state.time_left = time_map.get(difficulty, 900)
                 st.rerun()
@@ -313,7 +308,6 @@ else:
     sub_size = st.session_state.sub_size
     N = sub_size * sub_size
     
-    # Üst Bilgi ve Sayaç Alanı
     top_col1, top_col2 = st.columns([2, 1])
     with top_col1:
         st.markdown(f"**Boyut:** {N}x{N} | **Blok:** {sub_size}x{sub_size}")
@@ -321,7 +315,6 @@ else:
         mins, secs = divmod(st.session_state.time_left, 60)
         st.markdown(f'<div class="timer-card">⏱️ Kalan Süre: {mins:02d}:{secs:02d}</div>', unsafe_allow_html=True)
 
-    # Anlık Input Güncelleme Fonksiyonu (Enter tuşu gerektirmez)
     def update_cell(r, c):
         val = st.session_state[f"cell_{r}_{c}"]
         if val.isdigit():
@@ -333,7 +326,6 @@ else:
         else:
             st.session_state.board[r][c] = 0
 
-    # Sudoku Tahtası Yerleşimi
     _, main_col, _ = st.columns([0.5, 9, 0.5])
     
     with main_col:
@@ -377,11 +369,11 @@ else:
             if is_valid_sudoku(st.session_state.board, sub_size):
                 if is_solved(st.session_state.board, sub_size):
                     st.balloons()
-                    st.success("🎉 TEBRİKLER! Bulmacayı mükemmel şekilde tamamladınız!")
+                    st.success("🏆 İnanılmaz bir zeka! Sudoku bulmacasını kusursuz bir şekilde ve harika bir mantıkla tamamladın! Seninle gurur duyuyorum!")
                 else:
-                    st.info("👍 Harika gidiyorsun! Şu ana kadarki hamlelerin kurallara uygun.")
+                    st.info("👍 Harika gidiyorsun! Şu ana kadarki hamlelerin kurallara tamamen uygun, çözmeye devam et!")
             else:
-                st.error("⚠️ Tahtada kural dışı çakışan rakamlar var!")
+                st.error("⚠️ Dikkat! Tahtada kurallara uymayan çakışan rakamlar var. Hamlelerini gözden geçir.")
                 
     with col_btn2:
         if st.button("🔄 Oyunu Sıfırla"):
