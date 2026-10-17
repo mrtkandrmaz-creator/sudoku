@@ -61,23 +61,16 @@ st.markdown("""
         transform: translateY(-2px);
     }
 </style>
-""", unsafe_allow_allow_html=True)
+""", unsafe_allow_html=True)  # <-- DÜZELTME BURADA YAPILDI
 
 # ==========================================
 # 2. ESNEK SECRETS OKUMA MEKANİZMASI
 # ==========================================
 def get_api_key(service_prefix):
-    """
-    TOML içerisindeki anahtar ismini nasıl yazarsanız yazın
-    (örneğin: GROQ_API_KEY, groq_key, Gemini_Api_Key vb.)
-    büyük/küçük harf duyarsız şekilde bulur.
-    """
-    # Önce environment variable kontrolü
     for key, value in os.environ.items():
         if service_prefix.lower() in key.lower() and "key" in key.lower():
             return value
 
-    # Streamlit secrets kontrolü
     if hasattr(st, "secrets"):
         def search_dict(d):
             for k, v in d.items():
@@ -156,12 +149,10 @@ def generate_sudoku_ai(sub_box_size, difficulty):
     raw_response = None
     used_service = None
 
-    # 1. Öncelik: Groq API
     try:
         raw_response = call_groq_api(prompt)
         used_service = "Groq API (Llama 3.3)"
     except Exception as e_groq:
-        # 2. Öncelik/Yedek: Gemini API
         try:
             raw_response = call_gemini_api(prompt)
             used_service = "Gemini API (2.5 Flash)"
@@ -169,14 +160,11 @@ def generate_sudoku_ai(sub_box_size, difficulty):
             st.error(f"Her iki API de yanıt vermedi.\nGroq Hatası: {e_groq}\nGemini Hatası: {e_gemini}")
             return None, None
 
-    # JSON Ayrıştırma
     try:
-        # Markdown kod bloklarını temizle
         clean_json = re.sub(r'```json\s*|\s*```', '', raw_response).strip()
         data = json.loads(clean_json)
         grid = data.get("grid", [])
         
-        # Boyut doğrulaması
         if len(grid) == N and all(len(row) == N for row in grid):
             return grid, used_service
         else:
@@ -191,15 +179,12 @@ def generate_sudoku_ai(sub_box_size, difficulty):
 # ==========================================
 def is_valid_sudoku(grid, sub_size):
     N = sub_size * sub_size
-    
-    # Satır ve Sütun Kontrolü
     for i in range(N):
         row_vals = [grid[i][j] for j in range(N) if grid[i][j] != 0]
         col_vals = [grid[j][i] for j in range(N) if grid[j][i] != 0]
         if len(row_vals) != len(set(row_vals)) or len(col_vals) != len(set(col_vals)):
             return False
 
-    # Blok Kontrolü
     for r in range(0, N, sub_size):
         for c in range(0, N, sub_size):
             block_vals = []
@@ -239,7 +224,6 @@ with st.sidebar:
     st.title("🧩 Sudoku Ayarları")
     st.markdown("---")
     
-    # Blok Yapısı Seçimi (2x2 -> 4x4 Izgara, 3x3 -> 9x9 Izgara vb.)
     block_option = st.selectbox(
         "Izgara / Blok Formatı Seçin:",
         options=["2x2 (4x4 Izgara)", "3x3 (9x9 Standart)", "4x4 (16x16 Izgara)", "5x5 (25x25 Izgara)", "6x6 (36x36 Izgara)"],
@@ -262,7 +246,6 @@ with st.sidebar:
     
     st.markdown("---")
     
-    # Yeni Oyun Başlatma
     if st.button("🚀 Yeni Oyun Oluştur", type="primary"):
         with st.spinner("AI Oyunu Hazırlıyor..."):
             grid, service = generate_sudoku_ai(selected_sub_size, difficulty)
@@ -273,14 +256,13 @@ with st.sidebar:
                 st.session_state.active_service = service
                 st.rerun()
 
-    # Durum Bilgisi
     if st.session_state.active_service:
         st.success(f"Aktif AI Servisi:\n**{st.session_state.active_service}**")
         
     st.info(f"API Durumları:\n- Groq: {'✅ Algılandı' if GROQ_KEY else '❌ Eksik'}\n- Gemini: {'✅ Algılandı' if GEMINI_KEY else '❌ Eksik'}")
 
 # ==========================================
-# 7. ANA EKRAN & İNTERAKTİF SULAR
+# 7. ANA EKRAN & İNTERAKTİF HÜCRELER
 # ==========================================
 st.title("🎮 Pro Sudoku AI Edition")
 
@@ -292,18 +274,15 @@ else:
     
     st.caption(f"Boyut: **{N}x{N}** | Bloklar: **{sub_size}x{sub_size}** | Değer Aralığı: **1 - {N}**")
     
-    # Izgara Ekranı
-    cols_per_row = N
     grid_container = st.container()
     
     with grid_container:
         for r in range(N):
-            cols = st.columns(cols_per_row)
+            cols = st.columns(N)
             for c in range(N):
                 val = st.session_state.board[r][c]
                 is_read_only = (st.session_state.initial_board[r][c] != 0)
                 
-                # Stil sınıfları
                 border_class = ""
                 if (c + 1) % sub_size == 0 and c < N - 1:
                     border_class += " block-border-right"
@@ -313,7 +292,6 @@ else:
                 key = f"cell_{r}_{c}"
                 
                 if is_read_only:
-                    # Sabit Değerli Hücreler
                     cols[c].markdown(
                         f"""<div style="
                             background-color: #334155; 
@@ -330,7 +308,6 @@ else:
                         unsafe_allow_html=True
                     )
                 else:
-                    # Kullanıcı Girişi Yapılabilen Hücreler
                     input_val = cols[c].number_input(
                         label=f"r{r}c{c}",
                         min_value=0,
@@ -340,12 +317,10 @@ else:
                         key=key,
                         label_visibility="collapsed"
                     )
-                    # Tahta durumunu güncelle
                     st.session_state.board[r][c] = input_val
 
     st.markdown("---")
     
-    # Eylem Butonları
     col_btn1, col_btn2 = st.columns(2)
     
     with col_btn1:
