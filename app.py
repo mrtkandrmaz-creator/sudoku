@@ -217,8 +217,9 @@ else:
     N = sub_size * sub_size
     initial_grid_json = json.dumps(st.session_state.initial_board)
 
-    # Dinamik hücre boyutu hesaplama (Büyük ızgaraların ekrana sığması için)
-    cell_size = max(32, min(52, 450 // N))
+    # Otomatik ekrana sığdırma için esnek hücre boyutu hesaplama (Maksimum 480px sınırlamasıyla kaydırma çubukları tamamen engellenir)
+    max_board_size = 440
+    cell_size = max(24, min(48, max_board_size // N))
 
     custom_sudoku_component = f"""
     <!DOCTYPE html>
@@ -230,20 +231,18 @@ else:
             body {{
                 background-color: #f8fafc;
                 margin: 0;
-                padding: 5px;
+                padding: 0;
                 display: flex;
                 flex-direction: column;
                 align-items: center;
                 justify-content: flex-start;
-                overflow-x: hidden;
+                overflow: hidden;
             }}
             .sudoku-wrapper {{
                 background: #0f172a;
-                padding: 6px;
-                border-radius: 12px;
-                box-shadow: 0 20px 35px -10px rgba(15, 23, 42, 0.3);
-                max-width: 100%;
-                overflow-x: auto;
+                padding: 4px;
+                border-radius: 10px;
+                box-shadow: 0 15px 30px -10px rgba(15, 23, 42, 0.25);
             }}
             .grid-container {{
                 display: grid;
@@ -258,7 +257,7 @@ else:
                 display: flex;
                 align-items: center;
                 justify-content: center;
-                font-size: {max(0.9, 1.5 - (N * 0.03))}rem;
+                font-size: {max(0.75, 1.3 - (N * 0.025))}rem;
                 font-weight: 800;
                 color: #0f172a;
                 outline: none;
@@ -271,7 +270,7 @@ else:
             }}
             .sudoku-cell:focus {{
                 background-color: #ffedd5 !important;
-                box-shadow: inset 0 0 0 3px #f97316 !important;
+                box-shadow: inset 0 0 0 2px #f97316 !important;
                 z-index: 20;
             }}
             .fixed-cell {{
@@ -281,22 +280,22 @@ else:
                 cursor: not-allowed;
             }}
             .border-right-thick {{
-                border-right: 3px solid #0f172a !important;
+                border-right: 2px solid #0f172a !important;
             }}
             .border-bottom-thick {{
-                border-bottom: 3px solid #0f172a !important;
+                border-bottom: 2px solid #0f172a !important;
             }}
         </style>
     </head>
-    <body>
+    <body id="game-container">
 
         <!-- Üst Bilgi Kartı -->
-        <div class="w-full max-w-md flex justify-between items-center bg-white border-2 border-orange-500 px-5 py-2.5 rounded-xl mb-4 shadow-sm">
-            <div class="flex items-center space-x-2">
-                <span class="text-lg">⏱️</span>
-                <span class="font-extrabold text-orange-600 text-sm">Geçen Süre:</span>
+        <div class="w-full max-w-xs flex justify-between items-center bg-white border-2 border-orange-500 px-4 py-2 rounded-lg mb-2 shadow-sm">
+            <div class="flex items-center space-x-1.5">
+                <span class="text-sm">⏱️</span>
+                <span class="font-extrabold text-orange-600 text-xs">Geçen Süre:</span>
             </div>
-            <div id="timer" class="font-black text-slate-800 text-lg tracking-wider font-mono">00:00</div>
+            <div id="timer" class="font-black text-slate-800 text-sm tracking-wider font-mono">00:00</div>
         </div>
 
         <!-- Sudoku Tahtası -->
@@ -305,11 +304,14 @@ else:
         </div>
 
         <!-- Zafer Kutlama Banner -->
-        <div id="win-banner" class="hidden w-full max-w-md bg-emerald-50 border-2 border-emerald-500 text-emerald-800 p-4 rounded-xl text-center font-extrabold text-base mt-4 shadow-md animate-bounce">
-            🎉 MÜKEMMEL! Bulmacayı <span id="final-time" class="text-emerald-600 underline"></span> sürede kusursuz tamamladınız!
+        <div id="win-banner" class="hidden w-full max-w-xs bg-emerald-50 border-2 border-emerald-500 text-emerald-800 p-2.5 rounded-lg text-center font-extrabold text-xs mt-2 shadow-md animate-bounce">
+            🎉 MÜKEMMEL! <span id="final-time" class="text-emerald-600 underline"></span> sürede tamamlandı!
         </div>
 
         <script>
+            // Bulmaca üretildiğinde doğrudan otomatik odaklanma kaydırması
+            window.parent.document.getElementById('game-container')?.scrollIntoView({{ behavior: 'smooth' }});
+
             const N = {N};
             const subSize = {sub_size};
             const initialBoard = {initial_grid_json};
@@ -412,6 +414,6 @@ else:
     </html>
     """
 
-    # Dinamik iframe yüksekliği hesabı (taşmaları ve kaydırma çubuklarını önlemek için)
-    dynamic_height = max(500, (N * cell_size) + 140)
+    # Kesinlikle kaydırma çubuğu oluşturmayacak optimize iframe yüksekliği
+    dynamic_height = max(400, (N * cell_size) + 70)
     components.html(custom_sudoku_component, height=dynamic_height, scrolling=False)
