@@ -17,19 +17,16 @@ st.set_page_config(
 
 st.markdown("""
 <style>
-    /* Futuristik Koyu Tema Arka Planı ve Renkler */
     .stApp {
         background: radial-gradient(circle at center, #0f172a 0%, #090d16 100%);
         color: #f8fafc;
     }
     
-    /* Yan Panel Özelleştirmesi */
     section[data-testid="stSidebar"] {
         background-color: #0f172a;
         border-right: 2px solid #1e293b;
     }
 
-    /* Kalın ve Belirgin Çerçeveler / Kutular */
     div[data-baseweb="input"] {
         border-radius: 8px !important;
         border: 2px solid #3b82f6 !important;
@@ -50,7 +47,6 @@ st.markdown("""
         padding: 0 !important;
     }
 
-    /* Sabit (AI) Hücreler - Kalın Çerçeveli ve Kare (1:1) */
     .fixed-cell {
         background-color: #1e293b;
         color: #94a3b8;
@@ -64,7 +60,6 @@ st.markdown("""
         user-select: none;
     }
 
-    /* Çok Kalın Blok Kenarlıkları */
     .block-border-right {
         border-right: 5px solid #38bdf8 !important;
     }
@@ -72,7 +67,6 @@ st.markdown("""
         border-bottom: 5px solid #38bdf8 !important;
     }
     
-    /* Futuristik Butonlar */
     .stButton>button {
         width: 100%;
         border-radius: 10px;
@@ -90,7 +84,6 @@ st.markdown("""
         transform: translateY(-2px);
     }
     
-    /* Okunaklı ve Modern Neon Sayaç Kartı */
     .timer-card {
         background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%);
         border: 2px solid #3b82f6;
@@ -105,7 +98,6 @@ st.markdown("""
         letter-spacing: 2px;
     }
     
-    /* Karşılama Ekranı Tasarımı */
     .welcome-card {
         background: rgba(30, 41, 59, 0.7);
         border: 3px solid #3b82f6;
@@ -283,7 +275,6 @@ with st.sidebar:
     st.title("🌌 Nexus Kontrolleri")
     st.markdown("---")
     
-    # Kaydırma çubuğu olmadan açılır kutu (selectbox) ile zorluk seçimi
     difficulty = st.selectbox(
         "Zorluk Derecesi:",
         options=["Kolay", "Orta", "Zor", "Uzman"],
@@ -307,7 +298,6 @@ with st.sidebar:
     
     st.markdown("---")
     
-    # Oyuna Başla Butonu (Süreyi ve Oyunu Başlatır)
     if st.button("🚀 Oyuna Başla", type="primary"):
         with st.spinner("Yapay Zeka Bulmacayı Oluşturuyor..."):
             grid, service = generate_sudoku_ai(selected_sub_size, difficulty)
@@ -322,7 +312,6 @@ with st.sidebar:
                 st.session_state.time_left = time_map.get(difficulty, 900)
                 st.rerun()
 
-    # Oyunu Bitir Butonu
     if st.session_state.game_started:
         if st.button("🛑 Oyunu Bitir"):
             st.session_state.game_started = False
@@ -338,7 +327,6 @@ with st.sidebar:
 # ==========================================
 st.title("🧩 Cyber Sudoku Nexus")
 
-# Eğer oyun henüz başlamadıysa Karşılama ve Açıklama Ekranı Göster
 if not st.session_state.game_started:
     st.markdown("""
     <div class="welcome-card">
@@ -376,7 +364,6 @@ else:
         else:
             st.session_state.board[r][c] = 0
 
-    # Doğru Orantılı Kareye Yakın Görünüm İçin Boşluk Oranları
     _, main_col, _ = st.columns([1, 8, 1])
     
     with main_col:
@@ -430,7 +417,3 @@ else:
         if st.button("🔄 Oyunu Sıfırla"):
             st.session_state.board = [row[:] for row in st.session_state.initial_board]
             st.rerun()
-
-<FollowUp>
-- Tasarım, açılır menüler, karşılama ekranı ve sayaç akışı tam istediğiniz futuristik standarda ulaştı mı?
-</FollowUp>
