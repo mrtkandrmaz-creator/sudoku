@@ -6,7 +6,7 @@ from groq import Groq
 from google import genai
 
 # ==========================================
-# 1. SAYFA VE NET TEMA AYARLARI
+# 1. SAYFA VE KESİN KARE TEMA AYARLARI
 # ==========================================
 st.set_page_config(
     page_title="Cyber Sudoku Nexus",
@@ -27,12 +27,17 @@ st.markdown("""
         border-right: 2px solid #1e293b;
     }
 
-    /* Hücre Kutuları - Net ve Okunaklı */
+    /* Hücre Kutuları - Mükemmel Kare (1:1 Oran) */
     div[data-baseweb="input"] {
+        aspect-ratio: 1 / 1 !important;
+        width: 100% !important;
+        height: auto !important;
         border-radius: 6px !important;
         border: 2px solid #475569 !important;
         background-color: #ffffff !important;
-        height: 52px !important;
+        display: flex !important;
+        align-items: center !important;
+        justify-content: center !important;
     }
     
     div[data-baseweb="input"]:focus-within {
@@ -50,13 +55,15 @@ st.markdown("""
         padding: 0 !important;
     }
 
-    /* Sabit Hücreler */
+    /* Sabit Hücreler - Mükemmel Kare (1:1 Oran) */
     .fixed-cell {
+        aspect-ratio: 1 / 1 !important;
+        width: 100% !important;
         background-color: #1e293b;
         color: #38bdf8;
-        text-align: center;
-        line-height: 52px;
-        height: 52px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
         border-radius: 6px;
         border: 2px solid #475569;
         font-weight: 900;
@@ -332,7 +339,7 @@ if not st.session_state.game_started:
     <div class="welcome-card">
         <h2>✨ Hoş Geldiniz!</h2>
         <p style="font-size: 1.1rem; line-height: 1.6; color: #cbd5e1;">
-            <b>Cyber Sudoku Nexus</b> platformuna hoş geldiniz. Net ve keskin hatlara sahip bu modern deneyimde sol menüden 
+            <b>Cyber Sudoku Nexus</b> platformuna hoş geldiniz. Mükemmel kare oranına sahip bu modern deneyimde sol menüden 
             ayarlarınızı yapıp turuncu <b>"Oyuna Başla"</b> butonuna tıklayarak hemen maceraya atılabilirsiniz.
         </p>
         <hr style="border-color: #334155; margin: 20px 0;">
