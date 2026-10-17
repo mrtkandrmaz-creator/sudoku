@@ -6,7 +6,7 @@ from groq import Groq
 from google import genai
 
 # ==========================================
-# 1. SAYFA VE TEMA AYARLARI (Futuristik & Modern UI)
+# 1. SAYFA VE TEMA AYARLARI (Net & Keskin Kenarlıklar)
 # ==========================================
 st.set_page_config(
     page_title="Cyber Sudoku Nexus",
@@ -18,7 +18,7 @@ st.set_page_config(
 st.markdown("""
 <style>
     .stApp {
-        background: radial-gradient(circle at center, #0f172a 0%, #090d16 100%);
+        background-color: #0b0f19;
         color: #f8fafc;
     }
     
@@ -27,83 +27,91 @@ st.markdown("""
         border-right: 2px solid #1e293b;
     }
 
+    /* Keskin ve Net Hücre Kenarlıkları */
     div[data-baseweb="input"] {
-        border-radius: 8px !important;
-        border: 2px solid #3b82f6 !important;
+        border-radius: 4px !important;
+        border: 2px solid #64748b !important;
         background-color: #1e293b !important;
         height: 55px !important;
     }
     
     div[data-baseweb="input"]:focus-within {
-        border-color: #60a5fa !important;
-        box-shadow: 0 0 15px rgba(59, 130, 246, 0.4) !important;
+        border-color: #f97316 !important;
+        box-shadow: none !important;
     }
     
     .stTextInput input {
         text-align: center !important;
-        font-weight: 800 !important;
-        font-size: 1.5rem !important;
-        color: #38bdf8 !important;
+        font-weight: 900 !important;
+        font-size: 1.6rem !important;
+        color: #ffffff !important;
         padding: 0 !important;
+        background: transparent !important;
     }
 
+    /* Sabit (AI) Hücreler - Keskin Çerçeveli ve Net */
     .fixed-cell {
         background-color: #1e293b;
-        color: #94a3b8;
+        color: #38bdf8;
         text-align: center;
         line-height: 55px;
         height: 55px;
-        border-radius: 8px;
-        border: 2px solid #475569;
-        font-weight: 800;
-        font-size: 1.5rem;
+        border-radius: 4px;
+        border: 2px solid #64748b;
+        font-weight: 900;
+        font-size: 1.6rem;
         user-select: none;
     }
 
+    /* Çok Kalın ve Keskin Blok Kenarlıkları */
     .block-border-right {
-        border-right: 5px solid #38bdf8 !important;
+        border-right: 4px solid #f97316 !important;
     }
     .block-border-bottom {
-        border-bottom: 5px solid #38bdf8 !important;
+        border-bottom: 4px solid #f97316 !important;
     }
     
-    .stButton>button {
+    /* Büyük, Turuncu ve Kullanışlı Başla/Bitir Butonları */
+    div.stButton > button:first-child {
         width: 100%;
-        border-radius: 10px;
-        font-weight: 700;
-        background: linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%);
+        border-radius: 8px;
+        font-weight: 800;
+        font-size: 1.1rem;
+        background: #f97316;
         color: #ffffff;
-        border: 2px solid #60a5fa;
-        padding: 12px 0;
-        transition: all 0.3s ease;
-        box-shadow: 0 4px 12px rgba(59, 130, 246, 0.3);
+        border: none;
+        padding: 16px 0;
+        transition: all 0.2s ease;
+        box-shadow: 0 4px 14px rgba(249, 115, 22, 0.4);
+        margin-top: 10px;
     }
-    .stButton>button:hover {
-        background: linear-gradient(135deg, #2563eb 0%, #1e40af 100%);
-        box-shadow: 0 6px 18px rgba(59, 130, 246, 0.5);
+    div.stButton > button:first-child:hover {
+        background: #ea580c;
+        box-shadow: 0 6px 20px rgba(249, 115, 22, 0.6);
         transform: translateY(-2px);
     }
     
+    /* Net ve Okunaklı Sayaç */
     .timer-card {
-        background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%);
-        border: 2px solid #3b82f6;
+        background: #1e293b;
+        border: 2px solid #f97316;
         padding: 14px 24px;
-        border-radius: 12px;
+        border-radius: 8px;
         text-align: center;
-        font-weight: 800;
-        font-size: 1.3rem;
-        color: #38bdf8;
-        box-shadow: 0 0 20px rgba(59, 130, 246, 0.2);
+        font-weight: 900;
+        font-size: 1.4rem;
+        color: #f97316;
+        box-shadow: 0 0 15px rgba(249, 115, 22, 0.2);
         margin-bottom: 20px;
         letter-spacing: 2px;
     }
     
     .welcome-card {
-        background: rgba(30, 41, 59, 0.7);
-        border: 3px solid #3b82f6;
+        background: #1e293b;
+        border: 2px solid #334155;
         padding: 30px;
-        border-radius: 16px;
-        box-shadow: 0 0 30px rgba(59, 130, 246, 0.2);
+        border-radius: 12px;
+        box-shadow: 0 4px 20px rgba(0, 0, 0, 0.5);
         margin-top: 20px;
     }
 </style>
@@ -269,7 +277,7 @@ if "time_left" not in st.session_state:
     st.session_state.time_left = 600
 
 # ==========================================
-# 7. YAN PANEL (Açılır Seçim Pencereleri)
+# 7. YAN PANEL (Büyük Turuncu Butonlar)
 # ==========================================
 with st.sidebar:
     st.title("🌌 Nexus Kontrolleri")
@@ -298,7 +306,7 @@ with st.sidebar:
     
     st.markdown("---")
     
-    if st.button("🚀 Oyuna Başla", type="primary"):
+    if st.button("🚀 Oyuna Başla"):
         with st.spinner("Yapay Zeka Bulmacayı Oluşturuyor..."):
             grid, service = generate_sudoku_ai(selected_sub_size, difficulty)
             if grid:
@@ -332,13 +340,12 @@ if not st.session_state.game_started:
     <div class="welcome-card">
         <h2>✨ Hoş Geldiniz!</h2>
         <p style="font-size: 1.1rem; line-height: 1.6; color: #cbd5e1;">
-            <b>Cyber Sudoku Nexus</b>, yapay zeka entegrasyonuyla desteklenen futuristik ve modern bir bulmaca deneyimidir. 
-            Sol panelden zorluk derecenizi ve ızgara formatınızı seçip <b>"Oyuna Başla"</b> butonuna basarak kronometreyi 
-            başlatabilir ve zekanızı test edebilirsiniz.
+            <b>Cyber Sudoku Nexus</b>, yapay zeka entegrasyonuyla desteklenen net, keskin hatlara ve yüksek okunabilirliğe sahip modern bir bulmaca platformudur. 
+            Sol panelden ayarlarınızı yapıp büyük turuncu <b>"Oyuna Başla"</b> butonuna basarak kronometreyi başlatabilirsiniz.
         </p>
         <hr style="border-color: #334155; margin: 20px 0;">
-        <p style="color: #38bdf8; font-weight: 600;">
-            🚀 Hazır olduğunuzda sol menüden ayarlarınızı yapıp maceraya başlayın!
+        <p style="color: #f97316; font-weight: 600;">
+            🚀 Hazır olduğunuzda sol menüden maceraya başlayın!
         </p>
     </div>
     """, unsafe_allow_html=True)
@@ -351,7 +358,7 @@ else:
         st.markdown(f"**Boyut:** {N}x{N} | **Blok Yapısı:** {sub_size}x{sub_size}")
     with top_col2:
         mins, secs = divmod(st.session_state.time_left, 60)
-        st.markdown(f'<div class="timer-card">⏱️ Kalan Süre: {mins:02d}:{secs:02d}</div>', unsafe_allow_html=True)
+        st.markdown(f'<div class="timer-card">⏱️ {mins:02d}:{secs:02d}</div>', unsafe_allow_html=True)
 
     def update_cell(r, c):
         val = st.session_state[f"cell_{r}_{c}"]
