@@ -372,11 +372,9 @@ else:
         else:
             st.session_state.board[r][c] = 0
             
-        # Son rakam girildiğinde otomatik kontrol ve bitiş
         if is_solved(st.session_state.board, sub_size):
             st.session_state.game_won = True
 
-    # Sağ ve ortada büyük boyutta konumlandırma için sütun oranları
     _, main_col, _ = st.columns([0.5, 9, 0.5])
     
     with main_col:
@@ -412,7 +410,6 @@ else:
                             args=(r, c)
                         )
 
-    # Otomatik Zafer Ekranı Kontrolü
     if st.session_state.game_won:
         st.balloons()
         st.success("🏆 İnanılmaz bir zeka! Sudoku bulmacasını kusursuz bir şekilde tamamladın! Otomatik olarak zaferle sonuçlandı!")
@@ -436,7 +433,3 @@ else:
             st.session_state.board = [row[:] for row in st.session_state.initial_board]
             st.session_state.game_won = False
             st.rerun()
-
-<FollowUp>
-- Otomatik bitiş, sağ/ortada büyük boyutta konumlandırma ve mükemmel kare hücre tasarımı beklentilerinizi tam olarak karşıladı mı?
-</FollowUp>
