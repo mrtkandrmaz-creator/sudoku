@@ -6,7 +6,7 @@ from groq import Groq
 from google import genai
 
 # ==========================================
-# 1. SAYFA VE TEMA AYARLARI (Modern UI CSS)
+# 1. SAYFA VE TEMA AYARLARI (Görsel Temaya Uygun Minimalist CSS)
 # ==========================================
 st.set_page_config(
     page_title="Pro Sudoku AI Studio",
@@ -17,40 +17,75 @@ st.set_page_config(
 
 st.markdown("""
 <style>
+    /* Arka Plan */
     .stApp {
-        background-color: #0f172a;
-        color: #f8fafc;
+        background-color: #f8fafc;
+        color: #1e293b;
     }
+    
+    /* Text Input Alanlarının CSS Özelleştirmesi */
     div[data-baseweb="input"] {
-        border-radius: 8px !important;
-        border: 1px solid #334155 !important;
-        background-color: #1e293b !important;
-        color: #f8fafc !important;
+        border-radius: 4px !important;
+        border: 1px solid #cbd5e1 !important;
+        background-color: #ffffff !important;
+        height: 48px !important;
     }
+    
     div[data-baseweb="input"]:focus-within {
-        border-color: #3b82f6 !important;
-        box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.4) !important;
+        border-color: #64748b !important;
+        box-shadow: 0 0 0 2px rgba(100, 116, 139, 0.2) !important;
     }
-    .stNumberInput input {
+    
+    /* Rakamların Metin Özellikleri ve Ortalanması */
+    .stTextInput input {
         text-align: center !important;
-        font-weight: bold !important;
-        font-size: 1.2rem !important;
-        color: #f8fafc !important;
+        font-weight: 600 !important;
+        font-size: 1.4rem !important;
+        color: #1e293b !important;
+        padding: 0 !important;
     }
+
+    /* Sabit (AI Tarafından Verilen) Rakam Hücreleri */
+    .fixed-cell {
+        background-color: #f1f5f9;
+        color: #334155;
+        text-align: center;
+        line-height: 48px;
+        height: 48px;
+        border-radius: 4px;
+        border: 1px solid #e2e8f0;
+        font-weight: 700;
+        font-size: 1.4rem;
+        user-select: none;
+    }
+
+    /* Görseldeki Çizgi Kalınlıkları ve Blok Ayrımı */
     .block-border-right {
         border-right: 3px solid #64748b !important;
+        padding-right: 4px !important;
     }
     .block-border-bottom {
         border-bottom: 3px solid #64748b !important;
+        padding-bottom: 4px !important;
     }
+    
+    /* Streamlit varsayılan boşluklarını daraltma */
+    [data-testid="column"] {
+        padding: 1px !important;
+    }
+    
     .stButton>button {
         width: 100%;
         border-radius: 8px;
         font-weight: 600;
-        transition: all 0.2s ease-in-out;
+        background-color: #334155;
+        color: #ffffff;
+        border: none;
+        padding: 10px 0;
     }
     .stButton>button:hover {
-        transform: translateY(-2px);
+        background-color: #475569;
+        color: #ffffff;
     }
 </style>
 """, unsafe_allow_html=True)
@@ -179,7 +214,7 @@ def generate_sudoku_ai(sub_box_size, difficulty):
     except Exception as e_groq:
         try:
             raw_response = call_gemini_api(prompt)
-            used_service = "Gemini API (3.8 Flash)"
+            used_service = "Gemini API"
         except Exception as e_gemini:
             st.warning("API yanıt vermediği için yerel algoritma ile bulmaca oluşturuldu.")
             grid = generate_local_sudoku(sub_box_size, difficulty)
@@ -289,7 +324,7 @@ with st.sidebar:
 # ==========================================
 # 8. ANA EKRAN & İNTERAKTİF HÜCRELER
 # ==========================================
-st.title("🎮 Pro Sudoku AI Edition")
+st.title("🧩 Sudoku Oyunu")
 
 if st.session_state.board is None:
     st.warning("Lütfen sol paneldeki **'Yeni Oyun Oluştur'** butonuna basarak oyunu başlatın.")
@@ -299,15 +334,17 @@ else:
     
     st.caption(f"Boyut: **{N}x{N}** | Bloklar: **{sub_size}x{sub_size}** | Değer Aralığı: **1 - {N}**")
     
-    grid_container = st.container()
+    # Ortalanmış Sudoku Çerçevesi
+    left_pad, main_col, right_pad = st.columns([1, 10, 1])
     
-    with grid_container:
+    with main_col:
         for r in range(N):
             cols = st.columns(N)
             for c in range(N):
                 val = st.session_state.board[r][c]
                 is_read_only = (st.session_state.initial_board[r][c] != 0)
                 
+                # Blok Ayrım Çizgileri
                 border_class = ""
                 if (c + 1) % sub_size == 0 and c < N - 1:
                     border_class += " block-border-right"
@@ -316,33 +353,31 @@ else:
                 
                 key = f"cell_{r}_{c}"
                 
-                if is_read_only:
-                    cols[c].markdown(
-                        f"""<div style="
-                            background-color: #334155; 
-                            color: #60a5fa; 
-                            text-align: center; 
-                            padding: 10px 0; 
-                            border-radius: 8px; 
-                            font-weight: bold; 
-                            font-size: 1.2rem;
-                            margin-bottom: 8px;"
-                            class="{border_class}">
-                            {val}
-                        </div>""", 
-                        unsafe_allow_html=True
-                    )
-                else:
-                    input_val = cols[c].number_input(
-                        label=f"r{r}c{c}",
-                        min_value=0,
-                        max_value=N,
-                        value=int(val),
-                        step=1,
-                        key=key,
-                        label_visibility="collapsed"
-                    )
-                    st.session_state.board[r][c] = input_val
+                with cols[c]:
+                    if is_read_only:
+                        st.markdown(
+                            f'<div class="fixed-cell {border_class}">{val}</div>', 
+                            unsafe_allow_html=True
+                        )
+                    else:
+                        current_str = str(val) if val != 0 else ""
+                        input_val = st.text_input(
+                            label=f"r{r}c{c}",
+                            value=current_str,
+                            key=key,
+                            max_chars=2 if N > 9 else 1,
+                            label_visibility="collapsed"
+                        )
+                        
+                        # Girilen metnin rakam kontrolü ve güncellenmesi
+                        if input_val.isdigit():
+                            parsed_val = int(input_val)
+                            if 1 <= parsed_val <= N:
+                                st.session_state.board[r][c] = parsed_val
+                            else:
+                                st.session_state.board[r][c] = 0
+                        else:
+                            st.session_state.board[r][c] = 0
 
     st.markdown("---")
     
