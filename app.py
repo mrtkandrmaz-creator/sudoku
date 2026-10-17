@@ -3,9 +3,6 @@ import streamlit.components.v1 as components
 import json
 import re
 import random
-import time
-from groq import Groq
-from google import genai
 
 # ==========================================
 # 1. SAYFA KONFİGÜRASYONU
@@ -176,7 +173,7 @@ with st.sidebar:
     st.markdown("---")
     
     if st.button("🚀 Oyuna Başla", use_container_width=True):
-        with st.spinner("Bulmaca Hazırlanıyor..."):
+        with st.spinner("Yapay Zeka Bulmacayı Tasarlıyor..."):
             grid, service = generate_sudoku_ai(selected_sub_size, difficulty)
             if grid:
                 st.session_state.sub_size = selected_sub_size
@@ -194,24 +191,24 @@ with st.sidebar:
             st.rerun()
 
     if st.session_state.active_service:
-        st.success(f"Aktif AI Motoru: **{st.session_state.active_service}**")
+        st.success(f"Motor: **{st.session_state.active_service}**")
 
 # ==========================================
-# 7. MAIN INTERFACE & HTML5 CANVAS SUDOKU ENGINE
+# 7. ANA EKRAN & PREMIUM UI BİLEŞENİ
 # ==========================================
-st.title("🧩 Modern Pro Sudoku Studio")
+st.title("🧩 Pro Sudoku Studio")
 
 if not st.session_state.game_started:
     st.markdown("""
-    <div style="background: #ffffff; border: 2px solid #fed7aa; padding: 30px; border-radius: 12px; margin-top: 15px; box-shadow: 0 4px 15px rgba(0,0,0,0.05);">
-        <h2 style="color: #ea580c; margin-top: 0;">✨ Hoş Geldiniz!</h2>
-        <p style="font-size: 1.1rem; line-height: 1.6; color: #334155;">
-            Sıfır gecikmeli, tam uyumlu ve net kenarlıklara sahip yeni Sudoku platformumuza hoş geldiniz.
-            Sol menüden zorluk derecesini ve matris boyutunu seçip <b>"Oyuna Başla"</b> butonuna basarak anında oynamaya başlayabilirsiniz.
+    <div style="background: linear-gradient(135deg, #ffffff 0%, #fff7ed 100%); border: 2px solid #fed7aa; padding: 35px; border-radius: 16px; margin-top: 20px; box-shadow: 0 10px 30px rgba(234, 88, 12, 0.08);">
+        <h2 style="color: #ea580c; margin-top: 0; font-weight: 800;">✨ Profesyonel Sudoku Deneyimine Hoş Geldiniz</h2>
+        <p style="font-size: 1.15rem; line-height: 1.7; color: #334155;">
+            Yenilenen yüksek performanslı HTML5 Canvas mimarisi, kusursuz blok kenarlıkları ve anlık otomatik bitiş algoritmalarıyla donatılmıştır. 
+            Sol panelden matris boyutunu ve zorluk derecesini seçip <b>"Oyuna Başla"</b> butonuna tıklayarak hemen maceraya atılabilirsiniz.
         </p>
-        <hr style="border-color: #fed7aa; margin: 15px 0;">
-        <p style="color: #f97316; font-weight: 700;">
-            🚀 Oyuna başlamak için sol paneli kullanın.
+        <hr style="border-color: #fed7aa; margin: 20px 0;">
+        <p style="color: #f97316; font-weight: 700; font-size: 1.05rem;">
+            🚀 Hazır olduğunuzda sol menüden turuncu butona tıklayın!
         </p>
     </div>
     """, unsafe_allow_html=True)
@@ -220,17 +217,14 @@ else:
     N = sub_size * sub_size
     initial_grid_json = json.dumps(st.session_state.initial_board)
 
-    # HTML5/JS Sudoku Bileseni
+    # Profesyonel Tailwind Destekli Bileşen (F-string parantezleri tam uyumlu kaçışlı)
     custom_sudoku_component = f"""
     <!DOCTYPE html>
     <html>
     <head>
         <meta charset="utf-8">
+        <script src="https://cdn.tailwindcss.com"></script>
         <style>
-            * {{
-                box-sizing: border-box;
-                font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-            }}
             body {{
                 background-color: #f8fafc;
                 margin: 0;
@@ -238,52 +232,28 @@ else:
                 display: flex;
                 flex-direction: column;
                 align-items: center;
+                justify-content: center;
             }}
-            .header-bar {{
-                width: 100%;
-                max-width: 600px;
-                display: flex;
-                justify-content: space-between;
-                align-items: center;
-                background: #ffffff;
-                padding: 12px 20px;
-                border: 2px solid #ea580c;
-                border-radius: 10px;
-                margin-bottom: 20px;
-                box-shadow: 0 4px 12px rgba(234, 88, 12, 0.1);
-            }}
-            .timer-title {{
-                font-size: 1.1rem;
-                font-weight: 800;
-                color: #ea580c;
-            }}
-            .timer-clock {{
-                font-size: 1.2rem;
-                font-weight: 900;
-                color: #0f172a;
-                font-mono: monospace;
-            }}
-            .sudoku-container {{
-                display: inline-block;
+            .sudoku-wrapper {{
                 background: #0f172a;
-                padding: 4px;
-                border-radius: 8px;
-                box-shadow: 0 10px 25px rgba(0,0,0,0.15);
+                padding: 6px;
+                border-radius: 12px;
+                box-shadow: 0 20px 35px -10px rgba(15, 23, 42, 0.3);
             }}
-            .grid {{
+            .grid-container {{
                 display: grid;
                 grid-template-columns: repeat({N}, 1fr);
                 gap: 1px;
-                background-color: #cbd5e1;
+                background-color: #475569;
             }}
-            .cell {{
-                width: {520 // N}px;
-                height: {520 // N}px;
+            .sudoku-cell {{
+                width: {min(520 // N, 65)}px;
+                height: {min(520 // N, 65)}px;
                 background-color: #ffffff;
                 display: flex;
                 align-items: center;
                 justify-content: center;
-                font-size: {max(1.0, 2.2 - (N * 0.08))}rem;
+                font-size: {max(1.1, 2.0 - (N * 0.06))}rem;
                 font-weight: 800;
                 color: #0f172a;
                 outline: none;
@@ -292,53 +262,46 @@ else:
                 user-select: none;
                 margin: 0;
                 padding: 0;
-                transition: background-color 0.15s ease;
+                transition: all 0.1s ease;
             }}
-            .cell:focus {{
+            .sudoku-cell:focus {{
                 background-color: #ffedd5 !important;
-                box-shadow: inset 0 0 0 2px #f97316;
+                box-shadow: inset 0 0 0 3px #f97316 !important;
+                z-index: 20;
             }}
-            .fixed {{
+            .fixed-cell {{
                 background-color: #f1f5f9;
                 color: #ea580c;
                 font-weight: 900;
                 cursor: not-allowed;
             }}
-            .border-right {{
+            .border-right-thick {{
                 border-right: 3px solid #0f172a !important;
             }}
-            .border-bottom {{
+            .border-bottom-thick {{
                 border-bottom: 3px solid #0f172a !important;
-            }}
-            .win-banner {{
-                display: none;
-                width: 100%;
-                max-width: 600px;
-                background: #dcfce7;
-                border: 2px solid #22c55e;
-                color: #15803d;
-                padding: 16px;
-                border-radius: 10px;
-                text-align: center;
-                font-weight: 800;
-                font-size: 1.2rem;
-                margin-top: 20px;
             }}
         </style>
     </head>
     <body>
 
-        <div class="header-bar">
-            <div class="timer-title">⏱️ Geçen Süre</div>
-            <div class="timer-clock" id="timer">00:00</div>
+        <!-- Üst Bilgi Kartı -->
+        <div class="w-full max-w-lg flex justify-between items-center bg-white border-2 border-orange-500 px-6 py-3.5 rounded-xl mb-6 shadow-sm">
+            <div class="flex items-center space-x-2">
+                <span class="text-xl">⏱️</span>
+                <span class="font-extrabold text-orange-600 text-base">Geçen Süre:</span>
+            </div>
+            <div id="timer" class="font-black text-slate-800 text-xl tracking-wider font-mono">00:00</div>
         </div>
 
-        <div class="sudoku-container">
-            <div class="grid" id="sudoku-grid"></div>
+        <!-- Sudoku Tahtası -->
+        <div class="sudoku-wrapper">
+            <div class="grid-container" id="sudoku-grid"></div>
         </div>
 
-        <div class="win-banner" id="win-banner">
-            🎉 TEBRİKLER! Bulmacayı <span id="final-time"></span> sürede kusursuz tamamladınız!
+        <!-- Zafer Kutlama Banner -->
+        <div id="win-banner" class="hidden w-full max-w-lg bg-emerald-50 border-2 border-emerald-500 text-emerald-800 p-5 rounded-xl text-center font-extrabold text-lg mt-6 shadow-md animate-bounce">
+            🎉 MÜKEMMEL! Bulmacayı <span id="final-time" class="text-emerald-600 underline"></span> sürede kusursuz tamamladınız!
         </div>
 
         <script>
@@ -350,47 +313,43 @@ else:
             let timerInterval = null;
             let isCompleted = false;
 
-            // Timer Başlatma
+            // Sayaç Fonksiyonu
             function startTimer() {{
                 timerInterval = setInterval(() => {{
                     if (isCompleted) return;
-                    let elapsedSeconds = Math.floor((Date.now() - startTime) / 1000);
-                    let m = Math.floor(elapsedSeconds / 60).toString().padStart(2, '0');
-                    let s = (elapsedSeconds % 60).toString().padStart(2, '0');
+                    let elapsed = Math.floor((Date.now() - startTime) / 1000);
+                    let m = Math.floor(elapsed / 60).toString().padStart(2, '0');
+                    let s = (elapsed % 60).toString().padStart(2, '0');
                     document.getElementById('timer').innerText = m + ":" + s;
                 }}, 1000);
             }}
 
-            // Sudoku Çözüm Kontrolü
-            function checkSudokuSolved() {{
+            // Anlık Çözüm Denetleyicisi
+            function checkSolved() {{
                 for (let r = 0; r < N; r++) {{
                     for (let c = 0; c < N; c++) {{
                         if (currentBoard[r][c] === 0) return false;
                     }}
                 }}
-
-                // Satır ve Sütun Kontrolü
                 for (let i = 0; i < N; i++) {{
-                    let rowSet = new Set();
-                    let colSet = new Set();
+                    let rSet = new Set();
+                    let cSet = new Set();
                     for (let j = 0; j < N; j++) {{
                         let rVal = currentBoard[i][j];
                         let cVal = currentBoard[j][i];
-                        if (rowSet.has(rVal) || colSet.has(cVal)) return false;
-                        rowSet.add(rVal);
-                        colSet.add(cVal);
+                        if (rSet.has(rVal) || cSet.has(cVal)) return false;
+                        rSet.add(rVal);
+                        cSet.add(cVal);
                     }}
                 }}
-
-                // Blok Kontrolü
                 for (let r = 0; r < N; r += subSize) {{
                     for (let c = 0; c < N; c += subSize) {{
-                        let blockSet = new Set();
+                        let bSet = new Set();
                         for (let i = 0; i < subSize; i++) {{
                             for (let j = 0; j < subSize; j++) {{
                                 let val = currentBoard[r + i][c + j];
-                                if (blockSet.has(val)) return false;
-                                blockSet.add(val);
+                                if (bSet.has(val)) return false;
+                                bSet.add(val);
                             }}
                         }}
                     }}
@@ -398,21 +357,21 @@ else:
                 return true;
             }}
 
-            // Grid Render
+            // Grid İnşası
             const gridEl = document.getElementById('sudoku-grid');
             for (let r = 0; r < N; r++) {{
                 for (let c = 0; c < N; c++) {{
                     const input = document.createElement('input');
                     input.type = 'text';
                     input.maxLength = N > 9 ? 2 : 1;
-                    input.classList.add('cell');
+                    input.className = 'sudoku-cell';
 
-                    if ((c + 1) % subSize === 0 && c < N - 1) input.classList.add('border-right');
-                    if ((r + 1) % subSize === 0 && r < N - 1) input.classList.add('border-bottom');
+                    if ((c + 1) % subSize === 0 && c < N - 1) input.classList.add('border-right-thick');
+                    if ((r + 1) % subSize === 0 && r < N - 1) input.classList.add('border-bottom-thick');
 
                     if (initialBoard[r][c] !== 0) {{
                         input.value = initialBoard[r][c];
-                        input.classList.add('fixed');
+                        input.className += ' fixed-cell';
                         input.readOnly = true;
                     }} else {{
                         input.addEventListener('input', (e) => {{
@@ -431,17 +390,17 @@ else:
                                 currentBoard[r][c] = 0;
                             }}
 
-                            // Anlık Bitiş Kontrolü
-                            if (checkSudokuSolved()) {{
+                            if (checkSolved()) {{
                                 isCompleted = true;
                                 clearInterval(timerInterval);
                                 document.getElementById('final-time').innerText = document.getElementById('timer').innerText;
-                                document.getElementById('win-banner').style.display = 'block';
+                                const banner = document.getElementById('win-banner');
+                                banner.classList.remove('hidden');
                             }}
                         }});
                     }}
                     gridEl.appendChild(input);
-                }
+                }}
             }}
 
             startTimer();
@@ -450,4 +409,4 @@ else:
     </html>
     """
 
-    components.html(custom_sudoku_component, height=750, scrolling=False)
+    components.html(custom_sudoku_component, height=680, scrolling=False)
