@@ -2,8 +2,8 @@ import streamlit as st
 import json
 import re
 import os
-import requests
-import google.generativeai as genai
+from groq import Groq
+from google import genai
 
 # ==========================================
 # 1. SAYFA VE TEMA AYARLARI (Modern UI CSS)
@@ -59,7 +59,6 @@ st.markdown("""
 # 2. SECRETS OKUMA MEKANİZMASI ([api_keys])
 # ==========================================
 def get_groq_keys():
-    """st.secrets['api_keys']['groq_keys'] listesini okur."""
     try:
         if hasattr(st, "secrets") and "api_keys" in st.secrets:
             return list(st.secrets["api_keys"].get("groq_keys", []))
@@ -68,7 +67,6 @@ def get_groq_keys():
     return []
 
 def get_gemini_keys():
-    """st.secrets['api_keys']['gemini_keys'] listesini okur."""
     try:
         if hasattr(st, "secrets") and "api_keys" in st.secrets:
             return list(st.secrets["api_keys"].get("gemini_keys", []))
@@ -80,34 +78,27 @@ GROQ_KEYS = get_groq_keys()
 GEMINI_KEYS = get_gemini_keys()
 
 # ==========================================
-# 3. AI ENTEGRASYONU (Groq + Gemini Çoklu Key Desteği)
+# 3. AI ENTEGRASYONU (Groq SDK + Gemini GenAI SDK)
 # ==========================================
 def call_groq_api(prompt):
     if not GROQ_KEYS:
         raise ValueError("st.secrets['api_keys']['groq_keys'] altında hiç Groq API Key tanımlanmamış.")
     
-    url = "https://api.groq.com/openai/v1/chat/completions"
     last_error = None
-
     # Tanımlı tüm Groq key'lerini sırayla dener
     for key in GROQ_KEYS:
         try:
-            headers = {
-                "Authorization": f"Bearer {key}",
-                "Content-Type": "application/json"
-            }
-            payload = {
-                "model": "llama-3.3-70b-versatile",
-                "messages": [
+            client = Groq(api_key=key)
+            completion = client.chat.completions.create(
+                model="llama-3.3-70b-versatile",
+                messages=[
                     {"role": "system", "content": "Sen sadece geçerli JSON döndüren bir Sudoku motorusun. Yanıtında hiçbir markdown veya ekstra açıklama metni olmamalıdır."},
                     {"role": "user", "content": prompt}
                 ],
-                "temperature": 0.2,
-                "response_format": {"type": "json_object"}
-            }
-            response = requests.post(url, headers=headers, json=payload, timeout=15)
-            response.raise_for_status()
-            return response.json()["choices"][0]["message"]["content"]
+                temperature=0.2,
+                response_format={"type": "json_object"}
+            )
+            return completion.choices[0].message.content
         except Exception as e:
             last_error = e
             continue
@@ -119,13 +110,14 @@ def call_gemini_api(prompt):
         raise ValueError("st.secrets['api_keys']['gemini_keys'] altında hiç Gemini API Key tanımlanmamış.")
     
     last_error = None
-    
     # Tanımlı tüm Gemini key'lerini sırayla dener
     for key in GEMINI_KEYS:
         try:
-            genai.configure(api_key=key)
-            model = genai.GenerativeModel('gemini-1.5-flash')
-            response = model.generate_content(prompt)
+            client = genai.Client(api_key=key)
+            response = client.models.generate_content(
+                model='gemini-2.5-flash',
+                contents=prompt,
+            )
             return response.text
         except Exception as e:
             last_error = e
@@ -164,7 +156,7 @@ def generate_sudoku_ai(sub_box_size, difficulty):
         # 2. Öncelik/Yedek: Gemini API
         try:
             raw_response = call_gemini_api(prompt)
-            used_service = "Gemini API (1.5 Flash)"
+            used_service = "Gemini API (2.5 Flash)"
         except Exception as e_gemini:
             st.error(f"Her iki API de yanıt vermedi.\n\n• Groq Hatası: {e_groq}\n\n• Gemini Hatası: {e_gemini}")
             return None, None
