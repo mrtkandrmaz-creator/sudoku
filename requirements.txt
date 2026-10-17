@@ -9,3 +9,6 @@ streamlit
 google-genai
 reportlab
 python-docx
+streamlit
+groq
+google-genai
