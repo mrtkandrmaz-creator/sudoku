@@ -6,7 +6,7 @@ from groq import Groq
 from google import genai
 
 # ==========================================
-# 1. SAYFA VE KESİN KARE TEMA AYARLARI
+# 1. SAYFA VE OPTİMİZE EDİLMİŞ TEMA AYARLARI
 # ==========================================
 st.set_page_config(
     page_title="Cyber Sudoku Nexus",
@@ -27,11 +27,10 @@ st.markdown("""
         border-right: 2px solid #1e293b;
     }
 
-    /* Hücre Kutuları - Mükemmel Kare (1:1 Oran) */
+    /* Hücre Kutuları - Kompakt ve Ekrana Uygun Boyut */
     div[data-baseweb="input"] {
-        aspect-ratio: 1 / 1 !important;
         width: 100% !important;
-        height: auto !important;
+        height: 42px !important;
         border-radius: 6px !important;
         border: 2px solid #475569 !important;
         background-color: #ffffff !important;
@@ -42,23 +41,23 @@ st.markdown("""
     
     div[data-baseweb="input"]:focus-within {
         border-color: #f97316 !important;
-        box-shadow: 0 0 8px rgba(249, 115, 22, 0.5) !important;
+        box-shadow: 0 0 6px rgba(249, 115, 22, 0.5) !important;
     }
     
-    /* Yazılan Rakamlar - Siyah ve Net */
+    /* Yazılan Rakamlar - Kusursuz Görünürlük (Siyah ve Kalın) */
     .stTextInput input {
         text-align: center !important;
-        font-weight: 900 !important;
-        font-size: 1.5rem !important;
+        font-weight: 800 !important;
+        font-size: 1.2rem !important;
         color: #0f172a !important;
         background-color: transparent !important;
         padding: 0 !important;
     }
 
-    /* Sabit Hücreler - Mükemmel Kare (1:1 Oran) */
+    /* Sabit Hücreler - Net Okunabilirlik */
     .fixed-cell {
-        aspect-ratio: 1 / 1 !important;
         width: 100% !important;
+        height: 42px !important;
         background-color: #1e293b;
         color: #38bdf8;
         display: flex;
@@ -66,8 +65,8 @@ st.markdown("""
         justify-content: center;
         border-radius: 6px;
         border: 2px solid #475569;
-        font-weight: 900;
-        font-size: 1.5rem;
+        font-weight: 800;
+        font-size: 1.2rem;
         user-select: none;
     }
 
@@ -84,11 +83,11 @@ st.markdown("""
         width: 100%;
         border-radius: 8px;
         font-weight: 800;
-        font-size: 1.1rem;
+        font-size: 1.05rem;
         background: #f97316;
         color: #ffffff;
         border: none;
-        padding: 14px 0;
+        padding: 12px 0;
         transition: all 0.2s ease;
         box-shadow: 0 4px 14px rgba(249, 115, 22, 0.4);
         margin-top: 10px;
@@ -103,21 +102,21 @@ st.markdown("""
     .timer-card {
         background: #1e293b;
         border: 2px solid #f97316;
-        padding: 12px 20px;
+        padding: 10px 16px;
         border-radius: 8px;
         text-align: center;
-        font-weight: 900;
-        font-size: 1.3rem;
+        font-weight: 800;
+        font-size: 1.1rem;
         color: #f97316;
         box-shadow: 0 0 15px rgba(249, 115, 22, 0.2);
-        margin-bottom: 20px;
-        letter-spacing: 2px;
+        margin-bottom: 15px;
+        letter-spacing: 1px;
     }
     
     .welcome-card {
         background: #1e293b;
         border: 2px solid #334155;
-        padding: 30px;
+        padding: 25px;
         border-radius: 12px;
         box-shadow: 0 4px 20px rgba(0, 0, 0, 0.5);
         margin-top: 20px;
@@ -338,11 +337,11 @@ if not st.session_state.game_started:
     st.markdown("""
     <div class="welcome-card">
         <h2>✨ Hoş Geldiniz!</h2>
-        <p style="font-size: 1.1rem; line-height: 1.6; color: #cbd5e1;">
-            <b>Cyber Sudoku Nexus</b> platformuna hoş geldiniz. Mükemmel kare oranına sahip bu modern deneyimde sol menüden 
+        <p style="font-size: 1.05rem; line-height: 1.6; color: #cbd5e1;">
+            <b>Cyber Sudoku Nexus</b> platformuna hoş geldiniz. Optimize edilmiş ideal boyutlara ve yüksek kontrastlı renk paletine sahip bu deneyimde sol menüden 
             ayarlarınızı yapıp turuncu <b>"Oyuna Başla"</b> butonuna tıklayarak hemen maceraya atılabilirsiniz.
         </p>
-        <hr style="border-color: #334155; margin: 20px 0;">
+        <hr style="border-color: #334155; margin: 15px 0;">
         <p style="color: #f97316; font-weight: 600;">
             🚀 Hazır olduğunuzda sol menüden oyunu başlatın!
         </p>
