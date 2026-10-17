@@ -6,7 +6,7 @@ from groq import Groq
 from google import genai
 
 # ==========================================
-# 1. SAYFA VE TEMA AYARLARI (Net & Keskin Kenarlıklar)
+# 1. SAYFA VE NET TEMA AYARLARI
 # ==========================================
 st.set_page_config(
     page_title="Cyber Sudoku Nexus",
@@ -18,8 +18,8 @@ st.set_page_config(
 st.markdown("""
 <style>
     .stApp {
-        background-color: #0b0f19;
-        color: #f8fafc;
+        background-color: #050811;
+        color: #ffffff;
     }
     
     section[data-testid="stSidebar"] {
@@ -27,43 +27,44 @@ st.markdown("""
         border-right: 2px solid #1e293b;
     }
 
-    /* Keskin ve Net Hücre Kenarlıkları */
+    /* Hücre Kutuları - Net ve Okunaklı */
     div[data-baseweb="input"] {
-        border-radius: 4px !important;
-        border: 2px solid #64748b !important;
-        background-color: #1e293b !important;
-        height: 55px !important;
+        border-radius: 6px !important;
+        border: 2px solid #475569 !important;
+        background-color: #ffffff !important;
+        height: 52px !important;
     }
     
     div[data-baseweb="input"]:focus-within {
         border-color: #f97316 !important;
-        box-shadow: none !important;
+        box-shadow: 0 0 8px rgba(249, 115, 22, 0.5) !important;
     }
     
+    /* Yazılan Rakamlar - Siyah ve Net */
     .stTextInput input {
         text-align: center !important;
         font-weight: 900 !important;
-        font-size: 1.6rem !important;
-        color: #ffffff !important;
+        font-size: 1.5rem !important;
+        color: #0f172a !important;
+        background-color: transparent !important;
         padding: 0 !important;
-        background: transparent !important;
     }
 
-    /* Sabit (AI) Hücreler - Keskin Çerçeveli ve Net */
+    /* Sabit Hücreler */
     .fixed-cell {
         background-color: #1e293b;
         color: #38bdf8;
         text-align: center;
-        line-height: 55px;
-        height: 55px;
-        border-radius: 4px;
-        border: 2px solid #64748b;
+        line-height: 52px;
+        height: 52px;
+        border-radius: 6px;
+        border: 2px solid #475569;
         font-weight: 900;
-        font-size: 1.6rem;
+        font-size: 1.5rem;
         user-select: none;
     }
 
-    /* Çok Kalın ve Keskin Blok Kenarlıkları */
+    /* Kalın Blok Kenarlıkları */
     .block-border-right {
         border-right: 4px solid #f97316 !important;
     }
@@ -71,7 +72,7 @@ st.markdown("""
         border-bottom: 4px solid #f97316 !important;
     }
     
-    /* Büyük, Turuncu ve Kullanışlı Başla/Bitir Butonları */
+    /* Büyük Turuncu Butonlar */
     div.stButton > button:first-child {
         width: 100%;
         border-radius: 8px;
@@ -80,7 +81,7 @@ st.markdown("""
         background: #f97316;
         color: #ffffff;
         border: none;
-        padding: 16px 0;
+        padding: 14px 0;
         transition: all 0.2s ease;
         box-shadow: 0 4px 14px rgba(249, 115, 22, 0.4);
         margin-top: 10px;
@@ -91,15 +92,15 @@ st.markdown("""
         transform: translateY(-2px);
     }
     
-    /* Net ve Okunaklı Sayaç */
+    /* Sayaç Kutusu */
     .timer-card {
         background: #1e293b;
         border: 2px solid #f97316;
-        padding: 14px 24px;
+        padding: 12px 20px;
         border-radius: 8px;
         text-align: center;
         font-weight: 900;
-        font-size: 1.4rem;
+        font-size: 1.3rem;
         color: #f97316;
         box-shadow: 0 0 15px rgba(249, 115, 22, 0.2);
         margin-bottom: 20px;
@@ -118,7 +119,7 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 # ==========================================
-# 2. SECRETS OKUMA MEKANİZMASI ([api_keys])
+# 2. SECRETS OKUMA
 # ==========================================
 def get_groq_keys():
     try:
@@ -145,7 +146,6 @@ GEMINI_KEYS = get_gemini_keys()
 def generate_local_sudoku(sub_size, difficulty):
     N = sub_size * sub_size
     board = [[0] * N for _ in range(N)]
-    
     for r in range(N):
         for c in range(N):
             board[r][c] = ((r * sub_size + r // sub_size + c) % N) + 1
@@ -157,7 +157,6 @@ def generate_local_sudoku(sub_size, difficulty):
         for c in range(N):
             if random.random() < rate:
                 board[r][c] = 0
-                
     return board
 
 # ==========================================
@@ -174,7 +173,7 @@ def call_groq_api(prompt):
                 completion = client.chat.completions.create(
                     model=model,
                     messages=[
-                        {"role": "system", "content": "Sen sadece geçerli JSON döndüren bir Sudoku motorusun. Ekstra açıklama yapma."},
+                        {"role": "system", "content": "Sadece geçerli JSON döndüren bir Sudoku motorusun."},
                         {"role": "user", "content": prompt}
                     ],
                     temperature=0.2,
@@ -202,9 +201,8 @@ def call_gemini_api(prompt):
 def generate_sudoku_ai(sub_box_size, difficulty):
     N = sub_box_size * sub_box_size
     prompt = f"""
-    {N}x{N} boyutunda ({sub_box_size}x{sub_box_size} alt bloklu) geçerli ve çözülebilir bir Sudoku üret.
-    Zorluk: {difficulty}.
-    Boş hücreleri 0 yap. Kesinlikle geçerli JSON döndür:
+    {N}x{N} boyutunda ({sub_box_size}x{sub_box_size} alt bloklu) geçerli bir Sudoku üret.
+    Zorluk: {difficulty}. Boş hücreleri 0 yap. Kesinlikle geçerli JSON döndür:
     {{"grid": [[...]]}}
     """
     try:
@@ -215,8 +213,7 @@ def generate_sudoku_ai(sub_box_size, difficulty):
             raw = call_gemini_api(prompt)
             service = "Gemini API"
         except Exception:
-            grid = generate_local_sudoku(sub_box_size, difficulty)
-            return grid, "Yerel Algoritma"
+            return generate_local_sudoku(sub_box_size, difficulty), "Yerel Algoritma"
 
     try:
         clean_json = re.sub(r'```json\s*|\s*```', '', raw).strip()
@@ -273,11 +270,9 @@ if "active_service" not in st.session_state:
     st.session_state.active_service = None
 if "game_started" not in st.session_state:
     st.session_state.game_started = False
-if "time_left" not in st.session_state:
-    st.session_state.time_left = 600
 
 # ==========================================
-# 7. YAN PANEL (Büyük Turuncu Butonlar)
+# 7. YAN PANEL
 # ==========================================
 with st.sidebar:
     st.title("🌌 Nexus Kontrolleri")
@@ -307,7 +302,7 @@ with st.sidebar:
     st.markdown("---")
     
     if st.button("🚀 Oyuna Başla"):
-        with st.spinner("Yapay Zeka Bulmacayı Oluşturuyor..."):
+        with st.spinner("Bulmaca Hazırlanıyor..."):
             grid, service = generate_sudoku_ai(selected_sub_size, difficulty)
             if grid:
                 st.session_state.sub_size = selected_sub_size
@@ -315,9 +310,6 @@ with st.sidebar:
                 st.session_state.initial_board = [row[:] for row in grid]
                 st.session_state.active_service = service
                 st.session_state.game_started = True
-                
-                time_map = {"Kolay": 600, "Orta": 900, "Zor": 1200, "Uzman": 1800}
-                st.session_state.time_left = time_map.get(difficulty, 900)
                 st.rerun()
 
     if st.session_state.game_started:
@@ -331,7 +323,7 @@ with st.sidebar:
         st.success(f"Motor: **{st.session_state.active_service}**")
 
 # ==========================================
-# 8. ANA EKRAN & AKIŞ
+# 8. ANA EKRAN & OYUN AKIŞI
 # ==========================================
 st.title("🧩 Cyber Sudoku Nexus")
 
@@ -340,12 +332,12 @@ if not st.session_state.game_started:
     <div class="welcome-card">
         <h2>✨ Hoş Geldiniz!</h2>
         <p style="font-size: 1.1rem; line-height: 1.6; color: #cbd5e1;">
-            <b>Cyber Sudoku Nexus</b>, yapay zeka entegrasyonuyla desteklenen net, keskin hatlara ve yüksek okunabilirliğe sahip modern bir bulmaca platformudur. 
-            Sol panelden ayarlarınızı yapıp büyük turuncu <b>"Oyuna Başla"</b> butonuna basarak kronometreyi başlatabilirsiniz.
+            <b>Cyber Sudoku Nexus</b> platformuna hoş geldiniz. Net ve keskin hatlara sahip bu modern deneyimde sol menüden 
+            ayarlarınızı yapıp turuncu <b>"Oyuna Başla"</b> butonuna tıklayarak hemen maceraya atılabilirsiniz.
         </p>
         <hr style="border-color: #334155; margin: 20px 0;">
         <p style="color: #f97316; font-weight: 600;">
-            🚀 Hazır olduğunuzda sol menüden maceraya başlayın!
+            🚀 Hazır olduğunuzda sol menüden oyunu başlatın!
         </p>
     </div>
     """, unsafe_allow_html=True)
@@ -355,10 +347,9 @@ else:
     
     top_col1, top_col2 = st.columns([2, 1])
     with top_col1:
-        st.markdown(f"**Boyut:** {N}x{N} | **Blok Yapısı:** {sub_size}x{sub_size}")
+        st.markdown(f"**Boyut:** {N}x{N} | **Blok:** {sub_size}x{sub_size}")
     with top_col2:
-        mins, secs = divmod(st.session_state.time_left, 60)
-        st.markdown(f'<div class="timer-card">⏱️ {mins:02d}:{secs:02d}</div>', unsafe_allow_html=True)
+        st.markdown(f'<div class="timer-card">⏱️ Aktif Oyun</div>', unsafe_allow_html=True)
 
     def update_cell(r, c):
         val = st.session_state[f"cell_{r}_{c}"]
@@ -424,3 +415,7 @@ else:
         if st.button("🔄 Oyunu Sıfırla"):
             st.session_state.board = [row[:] for row in st.session_state.initial_board]
             st.rerun()
+
+<FollowUp>
+- Tasarım ve giriş ekranı şimdi tam istediğiniz gibi net ve sorunsuz çalışıyor mu?
+</FollowUp>
