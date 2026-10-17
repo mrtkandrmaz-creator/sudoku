@@ -2,11 +2,12 @@ import streamlit as st
 import json
 import re
 import random
+import time
 from groq import Groq
 from google import genai
 
 # ==========================================
-# 1. SAYFA VE İDEAL BOYUTLU TEMA AYARLARI
+# 1. SAYFA VE PROFESYONEL SUDOKU TEMA AYARLARI
 # ==========================================
 st.set_page_config(
     page_title="Cyber Sudoku Nexus",
@@ -27,62 +28,71 @@ st.markdown("""
         border-right: 2px solid #e2e8f0;
     }
 
-    /* Hücre Kutuları - Sayfaya Uygun, Kompakt ve Kare */
+    /* Sudoku Tahtası Dış Çerçevesi */
+    .sudoku-board-wrapper {
+        background: #334155;
+        padding: 4px;
+        border-radius: 8px;
+        box-shadow: 0 10px 25px rgba(0,0,0,0.15);
+        display: inline-block;
+        margin: auto;
+    }
+
+    /* Hücre Kutuları - Keskin Kenarlıklar ve Net Kareler */
     div[data-baseweb="input"] {
         aspect-ratio: 1 / 1 !important;
         width: 100% !important;
-        max-width: 55px !important;
-        height: 55px !important;
-        border-radius: 6px !important;
-        border: 2px solid #cbd5e1 !important;
+        max-width: 52px !important;
+        height: 52px !important;
+        border-radius: 0px !important;
+        border: 1px solid #94a3b8 !important;
         background-color: #ffffff !important;
         display: flex !important;
         align-items: center !important;
         justify-content: center !important;
-        margin: auto !important;
+        margin: 0 !important;
     }
     
     div[data-baseweb="input"]:focus-within {
         border-color: #f97316 !important;
-        box-shadow: 0 0 6px rgba(249, 115, 22, 0.4) !important;
+        box-shadow: inset 0 0 0 2px #f97316 !important;
+        z-index: 10;
     }
     
-    /* Kullanıcının Yazdığı Rakamlar - Kesinlikle Görünür ve Net */
+    /* Kullanıcının Yazdığı Rakamlar */
     .stTextInput input {
         text-align: center !important;
         font-weight: 800 !important;
-        font-size: 1.2rem !important;
+        font-size: 1.3rem !important;
         color: #0f172a !important;
         background-color: transparent !important;
         padding: 0 !important;
-        width: 100% !important;
     }
 
     /* Sabit Hücreler (AI Verileri) */
     .fixed-cell {
         aspect-ratio: 1 / 1 !important;
         width: 100% !important;
-        max-width: 55px !important;
-        height: 55px !important;
-        background-color: #ffedd5;
-        color: #c2410c;
+        max-width: 52px !important;
+        height: 52px !important;
+        background-color: #e2e8f0;
+        color: #0f172a;
         display: flex;
         align-items: center;
         justify-content: center;
-        border-radius: 6px;
-        border: 2px solid #fdba74;
-        font-weight: 800;
-        font-size: 1.2rem;
+        border: 1px solid #94a3b8;
+        font-weight: 900;
+        font-size: 1.3rem;
         user-select: none;
-        margin: auto;
+        margin: 0;
     }
 
-    /* Kalın Turuncu Blok Kenarlıkları */
+    /* Kalın Blok Kenarlıkları */
     .block-border-right {
-        border-right: 4px solid #f97316 !important;
+        border-right: 3px solid #0f172a !important;
     }
     .block-border-bottom {
-        border-bottom: 4px solid #f97316 !important;
+        border-bottom: 3px solid #0f172a !important;
     }
     
     /* Büyük Turuncu Butonlar */
@@ -121,7 +131,7 @@ st.markdown("""
     .welcome-card {
         background: #ffffff;
         border: 2px solid #fed7aa;
-        padding: 25px;
+        padding: 30px;
         border-radius: 12px;
         box-shadow: 0 4px 15px rgba(0, 0, 0, 0.05);
         margin-top: 15px;
@@ -283,6 +293,10 @@ if "game_started" not in st.session_state:
     st.session_state.game_started = False
 if "game_won" not in st.session_state:
     st.session_state.game_won = False
+if "start_time" not in st.session_state:
+    st.session_state.start_time = None
+if "elapsed_time" not in st.session_state:
+    st.session_state.elapsed_time = 0
 
 # ==========================================
 # 7. YAN PANEL
@@ -297,7 +311,6 @@ with st.sidebar:
         index=1
     )
     
-    # İstediğiniz 2x2, 3x3, 4x4, 5x5, 6x6 kare formatları
     block_option = st.selectbox(
         "Izgara / Blok Formatı:",
         options=[
@@ -331,6 +344,8 @@ with st.sidebar:
                 st.session_state.active_service = service
                 st.session_state.game_started = True
                 st.session_state.game_won = False
+                st.session_state.start_time = time.time()
+                st.session_state.elapsed_time = 0
                 st.rerun()
 
     if st.session_state.game_started:
@@ -354,9 +369,8 @@ if not st.session_state.game_started:
     <div class="welcome-card">
         <h2 style="color: #ea580c; margin-top: 0;">✨ Hoş Geldiniz!</h2>
         <p style="font-size: 1.05rem; line-height: 1.6; color: #334155;">
-            Yapay zeka destekli <b>Modern Sudoku Studio</b> platformuna hoş geldiniz. 
-            Sol menüden istediğiniz matris boyutunu ve zorluk derecesini seçip 
-            <b>"Oyuna Başla"</b> butonuna basarak hemen oynamaya başlayabilirsiniz.
+            Yenilenen profesyonel tasarımı ve net kenar çizgileriyle <b>Modern Sudoku Studio</b> platformuna hoş geldiniz. 
+            Sol menüden matris boyutunu ve zorluk derecesini seçip <b>"Oyuna Başla"</b> butonuna basarak oynayabilirsiniz.
         </p>
         <hr style="border-color: #fed7aa; margin: 15px 0;">
         <p style="color: #f97316; font-weight: 700;">
@@ -372,7 +386,13 @@ else:
     with top_col1:
         st.markdown(f"**Boyut:** {N}x{N} | **Toplam Kare:** {N*N} | **Blok:** {sub_size}x{sub_size}")
     with top_col2:
-        st.markdown(f'<div class="timer-card">⏱️ Aktif Oyundasınız</div>', unsafe_allow_html=True)
+        if not st.session_state.game_won and st.session_state.start_time:
+            current_elapsed = int(time.time() - st.session_state.start_time)
+            m, s = divmod(current_elapsed, 60)
+            st.markdown(f'<div class="timer-card">⏱️ Geçen Süre: {m:02d}:{s:02d}</div>', unsafe_allow_html=True)
+        else:
+            m, s = divmod(int(st.session_state.elapsed_time), 60)
+            st.markdown(f'<div class="timer-card">⏱️ Çözüm Süresi: {m:02d}:{s:02d}</div>', unsafe_allow_html=True)
 
     def update_cell(r, c):
         val = st.session_state[f"cell_{r}_{c}"]
@@ -385,14 +405,18 @@ else:
         else:
             st.session_state.board[r][c] = 0
             
-        if is_solved(st.session_state.board, sub_size):
+        if is_solved(st.session_state.board, sub_size) and not st.session_state.game_won:
             st.session_state.game_won = True
+            if st.session_state.start_time:
+                st.session_state.elapsed_time = time.time() - st.session_state.start_time
 
-    _, main_col, _ = st.columns([0.5, 9, 0.5])
+    # Sağ/Orta Ortalanmış Düzen
+    _, main_col, _ = st.columns([1, 6, 1])
     
     with main_col:
+        st.markdown('<div class="sudoku-board-wrapper">', unsafe_allow_html=True)
         for r in range(N):
-            cols = st.columns(N)
+            cols = st.columns(N, gap="small")
             for c in range(N):
                 val = st.session_state.board[r][c]
                 is_read_only = (st.session_state.initial_board[r][c] != 0)
@@ -422,10 +446,12 @@ else:
                             on_change=update_cell,
                             args=(r, c)
                         )
+        st.markdown('</div>', unsafe_allow_html=True)
 
     if st.session_state.game_won:
+        m, s = divmod(int(st.session_state.elapsed_time), 60)
         st.balloons()
-        st.success("🎉 TEBRİKLER! Bulmacadaki tüm rakamları eksiksiz ve doğru şekilde tamamladınız!")
+        st.success(f"🎉 TEBRİKLER! Bulmacayı toplam **{m} dakika {s} saniyede** kusursuz bir şekilde tamamladınız!")
 
     st.markdown("---")
     
@@ -434,8 +460,13 @@ else:
         if st.button("🔍 Hamleleri Kontrol Et"):
             if is_valid_sudoku(st.session_state.board, sub_size):
                 if is_solved(st.session_state.board, sub_size):
+                    if not st.session_state.game_won:
+                        st.session_state.game_won = True
+                        if st.session_state.start_time:
+                            st.session_state.elapsed_time = time.time() - st.session_state.start_time
+                    m, s = divmod(int(st.session_state.elapsed_time), 60)
                     st.balloons()
-                    st.success("🎉 TEBRİKLER! Bulmacayı kusursuz bir şekilde tamamladınız!")
+                    st.success(f"🎉 TEBRİKLER! Bulmacayı **{m} dakika {s} saniyede** başarıyla tamamladınız!")
                 else:
                     st.info("👍 Şimdiye kadarki tüm hamleleriniz kurallara uygun. Çözmeye devam edin!")
             else:
@@ -445,4 +476,6 @@ else:
         if st.button("🔄 Oyunu Sıfırla"):
             st.session_state.board = [row[:] for row in st.session_state.initial_board]
             st.session_state.game_won = False
+            st.session_state.start_time = time.time()
+            st.session_state.elapsed_time = 0
             st.rerun()
