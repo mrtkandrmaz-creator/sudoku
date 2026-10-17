@@ -1,7 +1,7 @@
 import streamlit as st
 import json
 import re
-import os
+import random
 from groq import Groq
 from google import genai
 
@@ -78,52 +78,81 @@ GROQ_KEYS = get_groq_keys()
 GEMINI_KEYS = get_gemini_keys()
 
 # ==========================================
-# 3. AI ENTEGRASYONU (Groq SDK + Gemini GenAI SDK)
+# 3. YEREL SUDOKU ÜRETİCİSİ (FALLBACK/YEDEK)
+# ==========================================
+def generate_local_sudoku(sub_size, difficulty):
+    N = sub_size * sub_size
+    board = [[0] * N for _ in range(N)]
+    
+    # Basit bir geçerli matris türetme
+    for r in range(N):
+        for c in range(N):
+            board[r][c] = ((r * sub_size + r // sub_size + c) % N) + 1
+            
+    # Hücre boşaltma (Zorluk seviyesine göre)
+    remove_rates = {"Kolay": 0.3, "Orta": 0.5, "Zor": 0.65, "Uzman": 0.75}
+    rate = remove_rates.get(difficulty, 0.5)
+    
+    for r in range(N):
+        for c in range(N):
+            if random.random() < rate:
+                board[r][c] = 0
+                
+    return board
+
+# ==========================================
+# 4. AI ENTEGRASYONU (Groq + Gemini GenAI SDK)
 # ==========================================
 def call_groq_api(prompt):
     if not GROQ_KEYS:
         raise ValueError("st.secrets['api_keys']['groq_keys'] altında hiç Groq API Key tanımlanmamış.")
     
     last_error = None
-    # Tanımlı tüm Groq key'lerini sırayla dener
+    # Güncellenmiş Groq Modelleri
+    models_to_try = ["llama-3.3-70b-versatile", "llama3-70b-8192", "mixtral-8x7b-32768"]
+    
     for key in GROQ_KEYS:
-        try:
-            client = Groq(api_key=key)
-            completion = client.chat.completions.create(
-                model="llama-3.3-70b-versatile",
-                messages=[
-                    {"role": "system", "content": "Sen sadece geçerli JSON döndüren bir Sudoku motorusun. Yanıtında hiçbir markdown veya ekstra açıklama metni olmamalıdır."},
-                    {"role": "user", "content": prompt}
-                ],
-                temperature=0.2,
-                response_format={"type": "json_object"}
-            )
-            return completion.choices[0].message.content
-        except Exception as e:
-            last_error = e
-            continue
+        client = Groq(api_key=key)
+        for model in models_to_try:
+            try:
+                completion = client.chat.completions.create(
+                    model=model,
+                    messages=[
+                        {"role": "system", "content": "Sen sadece geçerli JSON döndüren bir Sudoku motorusun. Yanıtında hiçbir markdown veya ekstra açıklama metni olmamalıdır."},
+                        {"role": "user", "content": prompt}
+                    ],
+                    temperature=0.2,
+                    response_format={"type": "json_object"}
+                )
+                return completion.choices[0].message.content
+            except Exception as e:
+                last_error = e
+                continue
             
-    raise ValueError(f"Tüm Groq API anahtarları başarısız oldu. Son Hata: {last_error}")
+    raise ValueError(f"Tüm Groq API anahtarları/modelleri başarısız oldu. Son Hata: {last_error}")
 
 def call_gemini_api(prompt):
     if not GEMINI_KEYS:
         raise ValueError("st.secrets['api_keys']['gemini_keys'] altında hiç Gemini API Key tanımlanmamış.")
     
     last_error = None
-    # Tanımlı tüm Gemini key'lerini sırayla dener
+    # Güncellenmiş Gemini Modelleri
+    models_to_try = ["gemini-3.6-flash", "gemini-2.0-flash", "gemini-1.5-flash"]
+    
     for key in GEMINI_KEYS:
-        try:
-            client = genai.Client(api_key=key)
-            response = client.models.generate_content(
-                model='gemini-2.5-flash',
-                contents=prompt,
-            )
-            return response.text
-        except Exception as e:
-            last_error = e
-            continue
+        client = genai.Client(api_key=key)
+        for model_name in models_to_try:
+            try:
+                response = client.models.generate_content(
+                    model=model_name,
+                    contents=prompt,
+                )
+                return response.text
+            except Exception as e:
+                last_error = e
+                continue
 
-    raise ValueError(f"Tüm Gemini API anahtarları başarısız oldu. Son Hata: {last_error}")
+    raise ValueError(f"Tüm Gemini API anahtarları/modelleri başarısız oldu. Son Hata: {last_error}")
 
 def generate_sudoku_ai(sub_box_size, difficulty):
     N = sub_box_size * sub_box_size
@@ -151,15 +180,17 @@ def generate_sudoku_ai(sub_box_size, difficulty):
     # 1. Öncelik: Groq API
     try:
         raw_response = call_groq_api(prompt)
-        used_service = "Groq API (Llama 3.3)"
+        used_service = "Groq API"
     except Exception as e_groq:
         # 2. Öncelik/Yedek: Gemini API
         try:
             raw_response = call_gemini_api(prompt)
-            used_service = "Gemini API (2.5 Flash)"
+            used_service = "Gemini API (3.8 Flash)"
         except Exception as e_gemini:
-            st.error(f"Her iki API de yanıt vermedi.\n\n• Groq Hatası: {e_groq}\n\n• Gemini Hatası: {e_gemini}")
-            return None, None
+            # 3. Son Çare: Yerel Python Sudoku Algoritması
+            st.warning("API yanıt vermediği için yerel algoritma ile bulmaca oluşturuldu.")
+            grid = generate_local_sudoku(sub_box_size, difficulty)
+            return grid, "Yerel Algoritma (Offline)"
 
     try:
         clean_json = re.sub(r'```json\s*|\s*```', '', raw_response).strip()
@@ -169,173 +200,16 @@ def generate_sudoku_ai(sub_box_size, difficulty):
         if len(grid) == N and all(len(row) == N for row in grid):
             return grid, used_service
         else:
-            st.warning("API gelen veriyi doğru boyutta döndürmedi, tekrar deneniyor...")
-            return None, None
-    except Exception as parse_error:
-        st.error(f"JSON yanıtı işlenirken hata oluştu: {parse_error}")
-        return None, None
+            # Yapı bozuk gelirse yerel koda düş
+            grid = generate_local_sudoku(sub_box_size, difficulty)
+            return grid, "Yerel Algoritma (Yedek)"
+    except Exception:
+        grid = generate_local_sudoku(sub_box_size, difficulty)
+        return grid, "Yerel Algoritma (Yedek)"
 
 # ==========================================
-# 4. YARDIMCI VE KONTROL FONKSİYONLARI
+# 5. YARDIMCI VE KONTROL FONKSİYONLARI
 # ==========================================
 def is_valid_sudoku(grid, sub_size):
     N = sub_size * sub_size
     for i in range(N):
-        row_vals = [grid[i][j] for j in range(N) if grid[i][j] != 0]
-        col_vals = [grid[j][i] for j in range(N) if grid[j][i] != 0]
-        if len(row_vals) != len(set(row_vals)) or len(col_vals) != len(set(col_vals)):
-            return False
-
-    for r in range(0, N, sub_size):
-        for c in range(0, N, sub_size):
-            block_vals = []
-            for i in range(sub_size):
-                for j in range(sub_size):
-                    val = grid[r+i][c+j]
-                    if val != 0:
-                        block_vals.append(val)
-            if len(block_vals) != len(set(block_vals)):
-                return False
-    return True
-
-def is_solved(grid, sub_size):
-    N = sub_size * sub_size
-    for r in range(N):
-        for c in range(N):
-            if grid[r][c] == 0:
-                return False
-    return is_valid_sudoku(grid, sub_size)
-
-# ==========================================
-# 5. STATE (DURUM) YÖNETİMİ
-# ==========================================
-if "sub_size" not in st.session_state:
-    st.session_state.sub_size = 3
-if "board" not in st.session_state:
-    st.session_state.board = None
-if "initial_board" not in st.session_state:
-    st.session_state.initial_board = None
-if "active_service" not in st.session_state:
-    st.session_state.active_service = None
-
-# ==========================================
-# 6. YAN PANEL (KONTROL MERKEZİ)
-# ==========================================
-with st.sidebar:
-    st.title("🧩 Sudoku Ayarları")
-    st.markdown("---")
-    
-    block_option = st.selectbox(
-        "Izgara / Blok Formatı Seçin:",
-        options=["2x2 (4x4 Izgara)", "3x3 (9x9 Standart)", "4x4 (16x16 Izgara)", "5x5 (25x25 Izgara)", "6x6 (36x36 Izgara)"],
-        index=1
-    )
-    
-    sub_size_map = {
-        "2x2 (4x4 Izgara)": 2,
-        "3x3 (9x9 Standart)": 3,
-        "4x4 (16x16 Izgara)": 4,
-        "5x5 (25x25 Izgara)": 5,
-        "6x6 (36x36 Izgara)": 6
-    }
-    selected_sub_size = sub_size_map[block_option]
-    
-    difficulty = st.select_slider(
-        "Zorluk Seviyesi:",
-        options=["Kolay", "Orta", "Zor", "Uzman"]
-    )
-    
-    st.markdown("---")
-    
-    if st.button("🚀 Yeni Oyun Oluştur", type="primary"):
-        with st.spinner("AI Oyunu Hazırlıyor..."):
-            grid, service = generate_sudoku_ai(selected_sub_size, difficulty)
-            if grid:
-                st.session_state.sub_size = selected_sub_size
-                st.session_state.board = [row[:] for row in grid]
-                st.session_state.initial_board = [row[:] for row in grid]
-                st.session_state.active_service = service
-                st.rerun()
-
-    if st.session_state.active_service:
-        st.success(f"Aktif AI Servisi:\n**{st.session_state.active_service}**")
-        
-    st.info(f"Yüklenen Key Sayıları:\n- Groq: **{len(GROQ_KEYS)} Adet**\n- Gemini: **{len(GEMINI_KEYS)} Adet**")
-
-# ==========================================
-# 7. ANA EKRAN & İNTERAKTİF HÜCRELER
-# ==========================================
-st.title("🎮 Pro Sudoku AI Edition")
-
-if st.session_state.board is None:
-    st.warning("Lütfen sol paneldeki **'Yeni Oyun Oluştur'** butonuna basarak oyunu başlatın.")
-else:
-    sub_size = st.session_state.sub_size
-    N = sub_size * sub_size
-    
-    st.caption(f"Boyut: **{N}x{N}** | Bloklar: **{sub_size}x{sub_size}** | Değer Aralığı: **1 - {N}**")
-    
-    grid_container = st.container()
-    
-    with grid_container:
-        for r in range(N):
-            cols = st.columns(N)
-            for c in range(N):
-                val = st.session_state.board[r][c]
-                is_read_only = (st.session_state.initial_board[r][c] != 0)
-                
-                border_class = ""
-                if (c + 1) % sub_size == 0 and c < N - 1:
-                    border_class += " block-border-right"
-                if (r + 1) % sub_size == 0 and r < N - 1:
-                    border_class += " block-border-bottom"
-                
-                key = f"cell_{r}_{c}"
-                
-                if is_read_only:
-                    cols[c].markdown(
-                        f"""<div style="
-                            background-color: #334155; 
-                            color: #60a5fa; 
-                            text-align: center; 
-                            padding: 10px 0; 
-                            border-radius: 8px; 
-                            font-weight: bold; 
-                            font-size: 1.2rem;
-                            margin-bottom: 8px;"
-                            class="{border_class}">
-                            {val}
-                        </div>""", 
-                        unsafe_allow_html=True
-                    )
-                else:
-                    input_val = cols[c].number_input(
-                        label=f"r{r}c{c}",
-                        min_value=0,
-                        max_value=N,
-                        value=int(val),
-                        step=1,
-                        key=key,
-                        label_visibility="collapsed"
-                    )
-                    st.session_state.board[r][c] = input_val
-
-    st.markdown("---")
-    
-    col_btn1, col_btn2 = st.columns(2)
-    
-    with col_btn1:
-        if st.button("🔍 Hamleleri Kontrol Et"):
-            if is_valid_sudoku(st.session_state.board, sub_size):
-                if is_solved(st.session_state.board, sub_size):
-                    st.balloons()
-                    st.success("🎉 TEBRİKLER! Bulmacayı eksiksiz ve doğru şekilde çözdünüz!")
-                else:
-                    st.info("👍 Şimdiye kadar girdiğiniz tüm rakamlar kurallara uygun. Çözmeye devam edin!")
-            else:
-                st.error("⚠️ Tahtada çakışan (kural dışı) rakamlar var! Lütfen kontrol edin.")
-                
-    with col_btn2:
-        if st.button("🔄 Sıfırla (Başa Dön)"):
-            st.session_state.board = [row[:] for row in st.session_state.initial_board]
-            st.rerun()
