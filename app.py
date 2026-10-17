@@ -86,7 +86,7 @@ def call_groq_api(prompt):
 def call_gemini_api(prompt):
     if not GEMINI_KEYS:
         raise ValueError("Gemini anahtarı yok.")
-    models_to_try = ["gemini-3.8-flash", "gemini-2.0-flash", "gemini-1.5-flash"]
+    models_to_try = ["gemini-3.6-flash", "gemini-2.0-flash", "gemini-1.5-flash"]
     for key in GEMINI_KEYS:
         client = genai.Client(api_key=key)
         for model_name in models_to_try:
