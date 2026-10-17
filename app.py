@@ -6,7 +6,7 @@ from groq import Groq
 from google import genai
 
 # ==========================================
-# 1. SAYFA VE OPTİMİZE EDİLMİŞ TEMA AYARLARI
+# 1. SAYFA VE KUSURSUZ KARE TEMA AYARLARI
 # ==========================================
 st.set_page_config(
     page_title="Cyber Sudoku Nexus",
@@ -27,10 +27,11 @@ st.markdown("""
         border-right: 2px solid #1e293b;
     }
 
-    /* Hücre Kutuları - Kompakt ve Ekrana Uygun Boyut */
+    /* Hücre Kutuları - Kusursuz Kare (1:1 Sabit Oran) ve İdeal Boyut */
     div[data-baseweb="input"] {
+        aspect-ratio: 1 / 1 !important;
         width: 100% !important;
-        height: 42px !important;
+        height: auto !important;
         border-radius: 6px !important;
         border: 2px solid #475569 !important;
         background-color: #ffffff !important;
@@ -41,23 +42,23 @@ st.markdown("""
     
     div[data-baseweb="input"]:focus-within {
         border-color: #f97316 !important;
-        box-shadow: 0 0 6px rgba(249, 115, 22, 0.5) !important;
+        box-shadow: 0 0 8px rgba(249, 115, 22, 0.5) !important;
     }
     
-    /* Yazılan Rakamlar - Kusursuz Görünürlük (Siyah ve Kalın) */
+    /* Yazılan Rakamlar - Siyah, Kalın ve Net */
     .stTextInput input {
         text-align: center !important;
-        font-weight: 800 !important;
-        font-size: 1.2rem !important;
+        font-weight: 900 !important;
+        font-size: 1.4rem !important;
         color: #0f172a !important;
         background-color: transparent !important;
         padding: 0 !important;
     }
 
-    /* Sabit Hücreler - Net Okunabilirlik */
+    /* Sabit Hücreler - Kusursuz Kare (1:1 Sabit Oran) */
     .fixed-cell {
+        aspect-ratio: 1 / 1 !important;
         width: 100% !important;
-        height: 42px !important;
         background-color: #1e293b;
         color: #38bdf8;
         display: flex;
@@ -65,8 +66,8 @@ st.markdown("""
         justify-content: center;
         border-radius: 6px;
         border: 2px solid #475569;
-        font-weight: 800;
-        font-size: 1.2rem;
+        font-weight: 900;
+        font-size: 1.4rem;
         user-select: none;
     }
 
@@ -83,11 +84,11 @@ st.markdown("""
         width: 100%;
         border-radius: 8px;
         font-weight: 800;
-        font-size: 1.05rem;
+        font-size: 1.1rem;
         background: #f97316;
         color: #ffffff;
         border: none;
-        padding: 12px 0;
+        padding: 14px 0;
         transition: all 0.2s ease;
         box-shadow: 0 4px 14px rgba(249, 115, 22, 0.4);
         margin-top: 10px;
@@ -98,25 +99,24 @@ st.markdown("""
         transform: translateY(-2px);
     }
     
-    /* Sayaç Kutusu */
     .timer-card {
         background: #1e293b;
         border: 2px solid #f97316;
-        padding: 10px 16px;
+        padding: 12px 20px;
         border-radius: 8px;
         text-align: center;
-        font-weight: 800;
-        font-size: 1.1rem;
+        font-weight: 900;
+        font-size: 1.2rem;
         color: #f97316;
         box-shadow: 0 0 15px rgba(249, 115, 22, 0.2);
-        margin-bottom: 15px;
-        letter-spacing: 1px;
+        margin-bottom: 20px;
+        letter-spacing: 2px;
     }
     
     .welcome-card {
         background: #1e293b;
         border: 2px solid #334155;
-        padding: 25px;
+        padding: 30px;
         border-radius: 12px;
         box-shadow: 0 4px 20px rgba(0, 0, 0, 0.5);
         margin-top: 20px;
@@ -276,6 +276,8 @@ if "active_service" not in st.session_state:
     st.session_state.active_service = None
 if "game_started" not in st.session_state:
     st.session_state.game_started = False
+if "game_won" not in st.session_state:
+    st.session_state.game_won = False
 
 # ==========================================
 # 7. YAN PANEL
@@ -316,6 +318,7 @@ with st.sidebar:
                 st.session_state.initial_board = [row[:] for row in grid]
                 st.session_state.active_service = service
                 st.session_state.game_started = True
+                st.session_state.game_won = False
                 st.rerun()
 
     if st.session_state.game_started:
@@ -323,13 +326,14 @@ with st.sidebar:
             st.session_state.game_started = False
             st.session_state.board = None
             st.session_state.initial_board = None
+            st.session_state.game_won = False
             st.rerun()
 
     if st.session_state.active_service:
         st.success(f"Motor: **{st.session_state.active_service}**")
 
 # ==========================================
-# 8. ANA EKRAN & OYUN AKIŞI
+# 8. ANA EKRAN & OYUN AKIŞI (Sağ/Orta Büyük Boyut)
 # ==========================================
 st.title("🧩 Cyber Sudoku Nexus")
 
@@ -337,11 +341,11 @@ if not st.session_state.game_started:
     st.markdown("""
     <div class="welcome-card">
         <h2>✨ Hoş Geldiniz!</h2>
-        <p style="font-size: 1.05rem; line-height: 1.6; color: #cbd5e1;">
-            <b>Cyber Sudoku Nexus</b> platformuna hoş geldiniz. Optimize edilmiş ideal boyutlara ve yüksek kontrastlı renk paletine sahip bu deneyimde sol menüden 
+        <p style="font-size: 1.1rem; line-height: 1.6; color: #cbd5e1;">
+            <b>Cyber Sudoku Nexus</b> platformuna hoş geldiniz. Mükemmel kare oranına ve otomatik bitiş özelliğine sahip bu modern deneyimde sol menüden 
             ayarlarınızı yapıp turuncu <b>"Oyuna Başla"</b> butonuna tıklayarak hemen maceraya atılabilirsiniz.
         </p>
-        <hr style="border-color: #334155; margin: 15px 0;">
+        <hr style="border-color: #334155; margin: 20px 0;">
         <p style="color: #f97316; font-weight: 600;">
             🚀 Hazır olduğunuzda sol menüden oyunu başlatın!
         </p>
@@ -367,8 +371,13 @@ else:
                 st.session_state.board[r][c] = 0
         else:
             st.session_state.board[r][c] = 0
+            
+        # Son rakam girildiğinde otomatik kontrol ve bitiş
+        if is_solved(st.session_state.board, sub_size):
+            st.session_state.game_won = True
 
-    _, main_col, _ = st.columns([1, 8, 1])
+    # Sağ ve ortada büyük boyutta konumlandırma için sütun oranları
+    _, main_col, _ = st.columns([0.5, 9, 0.5])
     
     with main_col:
         for r in range(N):
@@ -403,6 +412,11 @@ else:
                             args=(r, c)
                         )
 
+    # Otomatik Zafer Ekranı Kontrolü
+    if st.session_state.game_won:
+        st.balloons()
+        st.success("🏆 İnanılmaz bir zeka! Sudoku bulmacasını kusursuz bir şekilde tamamladın! Otomatik olarak zaferle sonuçlandı!")
+
     st.markdown("---")
     
     col_btn1, col_btn2 = st.columns(2)
@@ -420,4 +434,9 @@ else:
     with col_btn2:
         if st.button("🔄 Oyunu Sıfırla"):
             st.session_state.board = [row[:] for row in st.session_state.initial_board]
+            st.session_state.game_won = False
             st.rerun()
+
+<FollowUp>
+- Otomatik bitiş, sağ/ortada büyük boyutta konumlandırma ve mükemmel kare hücre tasarımı beklentilerinizi tam olarak karşıladı mı?
+</FollowUp>
