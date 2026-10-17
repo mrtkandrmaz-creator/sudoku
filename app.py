@@ -6,7 +6,7 @@ from groq import Groq
 from google import genai
 
 # ==========================================
-# 1. SAYFA VE BEYAZ/TURUNCU TEMA AYARLARI
+# 1. SAYFA VE İDEAL BOYUTLU TEMA AYARLARI
 # ==========================================
 st.set_page_config(
     page_title="Cyber Sudoku Nexus",
@@ -17,7 +17,6 @@ st.set_page_config(
 
 st.markdown("""
 <style>
-    /* Açık Tema Arka Plan */
     .stApp {
         background-color: #f8fafc;
         color: #0f172a;
@@ -28,38 +27,43 @@ st.markdown("""
         border-right: 2px solid #e2e8f0;
     }
 
-    /* Hücre Kutuları - Tam Kare ve Net */
+    /* Hücre Kutuları - Sayfaya Uygun, Kompakt ve Kare */
     div[data-baseweb="input"] {
         aspect-ratio: 1 / 1 !important;
         width: 100% !important;
-        height: auto !important;
+        max-width: 55px !important;
+        height: 55px !important;
         border-radius: 6px !important;
         border: 2px solid #cbd5e1 !important;
         background-color: #ffffff !important;
         display: flex !important;
         align-items: center !important;
         justify-content: center !important;
+        margin: auto !important;
     }
     
     div[data-baseweb="input"]:focus-within {
         border-color: #f97316 !important;
-        box-shadow: 0 0 8px rgba(249, 115, 22, 0.4) !important;
+        box-shadow: 0 0 6px rgba(249, 115, 22, 0.4) !important;
     }
     
-    /* Kullanıcının Yazdığı Rakamlar - Net ve Okunaklı */
+    /* Kullanıcının Yazdığı Rakamlar - Kesinlikle Görünür ve Net */
     .stTextInput input {
         text-align: center !important;
         font-weight: 800 !important;
-        font-size: 1.25rem !important;
+        font-size: 1.2rem !important;
         color: #0f172a !important;
         background-color: transparent !important;
         padding: 0 !important;
+        width: 100% !important;
     }
 
-    /* Sabit Hücreler (AI Rakamları) */
+    /* Sabit Hücreler (AI Verileri) */
     .fixed-cell {
         aspect-ratio: 1 / 1 !important;
         width: 100% !important;
+        max-width: 55px !important;
+        height: 55px !important;
         background-color: #ffedd5;
         color: #c2410c;
         display: flex;
@@ -68,8 +72,9 @@ st.markdown("""
         border-radius: 6px;
         border: 2px solid #fdba74;
         font-weight: 800;
-        font-size: 1.25rem;
+        font-size: 1.2rem;
         user-select: none;
+        margin: auto;
     }
 
     /* Kalın Turuncu Blok Kenarlıkları */
@@ -292,18 +297,25 @@ with st.sidebar:
         index=1
     )
     
+    # İstediğiniz 2x2, 3x3, 4x4, 5x5, 6x6 kare formatları
     block_option = st.selectbox(
         "Izgara / Blok Formatı:",
-        options=["2x2 (4x4 Izgara)", "3x3 (9x9 Standart)", "4x4 (16x16 Izgara)", "5x5 (25x25 Izgara)", "6x6 (36x36 Izgara)"],
+        options=[
+            "2*2 (4 Kare)", 
+            "3*3 (9 Kare)", 
+            "4*4 (16 Kare)", 
+            "5*5 (25 Kare)", 
+            "6*6 (36 Kare)"
+        ],
         index=1
     )
     
     sub_size_map = {
-        "2x2 (4x4 Izgara)": 2,
-        "3x3 (9x9 Standart)": 3,
-        "4x4 (16x16 Izgara)": 4,
-        "5x5 (25x25 Izgara)": 5,
-        "6x6 (36x36 Izgara)": 6
+        "2*2 (4 Kare)": 2,
+        "3*3 (9 Kare)": 3,
+        "4*4 (16 Kare)": 4,
+        "5*5 (25 Kare)": 5,
+        "6*6 (36 Kare)": 6
     }
     selected_sub_size = sub_size_map[block_option]
     
@@ -342,9 +354,9 @@ if not st.session_state.game_started:
     <div class="welcome-card">
         <h2 style="color: #ea580c; margin-top: 0;">✨ Hoş Geldiniz!</h2>
         <p style="font-size: 1.05rem; line-height: 1.6; color: #334155;">
-            Yapay zeka ile desteklenen <b>Modern Sudoku Studio</b> platformuna hoş geldiniz. 
-            Açık renkli, göz yormayan turuncu tasarımıyla sol panelden ayarlarınızı yapıp 
-            <b>"Oyuna Başla"</b> butonuna basarak oynamaya başlayabilirsiniz.
+            Yapay zeka destekli <b>Modern Sudoku Studio</b> platformuna hoş geldiniz. 
+            Sol menüden istediğiniz matris boyutunu ve zorluk derecesini seçip 
+            <b>"Oyuna Başla"</b> butonuna basarak hemen oynamaya başlayabilirsiniz.
         </p>
         <hr style="border-color: #fed7aa; margin: 15px 0;">
         <p style="color: #f97316; font-weight: 700;">
@@ -358,7 +370,7 @@ else:
     
     top_col1, top_col2 = st.columns([2, 1])
     with top_col1:
-        st.markdown(f"**Boyut:** {N}x{N} | **Blok:** {sub_size}x{sub_size}")
+        st.markdown(f"**Boyut:** {N}x{N} | **Toplam Kare:** {N*N} | **Blok:** {sub_size}x{sub_size}")
     with top_col2:
         st.markdown(f'<div class="timer-card">⏱️ Aktif Oyundasınız</div>', unsafe_allow_html=True)
 
@@ -373,7 +385,6 @@ else:
         else:
             st.session_state.board[r][c] = 0
             
-        # Son rakam girildiğinde anında otomatik kontrol
         if is_solved(st.session_state.board, sub_size):
             st.session_state.game_won = True
 
@@ -412,7 +423,6 @@ else:
                             args=(r, c)
                         )
 
-    # Otomatik Zafer Bildirimi
     if st.session_state.game_won:
         st.balloons()
         st.success("🎉 TEBRİKLER! Bulmacadaki tüm rakamları eksiksiz ve doğru şekilde tamamladınız!")
