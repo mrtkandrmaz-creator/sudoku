@@ -3,7 +3,7 @@ import json
 import re
 import os
 import requests
-from google import genai
+import google.generativeai as genai
 
 # ==========================================
 # 1. SAYFA VE TEMA AYARLARI (Modern UI CSS)
@@ -56,61 +56,35 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 # ==========================================
-# 2. GELİŞMİŞ VE ESNEK SECRETS OKUMA
+# 2. SECRETS OKUMA MEKANİZMASI ([api_keys])
 # ==========================================
-def fetch_all_keys(service_prefix):
-    """
-    st.secrets ve env içerisindeki tüm uyumlu API key'leri toplar.
-    Birden fazla key tanımlanmışsa hepsini liste olarak döndürür.
-    """
-    keys = []
-    
-    # Environment Variables Kontrolü
-    for k, v in os.environ.items():
-        if service_prefix.lower() in k.lower() and isinstance(v, str) and v.strip():
-            keys.append(v.strip())
+def get_groq_keys():
+    """st.secrets['api_keys']['groq_keys'] listesini okur."""
+    try:
+        if hasattr(st, "secrets") and "api_keys" in st.secrets:
+            return list(st.secrets["api_keys"].get("groq_keys", []))
+    except Exception:
+        pass
+    return []
 
-    # Streamlit Secrets Taraması (Özyinelemeli/Recursive)
-    def extract_keys(data):
-        if isinstance(data, dict):
-            for k, v in data.items():
-                if service_prefix.lower() in k.lower():
-                    if isinstance(v, str) and v.strip():
-                        keys.append(v.strip())
-                    elif isinstance(v, list):
-                        for item in v:
-                            if isinstance(item, str) and item.strip():
-                                keys.append(item.strip())
-                    elif isinstance(v, dict):
-                        extract_keys(v)
-                else:
-                    extract_keys(v)
+def get_gemini_keys():
+    """st.secrets['api_keys']['gemini_keys'] listesini okur."""
+    try:
+        if hasattr(st, "secrets") and "api_keys" in st.secrets:
+            return list(st.secrets["api_keys"].get("gemini_keys", []))
+    except Exception:
+        pass
+    return []
 
-    if hasattr(st, "secrets"):
-        try:
-            extract_keys(dict(st.secrets))
-        except Exception:
-            pass
-
-    # Tekilleştır (Sıralamayı koruyarak)
-    seen = set()
-    unique_keys = []
-    for k in keys:
-        if k not in seen:
-            seen.add(k)
-            unique_keys.append(k)
-            
-    return unique_keys
-
-GROQ_KEYS = fetch_all_keys("groq")
-GEMINI_KEYS = fetch_all_keys("gemini")
+GROQ_KEYS = get_groq_keys()
+GEMINI_KEYS = get_gemini_keys()
 
 # ==========================================
 # 3. AI ENTEGRASYONU (Groq + Gemini Çoklu Key Desteği)
 # ==========================================
 def call_groq_api(prompt):
     if not GROQ_KEYS:
-        raise ValueError("Hiçbir Groq API Key tanımlanmamış.")
+        raise ValueError("st.secrets['api_keys']['groq_keys'] altında hiç Groq API Key tanımlanmamış.")
     
     url = "https://api.groq.com/openai/v1/chat/completions"
     last_error = None
@@ -142,18 +116,16 @@ def call_groq_api(prompt):
 
 def call_gemini_api(prompt):
     if not GEMINI_KEYS:
-        raise ValueError("Hiçbir Gemini API Key tanımlanmamış.")
+        raise ValueError("st.secrets['api_keys']['gemini_keys'] altında hiç Gemini API Key tanımlanmamış.")
     
     last_error = None
     
     # Tanımlı tüm Gemini key'lerini sırayla dener
     for key in GEMINI_KEYS:
         try:
-            client = genai.Client(api_key=key)
-            response = client.models.generate_content(
-                model='gemini-2.5-flash',
-                contents=prompt,
-            )
+            genai.configure(api_key=key)
+            model = genai.GenerativeModel('gemini-1.5-flash')
+            response = model.generate_content(prompt)
             return response.text
         except Exception as e:
             last_error = e
@@ -192,7 +164,7 @@ def generate_sudoku_ai(sub_box_size, difficulty):
         # 2. Öncelik/Yedek: Gemini API
         try:
             raw_response = call_gemini_api(prompt)
-            used_service = "Gemini API (2.5 Flash)"
+            used_service = "Gemini API (1.5 Flash)"
         except Exception as e_gemini:
             st.error(f"Her iki API de yanıt vermedi.\n\n• Groq Hatası: {e_groq}\n\n• Gemini Hatası: {e_gemini}")
             return None, None
@@ -296,7 +268,7 @@ with st.sidebar:
     if st.session_state.active_service:
         st.success(f"Aktif AI Servisi:\n**{st.session_state.active_service}**")
         
-    st.info(f"Tespit Edilen API Key Sayıları:\n- Groq: **{len(GROQ_KEYS)} Adet**\n- Gemini: **{len(GEMINI_KEYS)} Adet**")
+    st.info(f"Yüklenen Key Sayıları:\n- Groq: **{len(GROQ_KEYS)} Adet**\n- Gemini: **{len(GEMINI_KEYS)} Adet**")
 
 # ==========================================
 # 7. ANA EKRAN & İNTERAKTİF HÜCRELER
