@@ -6,34 +6,35 @@ from groq import Groq
 from google import genai
 
 # ==========================================
-# 1. SAYFA VE KUSURSUZ KARE TEMA AYARLARI
+# 1. SAYFA VE BEYAZ/TURUNCU TEMA AYARLARI
 # ==========================================
 st.set_page_config(
     page_title="Cyber Sudoku Nexus",
-    page_icon="🌌",
+    page_icon="🧩",
     layout="wide",
     initial_sidebar_state="expanded"
 )
 
 st.markdown("""
 <style>
+    /* Açık Tema Arka Plan */
     .stApp {
-        background-color: #050811;
-        color: #ffffff;
+        background-color: #f8fafc;
+        color: #0f172a;
     }
     
     section[data-testid="stSidebar"] {
-        background-color: #0f172a;
-        border-right: 2px solid #1e293b;
+        background-color: #ffffff;
+        border-right: 2px solid #e2e8f0;
     }
 
-    /* Hücre Kutuları - Kusursuz Kare (1:1 Sabit Oran) ve İdeal Boyut */
+    /* Hücre Kutuları - Tam Kare ve Net */
     div[data-baseweb="input"] {
         aspect-ratio: 1 / 1 !important;
         width: 100% !important;
         height: auto !important;
         border-radius: 6px !important;
-        border: 2px solid #475569 !important;
+        border: 2px solid #cbd5e1 !important;
         background-color: #ffffff !important;
         display: flex !important;
         align-items: center !important;
@@ -42,36 +43,36 @@ st.markdown("""
     
     div[data-baseweb="input"]:focus-within {
         border-color: #f97316 !important;
-        box-shadow: 0 0 8px rgba(249, 115, 22, 0.5) !important;
+        box-shadow: 0 0 8px rgba(249, 115, 22, 0.4) !important;
     }
     
-    /* Yazılan Rakamlar - Siyah, Kalın ve Net */
+    /* Kullanıcının Yazdığı Rakamlar - Net ve Okunaklı */
     .stTextInput input {
         text-align: center !important;
-        font-weight: 900 !important;
-        font-size: 1.4rem !important;
+        font-weight: 800 !important;
+        font-size: 1.25rem !important;
         color: #0f172a !important;
         background-color: transparent !important;
         padding: 0 !important;
     }
 
-    /* Sabit Hücreler - Kusursuz Kare (1:1 Sabit Oran) */
+    /* Sabit Hücreler (AI Rakamları) */
     .fixed-cell {
         aspect-ratio: 1 / 1 !important;
         width: 100% !important;
-        background-color: #1e293b;
-        color: #38bdf8;
+        background-color: #ffedd5;
+        color: #c2410c;
         display: flex;
         align-items: center;
         justify-content: center;
         border-radius: 6px;
-        border: 2px solid #475569;
-        font-weight: 900;
-        font-size: 1.4rem;
+        border: 2px solid #fdba74;
+        font-weight: 800;
+        font-size: 1.25rem;
         user-select: none;
     }
 
-    /* Kalın Blok Kenarlıkları */
+    /* Kalın Turuncu Blok Kenarlıkları */
     .block-border-right {
         border-right: 4px solid #f97316 !important;
     }
@@ -84,42 +85,41 @@ st.markdown("""
         width: 100%;
         border-radius: 8px;
         font-weight: 800;
-        font-size: 1.1rem;
+        font-size: 1.05rem;
         background: #f97316;
         color: #ffffff;
         border: none;
-        padding: 14px 0;
+        padding: 12px 0;
         transition: all 0.2s ease;
-        box-shadow: 0 4px 14px rgba(249, 115, 22, 0.4);
+        box-shadow: 0 4px 12px rgba(249, 115, 22, 0.3);
         margin-top: 10px;
     }
     div.stButton > button:first-child:hover {
         background: #ea580c;
-        box-shadow: 0 6px 20px rgba(249, 115, 22, 0.6);
+        box-shadow: 0 6px 18px rgba(249, 115, 22, 0.5);
         transform: translateY(-2px);
     }
     
     .timer-card {
-        background: #1e293b;
+        background: #ffffff;
         border: 2px solid #f97316;
-        padding: 12px 20px;
+        padding: 10px 18px;
         border-radius: 8px;
         text-align: center;
-        font-weight: 900;
-        font-size: 1.2rem;
-        color: #f97316;
-        box-shadow: 0 0 15px rgba(249, 115, 22, 0.2);
-        margin-bottom: 20px;
-        letter-spacing: 2px;
+        font-weight: 800;
+        font-size: 1.1rem;
+        color: #ea580c;
+        box-shadow: 0 2px 8px rgba(249, 115, 22, 0.15);
+        margin-bottom: 15px;
     }
     
     .welcome-card {
-        background: #1e293b;
-        border: 2px solid #334155;
-        padding: 30px;
+        background: #ffffff;
+        border: 2px solid #fed7aa;
+        padding: 25px;
         border-radius: 12px;
-        box-shadow: 0 4px 20px rgba(0, 0, 0, 0.5);
-        margin-top: 20px;
+        box-shadow: 0 4px 15px rgba(0, 0, 0, 0.05);
+        margin-top: 15px;
     }
 </style>
 """, unsafe_allow_html=True)
@@ -283,7 +283,7 @@ if "game_won" not in st.session_state:
 # 7. YAN PANEL
 # ==========================================
 with st.sidebar:
-    st.title("🌌 Nexus Kontrolleri")
+    st.title("🧩 Sudoku Ayarları")
     st.markdown("---")
     
     difficulty = st.selectbox(
@@ -333,21 +333,22 @@ with st.sidebar:
         st.success(f"Motor: **{st.session_state.active_service}**")
 
 # ==========================================
-# 8. ANA EKRAN & OYUN AKIŞI (Sağ/Orta Büyük Boyut)
+# 8. ANA EKRAN & OYUN AKIŞI
 # ==========================================
-st.title("🧩 Cyber Sudoku Nexus")
+st.title("🧩 Modern Sudoku Studio")
 
 if not st.session_state.game_started:
     st.markdown("""
     <div class="welcome-card">
-        <h2>✨ Hoş Geldiniz!</h2>
-        <p style="font-size: 1.1rem; line-height: 1.6; color: #cbd5e1;">
-            <b>Cyber Sudoku Nexus</b> platformuna hoş geldiniz. Mükemmel kare oranına ve otomatik bitiş özelliğine sahip bu modern deneyimde sol menüden 
-            ayarlarınızı yapıp turuncu <b>"Oyuna Başla"</b> butonuna tıklayarak hemen maceraya atılabilirsiniz.
+        <h2 style="color: #ea580c; margin-top: 0;">✨ Hoş Geldiniz!</h2>
+        <p style="font-size: 1.05rem; line-height: 1.6; color: #334155;">
+            Yapay zeka ile desteklenen <b>Modern Sudoku Studio</b> platformuna hoş geldiniz. 
+            Açık renkli, göz yormayan turuncu tasarımıyla sol panelden ayarlarınızı yapıp 
+            <b>"Oyuna Başla"</b> butonuna basarak oynamaya başlayabilirsiniz.
         </p>
-        <hr style="border-color: #334155; margin: 20px 0;">
-        <p style="color: #f97316; font-weight: 600;">
-            🚀 Hazır olduğunuzda sol menüden oyunu başlatın!
+        <hr style="border-color: #fed7aa; margin: 15px 0;">
+        <p style="color: #f97316; font-weight: 700;">
+            🚀 Başlamak için sol menüden turuncu butona tıklayın!
         </p>
     </div>
     """, unsafe_allow_html=True)
@@ -359,7 +360,7 @@ else:
     with top_col1:
         st.markdown(f"**Boyut:** {N}x{N} | **Blok:** {sub_size}x{sub_size}")
     with top_col2:
-        st.markdown(f'<div class="timer-card">⏱️ Aktif Oyun</div>', unsafe_allow_html=True)
+        st.markdown(f'<div class="timer-card">⏱️ Aktif Oyundasınız</div>', unsafe_allow_html=True)
 
     def update_cell(r, c):
         val = st.session_state[f"cell_{r}_{c}"]
@@ -372,6 +373,7 @@ else:
         else:
             st.session_state.board[r][c] = 0
             
+        # Son rakam girildiğinde anında otomatik kontrol
         if is_solved(st.session_state.board, sub_size):
             st.session_state.game_won = True
 
@@ -410,9 +412,10 @@ else:
                             args=(r, c)
                         )
 
+    # Otomatik Zafer Bildirimi
     if st.session_state.game_won:
         st.balloons()
-        st.success("🏆 İnanılmaz bir zeka! Sudoku bulmacasını kusursuz bir şekilde tamamladın! Otomatik olarak zaferle sonuçlandı!")
+        st.success("🎉 TEBRİKLER! Bulmacadaki tüm rakamları eksiksiz ve doğru şekilde tamamladınız!")
 
     st.markdown("---")
     
@@ -422,11 +425,11 @@ else:
             if is_valid_sudoku(st.session_state.board, sub_size):
                 if is_solved(st.session_state.board, sub_size):
                     st.balloons()
-                    st.success("🏆 İnanılmaz bir zeka! Sudoku bulmacasını kusursuz bir şekilde tamamladın! Seninle gurur duyuyorum!")
+                    st.success("🎉 TEBRİKLER! Bulmacayı kusursuz bir şekilde tamamladınız!")
                 else:
-                    st.info("👍 Harika gidiyorsun! Şu ana kadarki hamlelerin kurallara tamamen uygun, çözmeye devam et!")
+                    st.info("👍 Şimdiye kadarki tüm hamleleriniz kurallara uygun. Çözmeye devam edin!")
             else:
-                st.error("⚠️ Dikkat! Tahtada kurallara uymayan çakışan rakamlar var. Hamlelerini gözden geçir.")
+                st.error("⚠️ Dikkat! Tahtada çakışan (kural dışı) rakamlar var. Kontrol ediniz.")
                 
     with col_btn2:
         if st.button("🔄 Oyunu Sıfırla"):
