@@ -17,17 +17,10 @@ st.set_page_config(
 
 st.markdown("""
 <style>
-    /* Modern Koyu/Açık Uyumlu Grid Teması */
     .stApp {
         background-color: #0f172a;
         color: #f8fafc;
     }
-    .sudoku-container {
-        display: flex;
-        justify-content: center;
-        margin-top: 20px;
-    }
-    /* Streamlit Number Input Stil Özelleştirmeleri */
     div[data-baseweb="input"] {
         border-radius: 8px !important;
         border: 1px solid #334155 !important;
@@ -44,7 +37,6 @@ st.markdown("""
         font-size: 1.2rem !important;
         color: #f8fafc !important;
     }
-    /* Blok Ayrım Çizgileri */
     .block-border-right {
         border-right: 3px solid #64748b !important;
     }
@@ -61,70 +53,113 @@ st.markdown("""
         transform: translateY(-2px);
     }
 </style>
-""", unsafe_allow_html=True)  # <-- DÜZELTME BURADA YAPILDI
+""", unsafe_allow_html=True)
 
 # ==========================================
-# 2. ESNEK SECRETS OKUMA MEKANİZMASI
+# 2. GELİŞMİŞ VE ESNEK SECRETS OKUMA
 # ==========================================
-def get_api_key(service_prefix):
-    for key, value in os.environ.items():
-        if service_prefix.lower() in key.lower() and "key" in key.lower():
-            return value
+def fetch_all_keys(service_prefix):
+    """
+    st.secrets ve env içerisindeki tüm uyumlu API key'leri toplar.
+    Birden fazla key tanımlanmışsa hepsini liste olarak döndürür.
+    """
+    keys = []
+    
+    # Environment Variables Kontrolü
+    for k, v in os.environ.items():
+        if service_prefix.lower() in k.lower() and isinstance(v, str) and v.strip():
+            keys.append(v.strip())
+
+    # Streamlit Secrets Taraması (Özyinelemeli/Recursive)
+    def extract_keys(data):
+        if isinstance(data, dict):
+            for k, v in data.items():
+                if service_prefix.lower() in k.lower():
+                    if isinstance(v, str) and v.strip():
+                        keys.append(v.strip())
+                    elif isinstance(v, list):
+                        for item in v:
+                            if isinstance(item, str) and item.strip():
+                                keys.append(item.strip())
+                    elif isinstance(v, dict):
+                        extract_keys(v)
+                else:
+                    extract_keys(v)
 
     if hasattr(st, "secrets"):
-        def search_dict(d):
-            for k, v in d.items():
-                if isinstance(v, dict):
-                    res = search_dict(v)
-                    if res: return res
-                elif service_prefix.lower() in k.lower() and ("key" in k.lower() or "api" in k.lower()):
-                    return v
-            return None
-        
-        found = search_dict(dict(st.secrets))
-        if found:
-            return found
-            
-    return None
+        try:
+            extract_keys(dict(st.secrets))
+        except Exception:
+            pass
 
-GROQ_KEY = get_api_key("groq")
-GEMINI_KEY = get_api_key("gemini")
+    # Tekilleştır (Sıralamayı koruyarak)
+    seen = set()
+    unique_keys = []
+    for k in keys:
+        if k not in seen:
+            seen.add(k)
+            unique_keys.append(k)
+            
+    return unique_keys
+
+GROQ_KEYS = fetch_all_keys("groq")
+GEMINI_KEYS = fetch_all_keys("gemini")
 
 # ==========================================
-# 3. AI ENTEGRASYONU (Groq Öncelikli + Gemini Yedek)
+# 3. AI ENTEGRASYONU (Groq + Gemini Çoklu Key Desteği)
 # ==========================================
 def call_groq_api(prompt):
-    if not GROQ_KEY:
-        raise ValueError("Groq API Key bulunamadı.")
+    if not GROQ_KEYS:
+        raise ValueError("Hiçbir Groq API Key tanımlanmamış.")
     
     url = "https://api.groq.com/openai/v1/chat/completions"
-    headers = {
-        "Authorization": f"Bearer {GROQ_KEY}",
-        "Content-Type": "application/json"
-    }
-    payload = {
-        "model": "llama-3.3-70b-versatile",
-        "messages": [
-            {"role": "system", "content": "Sen sadece geçerli JSON döndüren bir Sudoku motorusun. Yanıtında hiçbir markdown veya ekstra açıklama metni olmamalıdır."},
-            {"role": "user", "content": prompt}
-        ],
-        "temperature": 0.2,
-        "response_format": {"type": "json_object"}
-    }
-    response = requests.post(url, headers=headers, json=payload, timeout=15)
-    response.raise_for_status()
-    return response.json()["choices"][0]["message"]["content"]
+    last_error = None
+
+    # Tanımlı tüm Groq key'lerini sırayla dener
+    for key in GROQ_KEYS:
+        try:
+            headers = {
+                "Authorization": f"Bearer {key}",
+                "Content-Type": "application/json"
+            }
+            payload = {
+                "model": "llama-3.3-70b-versatile",
+                "messages": [
+                    {"role": "system", "content": "Sen sadece geçerli JSON döndüren bir Sudoku motorusun. Yanıtında hiçbir markdown veya ekstra açıklama metni olmamalıdır."},
+                    {"role": "user", "content": prompt}
+                ],
+                "temperature": 0.2,
+                "response_format": {"type": "json_object"}
+            }
+            response = requests.post(url, headers=headers, json=payload, timeout=15)
+            response.raise_for_status()
+            return response.json()["choices"][0]["message"]["content"]
+        except Exception as e:
+            last_error = e
+            continue
+            
+    raise ValueError(f"Tüm Groq API anahtarları başarısız oldu. Son Hata: {last_error}")
 
 def call_gemini_api(prompt):
-    if not GEMINI_KEY:
-        raise ValueError("Gemini API Key bulunamadı.")
+    if not GEMINI_KEYS:
+        raise ValueError("Hiçbir Gemini API Key tanımlanmamış.")
     
-    client = genai.Client(api_key=GEMINI_KEY)
-    response = client.models.generate_content(
-        model='gemini-2.5-flash',
-        contents=prompt,
-    )
-    return response.text
+    last_error = None
+    
+    # Tanımlı tüm Gemini key'lerini sırayla dener
+    for key in GEMINI_KEYS:
+        try:
+            client = genai.Client(api_key=key)
+            response = client.models.generate_content(
+                model='gemini-2.5-flash',
+                contents=prompt,
+            )
+            return response.text
+        except Exception as e:
+            last_error = e
+            continue
+
+    raise ValueError(f"Tüm Gemini API anahtarları başarısız oldu. Son Hata: {last_error}")
 
 def generate_sudoku_ai(sub_box_size, difficulty):
     N = sub_box_size * sub_box_size
@@ -149,15 +184,17 @@ def generate_sudoku_ai(sub_box_size, difficulty):
     raw_response = None
     used_service = None
 
+    # 1. Öncelik: Groq API
     try:
         raw_response = call_groq_api(prompt)
         used_service = "Groq API (Llama 3.3)"
     except Exception as e_groq:
+        # 2. Öncelik/Yedek: Gemini API
         try:
             raw_response = call_gemini_api(prompt)
             used_service = "Gemini API (2.5 Flash)"
         except Exception as e_gemini:
-            st.error(f"Her iki API de yanıt vermedi.\nGroq Hatası: {e_groq}\nGemini Hatası: {e_gemini}")
+            st.error(f"Her iki API de yanıt vermedi.\n\n• Groq Hatası: {e_groq}\n\n• Gemini Hatası: {e_gemini}")
             return None, None
 
     try:
@@ -259,7 +296,7 @@ with st.sidebar:
     if st.session_state.active_service:
         st.success(f"Aktif AI Servisi:\n**{st.session_state.active_service}**")
         
-    st.info(f"API Durumları:\n- Groq: {'✅ Algılandı' if GROQ_KEY else '❌ Eksik'}\n- Gemini: {'✅ Algılandı' if GEMINI_KEY else '❌ Eksik'}")
+    st.info(f"Tespit Edilen API Key Sayıları:\n- Groq: **{len(GROQ_KEYS)} Adet**\n- Gemini: **{len(GEMINI_KEYS)} Adet**")
 
 # ==========================================
 # 7. ANA EKRAN & İNTERAKTİF HÜCRELER
