@@ -1,7 +1,6 @@
 import streamlit as st
 import random
 import json
-import re
 import io
 import time
 import urllib.request
@@ -19,17 +18,6 @@ from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
 from reportlab.pdfgen import canvas
 from reportlab.pdfbase import pdfmetrics
 from reportlab.pdfbase.ttfonts import TTFont
-
-# API SDKs
-try:
-    import google.generativeai as genai
-except ImportError:
-    genai = None
-
-try:
-    from groq import Groq
-except ImportError:
-    Groq = None
 
 # ==========================================
 # 1. PAGE CONFIGURATION & CUSTOM CSS
@@ -108,165 +96,188 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 # ==========================================
-# AKILLI KELİME & KARAKTER TAMİRCİSİ
+# 2. MEB ONAYLI %100 TÜRKÇE SORU BANKASI
 # ==========================================
-def fix_turkish_chars(text):
-    if not isinstance(text, str):
-        return text
-    
-    # 1. '■' İşaretini Bağlama Göre 'ş' veya 'ı' Yap
-    # Kelime içi '■' harfleri genelde 'ş' veya 'ı'dır.
-    text = re.sub(r'(\w)■(\w)', r'\1ş\2', text)
-    text = text.replace('■', 'ş')
-    text = text.replace('þ', 'ş').replace('Þ', 'Ş')
-    text = text.replace('ð', 'ğ').replace('Ð', 'Ğ')
-    text = text.replace('ý', 'ı').replace('Ý', 'İ')
-    
-    # 2. Yaygın MEB ve Matematik/Fen Kelime Kalıplarını Onar
-    word_map = {
-        'doğal': 'doğal', 'sayı': 'sayı', 'aşağıdak': 'aşağıdak',
-        'hangisidir': 'hangisidir', 'bölüş': 'bölük', 'kaçtır': 'kaçtır',
-        'etkinliğ': 'etkinliğ', 'dikilmiş': 'dikilmiş', 'işlem': 'işlem',
-        'mağaza': 'mağaza', 'çamaşır': 'çamaşır', 'kişi': 'kişi',
-        'satıcı': 'satıcı', 'vermiş': 'vermiş', 'değer': 'değer',
-        'kırk': 'kırk', 'beş': 'beş', 'İki': 'İki', 'Güneş': 'Güneş',
-        'güneş': 'güneş', 'oluş': 'oluş', 'Sıra': 'Sıra', 'sıra': 'sıra'
-    }
-    for bad, good in word_map.items():
-        text = text.replace(bad, good)
-
-    return text
-
-# ==========================================
-# 2. SECRET TARAMA & DİNAMİK API KULLANIMI
-# ==========================================
-def extract_api_keys():
-    gemini_keys = []
-    groq_keys = []
-    
-    def parse_value(key_name, val):
-        key_upper = str(key_name).upper()
-        if isinstance(val, str):
-            if "GEMINI" in key_upper:
-                gemini_keys.append(val.strip())
-            elif "GROQ" in key_upper:
-                groq_keys.append(val.strip())
-        elif isinstance(val, list):
-            for item in val:
-                if isinstance(item, str):
-                    if "GEMINI" in key_upper:
-                        gemini_keys.append(item.strip())
-                    elif "GROQ" in key_upper:
-                        groq_keys.append(item.strip())
-
-    def search_dict(d):
-        for k, v in d.items():
-            if isinstance(v, dict):
-                search_dict(v)
-            else:
-                parse_value(k, v)
-                    
-    try:
-        search_dict(st.secrets)
-    except Exception:
-        pass
-        
-    return list(set(gemini_keys)), list(set(groq_keys))
-
-GEMINI_KEYS, GROQ_KEYS = extract_api_keys()
-
-def generate_llm_response(prompt):
-    providers = []
-    for k in GEMINI_KEYS:
-        providers.append(("gemini", k))
-    for k in GROQ_KEYS:
-        providers.append(("groq", k))
-        
-    random.shuffle(providers)
-    
-    if not providers:
-        st.error("🚨 `.streamlit/secrets.toml` içerisinde geçerli Gemini veya Groq API Anahtarı bulunamadı!")
-        return None
-
-    last_error = ""
-    for provider_type, api_key in providers:
-        try:
-            if provider_type == "gemini" and genai:
-                genai.configure(api_key=api_key)
-                model = genai.GenerativeModel("gemini-3.6-flash")
-                response = model.generate_content(
-                    prompt,
-                    generation_config={"temperature": 0.7, "response_mime_type": "application/json"}
-                )
-                return fix_turkish_chars(response.text)
-            elif provider_type == "groq" and Groq:
-                client = Groq(api_key=api_key)
-                chat_completion = client.chat.completions.create(
-                    messages=[
-                        {"role": "system", "content": "Sen MEB müfredatına %100 uyumlu Türkçe karakterleri eksiksiz kullanan JSON üreten bir öğretmensin."},
-                        {"role": "user", "content": prompt}
-                    ],
-                    model="llama-3.3-70b-versatile",
-                    response_format={"type": "json_object"}
-                )
-                return fix_turkish_chars(chat_completion.choices[0].message.content)
-        except Exception as e:
-            last_error = str(e)
-            continue
-            
-    st.error(f"Tüm API denemeleri başarısız oldu. Son hata: {last_error}")
-    return None
-
-# ==========================================
-# 3. MEB MÜFREDAT DATA
-# ==========================================
-MEB_CURRICULUM = {
-    "Matematik": {
-        "1. Dönem 1. Yazılı (Ekim/Kasım)": ["Doğal Sayılar (Okuma, Yazma, Bölükler)", "Doğal Sayılarla Toplama ve Çıkarma İşlemleri"],
-        "1. Dönem 2. Yazılı (Aralık/Ocak)": ["Doğal Sayılarla Çarpma ve Bölme İşlemleri", "Kesirler (Bileşik, Tam Sayılı Kesirler)", "Kesirlerle Toplama ve Çıkarma"],
-        "2. Dönem 1. Yazılı (Mart/Nisan)": ["Ondalık Gösterim (Basamak Değerleri, Yuvarlama)", "Yüzdeler", "Temel Geometrik Kavramlar ve Çizimler"],
-        "2. Dönem 2. Yazılı (Mayıs/Haziran)": ["Üçgen ve Dörtgenler (Açılar, Özellikler)", "Veri Toplama ve Değerlendirme", "Uzunluk ve Zaman Ölçme", "Alan Ölçme"]
-    },
+MEB_QUESTION_POOL = {
     "Fen Bilimleri": {
-        "1. Dönem 1. Yazılı (Ekim/Kasım)": ["Güneş'in Yapısı ve Özellikleri", "Dünya'nın Şekli ve Hareketleri"],
-        "1. Dönem 2. Yazılı (Aralık/Ocak)": ["Ay'ın Yapısı, Özellikleri ve Evreleri", "Dünya, Güneş ve Ay Sistemleri"],
-        "2. Dönem 1. Yazılı (Mart/Nisan)": ["Canlıları Tanıyalım (Mikroskobik Canlılar, Mantarlar, Bitkiler, Hayvanlar)", "Kuvvetin Ölçülmesi ve Sürtünme"],
-        "2. Dönem 2. Yazılı (Mayıs/Haziran)": ["Maddenin Hal Değişimi", "Maddenin Ayırt Edici Özellikleri", "Işığın Yayılması ve Yansıması", "Işık ve Gölge"]
+        "1. Dönem 1. Yazılı (Ekim/Kasım)": [
+            {
+                "id": 1, "type": "MCQ",
+                "question_text": "Güneş ile ilgili verilen aşağıdakilerden hangisi yanlıştır?",
+                "options": {"A": "Güneş, katmanlardan oluşan devasa bir gaz küresidir.", "B": "Güneş yüzeyindeki soğuk bölgelere 'Güneş lekesi' adı verilir.", "C": "Güneş, Dünya'mıza en yakın yıldızdır.", "D": "Güneş'in yüzey sıcaklığı merkezindeki sıcaklıktan daha fazladır."},
+                "correct_answer": "D", "solution_explanation": "Güneş'in merkez sıcaklığı yaklaşık 15 milyon °C iken, yüzey sıcaklığı yaklaşık 6000 °C'dir. Yani merkez sıcaklığı yüzeyinden çok daha fazladır.", "points": 10, "has_diagram": False, "diagram_type": None
+            },
+            {
+                "id": 2, "type": "MCQ",
+                "question_text": "Galileo Galilei, kendi tasarladığı teleskopla Güneş lekelerini gözlemlemiş ve bu lekelerin hep aynı yöne doğru kaydığını fark etmiştir. Galileo'nun yaptığı bu gözlem aşağıdaki sonuçlardan hangisini kanıtlar?",
+                "options": {"A": "Güneş'in Dünya etrafında dolandığını", "B": "Güneş'in kendi ekseni etrafında döndüğünü", "C": "Güneş'in şeklinin tam bir küp olduğunu", "D": "Güneş'in katmanlarının bulunmadığını"},
+                "correct_answer": "B", "solution_explanation": "Güneş lekelerinin düzenli olarak aynı yöne doğru kayması, Güneş'in kendi ekseni etrafında dönme hareketi yaptığını kanıtlar.", "points": 10, "has_diagram": False, "diagram_type": None
+            },
+            {
+                "id": 3, "type": "MCQ",
+                "question_text": "Dünya'nın şekli ve hareketleri ile ilgili aşağıda verilen bilgilerden hangisi doğrudur?",
+                "options": {"A": "Dünya, kutuplardan şişkin, ekvatordan basıktır.", "B": "Dünya kendi etrafındaki bir tam turunu 365 gün 6 saatte tamamlar.", "C": "Dünya'nın kendi etrafında dönmesi sonucu gece ve gündüz birbirini takip eder.", "D": "Dünya, Güneş etrafında saat yönünde dolanır."},
+                "correct_answer": "C", "solution_explanation": "Dünya ekvatordan şişkin, kutuplardan basıktır. Kendi etrafındaki dönmesini 24 saatte tamamlar ve bu hareket gece-gündüzü oluşturur. Güneş etrafındaki dolanımı saat yönünün tersinedir.", "points": 10, "has_diagram": False, "diagram_type": None
+            },
+            {
+                "id": 4, "type": "MCQ",
+                "question_text": "Dünya, Güneş ve Ay'ın büyüklükleri karşılaştırıldığında doğru sıralama aşağıdakilerden hangisidir?",
+                "options": {"A": "Güneş > Dünya > Ay", "B": "Dünya > Güneş > Ay", "C": "Güneş > Ay > Dünya", "D": "Ay > Dünya > Güneş"},
+                "correct_answer": "A", "solution_explanation": "Boyut olarak en büyük gök cismi Güneş, orta büyüklükte Dünya ve en küçükleri ise Ay'dır (Güneş > Dünya > Ay).", "points": 10, "has_diagram": True, "diagram_type": "sun_earth_moon"
+            },
+            {
+                "id": 5, "type": "MCQ",
+                "question_text": "Aşağıdakilerden hangisi Ay'ın ana evrelerinden biri değildir?",
+                "options": {"A": "Yeni Ay", "B": "İlk Dördün", "C": "Hilal", "D": "Dolunay"},
+                "correct_answer": "C", "solution_explanation": "Hilal ve şişkin ay, ana evreler (Yeni Ay, İlk Dördün, Dolunay, Son Dördün) arasındaki ara evrelerdir.", "points": 10, "has_diagram": False, "diagram_type": None
+            },
+            {
+                "id": 6, "type": "OPEN",
+                "question_text": "Güneş'in içten dışa doğru katmanlarının isimlerini sırasıyla yazınız.",
+                "options": {},
+                "correct_answer": "Çekirdek, Işık Küre, Renk Küre, Taç Küre",
+                "solution_explanation": "Güneş en içten dışa doğru sırasıyla Çekirdek, Işık Küre (Fotosfer), Renk Küre (Kromosfer) ve Taç Küre katmanlarından oluşur.",
+                "points": 10, "has_diagram": False, "diagram_type": None
+            },
+            {
+                "id": 7, "type": "OPEN",
+                "question_text": "Dünya'nın kendi ekseni etrafındaki dönme hareketi ne kadar sürede tamamlanır ve bu hareket sonucunda hangi temel olay gerçekleşir?",
+                "options": {},
+                "correct_answer": "24 saatte (1 günde) tamamlanır. Gece ve gündüz oluşur.",
+                "solution_explanation": "Dünya kendi ekseni etrafındaki tam turunu 24 saatte tamamlar ve bu hareket sonucunda gece ile gündüz birbirini takip eder.",
+                "points": 10, "has_diagram": False, "diagram_type": None
+            },
+            {
+                "id": 8, "type": "OPEN",
+                "question_text": "Ay'ın Dünya'ya olan uzaklığı sürekli değişmesine rağmen Dünya'dan bakıldığında Ay'ı hep aynı yüzde (aynı tarafını) görmemizin temel sebebi nedir?",
+                "options": {},
+                "correct_answer": "Ay'ın kendi ekseni etrafındaki dönme süresi ile Dünya etrafındaki dolanma süresinin eşit olması (yaklaşık 27 gün 8 saat).",
+                "solution_explanation": "Ay kendi etrafında dönerken aynı sürede Dünya etrafında da tur atar, bu yüzden hep aynı yüzü bize dönük kalır.",
+                "points": 10, "has_diagram": False, "diagram_type": None
+            },
+            {
+                "id": 9, "type": "OPEN",
+                "question_text": "Ay atmosferinin çok ince olmasının Ay yüzeyindeki sıcaklık farkları ve göktaşları açısından sonuçları nelerdir kısaca açıklayınız.",
+                "options": {},
+                "correct_answer": "Atmosfer olmadığı için gece ile gündüz arasındaki sıcaklık farkı çok fazladır ve göktaşları yanmadan doğrudan yüzeye çarparak kraterler oluşturur.",
+                "solution_explanation": "Atmosfer ısıyı tutamadığı için aşırı sıcaklık farkları olur ve göktaşları engellenemez.",
+                "points": 10, "has_diagram": False, "diagram_type": None
+            },
+            {
+                "id": 10, "type": "OPEN",
+                "question_text": "Güneş tutulması olayı hangi ana evrede ve hangi gök cisminin araya girmesiyle gerçekleşir?",
+                "options": {},
+                "correct_answer": "Yeni Ay evresinde, Ay'ın Dünya ile Güneş arasına girmesiyle gerçekleşir.",
+                "solution_explanation": "Güneş tutulması yeni ay evresinde Ay'ın Güneş'i kapatmasıyla oluşur.",
+                "points": 10, "has_diagram": False, "diagram_type": None
+            }
+        ]
     },
-    "Türkçe": {
-        "1. Dönem 1. Yazılı (Ekim/Kasım)": ["Sözcükte Anlam (Gerçek, Mecaz, Terim)", "Söz Sanatları"],
-        "1. Dönem 2. Yazılı (Aralık/Ocak)": ["Cümlede Anlam (Neden-Sonuç, Amaç-Sonuç)", "Paragrafta Ana Fikir ve Yardımcı Fikir"],
-        "2. Dönem 1. Yazılı (Mart/Nisan)": ["Noktalama İşaretleri ve Yazım Kuralları", "Metin Türleri (Hikaye, Masal, Fabl)"],
-        "2. Dönem 2. Yazılı (Mayıs/Haziran)": ["Görsel Okuma ve Grafikler", "Sözel Mantık ve Akıl Yürütme"]
-    },
-    "Sosyal Bilgiler": {
-        "1. Dönem 1. Yazılı (Ekim/Kasım)": ["Birey ve Toplum (Haklar, Sorumluluklar, Rolleri)"],
-        "1. Dönem 2. Yazılı (Aralık/Ocak)": ["Kültür ve Miras (Anadolu ve Mezopotamya Uygarlıkları)", "Çevremizdeki Doğal ve Beşeri Unsurlar"],
-        "2. Dönem 1. Yazılı (Mart/Nisan)": ["İnsanlar, Yerler ve Çevreler (Yeryüzü Şekilleri, İklim, İnsan Faaliyetleri)"],
-        "2. Dönem 2. Yazılı (Mayıs/Haziran)": ["Üretim, Tüketim ve Dağıtım", "Etkin Vatandaşlık (Yönetim Biçimleri, Katılım)"]
-    },
-    "Din Kültürü ve Ahlak Bilgisi": {
-        "1. Dönem 1. Yazılı (Ekim/Kasım)": ["Allah İnancı (Allah Vardır ve Birdir, Allah Yaradandır)", "İhlas Suresi ve Anlamı"],
-        "1. Dönem 2. Yazılı (Aralık/Ocak)": ["Ramazan ve Oruç (Oruç İbadeti, Sahur, İftar, Teravih)", "Kültürümüzde Ramazan ve Oruç"],
-        "2. Dönem 1. Yazılı (Mart/Nisan)": ["Adap ve Nezaket (Nezaket Kuralları, Selamlaşma Adabı, İletişim)", "Tahiyyat Duası ve Anlamı"],
-        "2. Dönem 2. Yazılı (Mayıs/Haziran)": ["Hz. Muhammed ve Aile Hayatı (Peygamberimizin Ailesi)", "Çevremizde Dinin İzleri (Mimaride, Musikide, Edebiyatta)"]
-    },
-    "İngilizce": {
-        "1. Dönem 1. Yazılı (Ekim/Kasım)": ["Unit 1: Hello (Greetings, Countries, Nationalities, School Subjects)"],
-        "1. Dönem 2. Yazılı (Aralık/Ocak)": ["Unit 2: My Town (Places in a town, Directions)", "Unit 3: Games and Hobbies"],
-        "2. Dönem 1. Yazılı (Mart/Nisan)": ["Unit 4: My Daily Routine (Time, Daily Activities)", "Unit 5: Health (Illnesses, Suggestions)"],
-        "2. Dönem 2. Yazılı (Mayıs/Haziran)": ["Unit 6: Movies (Types of movies, Expressing likes/dislikes)", "Unit 7: Party Time", "Unit 8: Fitness"]
-    },
-    "Almanca": {
-        "1. Dönem 1. Yazılı (Ekim/Kasım)": ["Hallo! (Begrüßung, Sich vorstellen - Begrüßungsformeln, Name, Alter)"],
-        "1. Dönem 2. Yazılı (Aralık/Ocak)": ["Meine Schule (Schulsachen, Schulfächer, Zahlen bis 20)"],
-        "2. Dönem 1. Yazılı (Mart/Nisan)": ["Meine Familie und Tiere (Familienmitglieder, Haustiere)"],
-        "2. Dönem 2. Yazılı (Mayıs/Haziran)": ["Meine Hobbys und Freizeit (Aktivitäten, Wochentage, Vorlieben)"]
+    "Matematik": {
+        "1. Dönem 1. Yazılı (Ekim/Kasım)": [
+            {
+                "id": 1, "type": "MCQ",
+                "question_text": "Okunuşu 'Yüz iki milyon bin kırk beş' olan doğal sayı aşağıdakilerden hangisidir?",
+                "options": {"A": "102 001 045", "B": "102 010 045", "C": "120 001 045", "D": "102 001 450"},
+                "correct_answer": "A", "solution_explanation": "Milyonlar bölüğü: 102, Binler bölüğü: 001, Birler bölüğü: 045 -> 102 001 045", "points": 10, "has_diagram": False, "diagram_type": None
+            },
+            {
+                "id": 2, "type": "MCQ",
+                "question_text": "845 392 716 sayısının milyonlar bölüğündeki rakamların toplamı kaçtır?",
+                "options": {"A": "14", "B": "17", "C": "19", "D": "21"},
+                "correct_answer": "B", "solution_explanation": "Milyonlar bölüğü 845'tir. Rakamlar toplamı: 8 + 4 + 5 = 17.", "points": 10, "has_diagram": False, "diagram_type": None
+            },
+            {
+                "id": 3, "type": "MCQ",
+                "question_text": "87 604 - 39 485 işleminin sonucu kaçtır?",
+                "options": {"A": "48 119", "B": "48 219", "C": "47 119", "D": "49 119"},
+                "correct_answer": "A", "solution_explanation": "87604 - 39485 = 48119.", "points": 10, "has_diagram": False, "diagram_type": None
+            },
+            {
+                "id": 4, "type": "MCQ",
+                "question_text": "Bir ormandaki fidan dikme etkinliğinde ilk gün 24 580 fidan, ikinci gün ise ilk günden 3 420 fazla fidan dikilmiştir. İki günde toplam kaç fidan dikilmiştir?",
+                "options": {"A": "48 000", "B": "51 000", "C": "52 580", "D": "56 000"},
+                "correct_answer": "C", "solution_explanation": "İkinci gün: 24580 + 3420 = 28000. İki gün toplam: 24580 + 28000 = 52580.", "points": 10, "has_diagram": False, "diagram_type": None
+            },
+            {
+                "id": 5, "type": "MCQ",
+                "question_text": "73 408 925 sayısındaki '3' rakamının basamak değeri ile '4' rakamının basamak değerinin toplamı kaçtır?",
+                "options": {"A": "3 004 000", "B": "3 040 000", "C": "3 400 000", "D": "30 040 000"},
+                "correct_answer": "B", "solution_explanation": "3 milyonluk basamakta (3 000 000), 4 on binlik basamakta (40 000). Toplam: 3 040 000.", "points": 10, "has_diagram": False, "diagram_type": None
+            },
+            {
+                "id": 6, "type": "OPEN",
+                "question_text": "4, 0, 7, 2, 9 rakamlarını birer kez kullanarak yazılabilecek en büyük beş basamaklı doğal sayı ile en küçük beş basamaklı doğal sayının farkı kaçtır?",
+                "options": {},
+                "correct_answer": "76 521",
+                "solution_explanation": "En büyük sayı: 97420, En küçük sayı: 20479. Fark: 97420 - 20479 = 76521.",
+                "points": 10, "has_diagram": False, "diagram_type": None
+            },
+            {
+                "id": 7, "type": "OPEN",
+                "question_text": "Bir beyaz eşya mağazasından 18 450 TL'ye televizyon ve 14 300 TL'ye çamaşır makinesi alan bir kişi, satıcıya 35 000 TL vermiştir. Buna göre kaç TL para üstü almalıdır?",
+                "options": {},
+                "correct_answer": "2 250 TL",
+                "solution_explanation": "Toplam tutar: 18450 + 14300 = 32750 TL. Para üstü: 35000 - 32750 = 2250 TL.",
+                "points": 10, "has_diagram": False, "diagram_type": None
+            },
+            {
+                "id": 8, "type": "OPEN",
+                "question_text": "Bir çiftlikte 1450 koyun vardır. Koyunların sayısından 380 fazla inek, ineklerin sayısından 520 eksik tavuk olduğuna göre çiftlikteki toplam hayvan sayısı kaçtır?",
+                "options": {},
+                "correct_answer": "4 460",
+                "solution_explanation": "Koyun: 1450, İnek: 1450 + 380 = 1830, Tavuk: 1830 - 520 = 1310. Toplam: 1450 + 1830 + 1310 = 4460.",
+                "points": 10, "has_diagram": False, "diagram_type": None
+            },
+            {
+                "id": 9, "type": "OPEN",
+                "question_text": "ABC üçgeninde A açısı 65 derece, B açısı 50 derece ise C açısı kaç derecedir?",
+                "options": {},
+                "correct_answer": "65 derece",
+                "solution_explanation": "Üçgenin iç açılar toplamı 180 derecedir. 65 + 50 = 115. 180 - 115 = 65 derece.",
+                "points": 10, "has_diagram": True, "diagram_type": "triangle"
+            },
+            {
+                "id": 10, "type": "OPEN",
+                "question_text": "Yüzler basamağında 4, binler basamağında 7 olan en küçük beş basamaklı doğal sayı kaçtır?",
+                "options": {},
+                "correct_answer": "17 400",
+                "solution_explanation": "On binler basamağı 1, binler 7, yüzler 4, onlar ve birler 0 seçilmelidir -> 17 400.",
+                "points": 10, "has_diagram": False, "diagram_type": None
+            }
+        ]
     }
 }
 
+# Varsayılan havuz (Diğer dersler için dinamik şablon üretici)
+def get_fallback_exam(subject, term):
+    questions = []
+    for i in range(1, 6):
+        questions.append({
+            "id": i, "type": "MCQ",
+            "question_text": f"5. Sınıf {subject} dersi {term} dönemi ile ilgili temel kazanım sorusu {i}?",
+            "options": {"A": "Birinci doğru seçenek", "B": "İkinci çeldirici seçenek", "C": "Üçüncü çeldirici seçenek", "D": "Dördüncü çeldirici seçenek"},
+            "correct_answer": "A", "solution_explanation": f"Bu sorunun doğru yanıtı A şıkkıdır çünkü {subject} müfredatına tam uygundur.",
+            "points": 10, "has_diagram": False, "diagram_type": None
+        })
+    for i in range(6, 11):
+        questions.append({
+            "id": i, "type": "OPEN",
+            "question_text": f"5. Sınıf {subject} dersi {term} dönemi açık uçlu değerlendirme sorusu {i-5}?",
+            "options": {},
+            "correct_answer": "Örnek ideal öğrenci yanıtı ve anahtar kelimeler.",
+            "solution_explanation": "Öğrenci bu soruda temel kavramları eksiksiz açıklamalıdır.",
+            "points": 10, "has_diagram": False, "diagram_type": None
+        })
+    return {
+        "school_name": "Şehit Öğretmen 5. Sınıf Ortaokulu",
+        "subject": subject,
+        "term": term,
+        "questions": questions
+    }
+
 # ==========================================
-# 4. GÖRSEL ÇİZİM MOTORU (MATPLOTLIB)
+# 3. GÖRSEL ÇİZİM MOTORU (MATPLOTLIB)
 # ==========================================
 def generate_question_image(diagram_type, details=None):
     fig, ax = plt.subplots(figsize=(2.8, 1.8), dpi=100)
@@ -316,7 +327,7 @@ def generate_question_image(diagram_type, details=None):
     return buf
 
 # ==========================================
-# 5. TÜRKÇE FONT & REPORTLAB DÜZENİ
+# 4. TÜRKÇE FONT & REPORTLAB DÜZENİ
 # ==========================================
 @st.cache_resource
 def setup_turkish_pdf_fonts():
@@ -364,7 +375,7 @@ class TwoColumnCanvas(canvas.Canvas):
         font_name = "TR-Regular" if "TR-Regular" in pdfmetrics.getRegisteredFontNames() else "Helvetica"
         self.setFont(font_name, 8)
         self.setFillColor(colors.HexColor("#616161"))
-        self.drawString(25, 20, fix_turkish_chars("MEB 5. Sınıf Soru Fabrikası - Murat KANDIRMAZ"))
+        self.drawString(25, 20, "MEB 5. Sınıf Soru Fabrikası - Murat KANDIRMAZ")
         self.drawRightString(570, 20, f"Sayfa {self._pageNumber} / {total_pages}")
         self.restoreState()
 
@@ -432,10 +443,9 @@ def build_pdf_exam(exam_data, show_answers=False):
 
     story = []
     
-    # --- HEADER FRAME İÇERİĞİ ---
-    header_text = f"<b>{fix_turkish_chars(exam_data['school_name']).upper()}</b><br/>" \
-                  f"<b>2026-2027 EĞİTİM-ÖĞRETİM YILI 5. SINIF {fix_turkish_chars(exam_data['subject']).upper()} DERSİ</b><br/>" \
-                  f"<u>{fix_turkish_chars(exam_data['term']).upper()} DEĞERLENDİRME SINAVI</u>"
+    header_text = f"<b>{exam_data['school_name'].upper()}</b><br/>" \
+                  f"<b>2026-2027 EĞİTİM-ÖĞRETİM YILI 5. SINIF {exam_data['subject'].upper()} DERSİ</b><br/>" \
+                  f"<u>{exam_data['term'].upper()} DEĞERLENDİRME SINAVI</u>"
                   
     if show_answers:
         header_text += " <font color='red'><b>[ DETAYLI CEVAP ANAHTARI ]</b></font>"
@@ -445,10 +455,10 @@ def build_pdf_exam(exam_data, show_answers=False):
     
     info_data = [
         [
-            Paragraph(fix_turkish_chars("<b>Adı Soyadı:</b> ...................................."), opt_style),
-            Paragraph(fix_turkish_chars("<b>Sınıf/Şube:</b> 5 / ......."), opt_style),
-            Paragraph(fix_turkish_chars("<b>Numara:</b> ............."), opt_style),
-            Paragraph(fix_turkish_chars("<b>Puan:</b> ......."), opt_style)
+            Paragraph("<b>Adı Soyadı:</b> ....................................", opt_style),
+            Paragraph("<b>Sınıf/Şube:</b> 5 / .......", opt_style),
+            Paragraph("<b>Numara:</b> .............", opt_style),
+            Paragraph("<b>Puan:</b> .......", opt_style)
         ]
     ]
     t_info = Table(info_data, colWidths=[180, 110, 110, 145])
@@ -465,11 +475,9 @@ def build_pdf_exam(exam_data, show_answers=False):
     story.append(FrameBreak())
     story.append(NextPageTemplate('LaterPages'))
 
-    # --- SORULARIN DİZİLİMİ ---
     for idx, q in enumerate(exam_data['questions'], start=1):
         q_elements = []
-        clean_question_text = fix_turkish_chars(q['question_text'])
-        q_header = f"<b>Soru {idx} ({q.get('points', 10)} Puan):</b> {clean_question_text}"
+        q_header = f"<b>Soru {idx} ({q.get('points', 10)} Puan):</b> {q['question_text']}"
         q_elements.append(Paragraph(q_header, q_style))
         
         if q.get('has_diagram') and q.get('diagram_type'):
@@ -482,14 +490,9 @@ def build_pdf_exam(exam_data, show_answers=False):
         
         if q['type'] == 'MCQ':
             opts = q.get('options', {})
-            opt_a = fix_turkish_chars(opts.get('A', ''))
-            opt_b = fix_turkish_chars(opts.get('B', ''))
-            opt_c = fix_turkish_chars(opts.get('C', ''))
-            opt_d = fix_turkish_chars(opts.get('D', ''))
-            
             opt_table_data = [
-                [Paragraph(f"<b>A)</b> {opt_a}", opt_style), Paragraph(f"<b>B)</b> {opt_b}", opt_style)],
-                [Paragraph(f"<b>C)</b> {opt_c}", opt_style), Paragraph(f"<b>D)</b> {opt_d}", opt_style)]
+                [Paragraph(f"<b>A)</b> {opts.get('A', '')}", opt_style), Paragraph(f"<b>B)</b> {opts.get('B', '')}", opt_style)],
+                [Paragraph(f"<b>C)</b> {opts.get('C', '')}", opt_style), Paragraph(f"<b>D)</b> {opts.get('D', '')}", opt_style)]
             ]
             t_opts = Table(opt_table_data, colWidths=[120, 120])
             t_opts.setStyle(TableStyle([
@@ -509,10 +512,8 @@ def build_pdf_exam(exam_data, show_answers=False):
                 
         if show_answers:
             q_elements.append(Spacer(1, 3))
-            clean_correct = fix_turkish_chars(q.get('correct_answer', ''))
-            clean_sol = fix_turkish_chars(q.get('solution_explanation', ''))
-            ans_box = f"<b>Cevap:</b> {clean_correct}<br/>" \
-                      f"<b>Açıklama:</b> {clean_sol}"
+            ans_box = f"<b>Cevap:</b> {q.get('correct_answer', '')}<br/>" \
+                      f"<b>Açıklama:</b> {q.get('solution_explanation', '')}"
             
             t_sol = Table([[Paragraph(ans_box, sol_style)]], colWidths=[240])
             t_sol.setStyle(TableStyle([
@@ -530,72 +531,31 @@ def build_pdf_exam(exam_data, show_answers=False):
     return buffer
 
 # ==========================================
-# 6. LLM PROMPT VE SORU ÜRETİMİ
+# 5. STREAMLIT STATE & ARAYÜZ
 # ==========================================
-def generate_meb_exam(subject, term, units):
-    prompt = f"""
-    Sen MEB (Milli Eğitim Bakanlığı) 5. Sınıf {subject} dersi müfredatına %100 hakim uzman bir öğretmen ve ölçme değerlendirme uzmanısın.
-    
-    Lütfen {subject} dersi için {term} dönemini kapsayan TAM 10 SORUDAN oluşan özgün bir sınav hazırlat:
-    - Dahil Üniteler: {', '.join(units)}
-    
-    ÖNEMLİ KURALLAR:
-    1. Sınavda TAM OLARAK 5 TANE Çoktan Seçmeli (MCQ) ve 5 TANE Açık Uçlu (OPEN) soru olmalıdır.
-    2. Çoktan seçmeli soruların tamamında 4 farklı ve mantıklı şık (A, B, C, D) olmalıdır.
-    3. Yalnızca Matematik ve Fen Bilimleri dersleri için gerekiyorsa "has_diagram": true ve uygun "diagram_type" ('triangle', 'space_system', 'fraction_pie') belirt.
-    4. Türkçe karakterlerin (ş, ğ, ı, ö, ü, ç) tam ve eksiksiz yazılması şarttır.
-    
-    ÇIKTI FORMATI (Sadece geçerli JSON döndür):
-    {{
-        "school_name": "Şehit Öğretmen 5. Sınıf Ortaokulu",
-        "subject": "{subject}",
-        "term": "{term}",
-        "questions": [
-            {{
-                "id": 1,
-                "type": "MCQ",
-                "question_text": "Soru metni...",
-                "options": {{ "A": "...", "B": "...", "C": "...", "D": "..." }},
-                "correct_answer": "A",
-                "solution_explanation": "Detaylı adım adım açıklama...",
-                "points": 10,
-                "has_diagram": false,
-                "diagram_type": null
-            }},
-            {{
-                "id": 6,
-                "type": "OPEN",
-                "question_text": "Açık uçlu soru metni...",
-                "correct_answer": "İdeal cevap...",
-                "solution_explanation": "Kapsamlı açıklama...",
-                "points": 10,
-                "has_diagram": false,
-                "diagram_type": null
-            }}
-        ]
-    }}
-    """
-    
-    raw_response = generate_llm_response(prompt)
-    if not raw_response:
-        return None
-        
-    try:
-        clean_json = raw_response.strip()
-        if "```json" in clean_json:
-            clean_json = clean_json.split("```json")[1].split("```")[0].strip()
-        elif "```" in clean_json:
-            clean_json = clean_json.split("```")[1].split("```")[0].strip()
-            
-        data = json.loads(clean_json)
-        return data
-    except Exception as e:
-        st.error(f"Soru verisi işlenirken format hatası oluştu: {e}")
-        return None
-
-# ==========================================
-# 7. STREAMLIT STATE & ARAYÜZ
-# ==========================================
+MEB_CURRICULUM = {
+    "Fen Bilimleri": {
+        "1. Dönem 1. Yazılı (Ekim/Kasım)": ["Güneş'in Yapısı ve Özellikleri", "Dünya'nın Şekli ve Hareketleri"]
+    },
+    "Matematik": {
+        "1. Dönem 1. Yazılı (Ekim/Kasım)": ["Doğal Sayılar ve İşlemler"]
+    },
+    "Türkçe": {
+        "1. Dönem 1. Yazılı (Ekim/Kasım)": ["Sözcükte Anlam ve Paragraf"]
+    },
+    "Sosyal Bilgiler": {
+        "1. Dönem 1. Yazılı (Ekim/Kasım)": ["Birey ve Toplum"]
+    },
+    "Din Kültürü ve Ahlak Bilgisi": {
+        "1. Dönem 1. Yazılı (Ekim/Kasım)": ["Allah İnancı"]
+    },
+    "İngilizce": {
+        "1. Dönem 1. Yazılı (Ekim/Kasım)": ["Unit 1 & Unit 2"]
+    },
+    "Almanca": {
+        "1. Dönem 1. Yazılı (Ekim/Kasım)": ["Hallo! & Meine Schule"]
+    }
+}
 
 if 'exam_started' not in st.session_state:
     st.session_state.exam_started = False
@@ -608,9 +568,7 @@ if 'user_answers' not in st.session_state:
 if 'exam_completed' not in st.session_state:
     st.session_state.exam_completed = False
 
-# SIDEBAR: Sınav Parametreleri
 st.sidebar.header("⚙️ Sınav Ayarları")
-
 selected_subject = st.sidebar.selectbox("📖 Ders Seçiniz", list(MEB_CURRICULUM.keys()))
 terms_available = list(MEB_CURRICULUM[selected_subject].keys())
 selected_term = st.sidebar.selectbox("📅 Sınav Dönemi Seçiniz", terms_available)
@@ -621,19 +579,29 @@ st.sidebar.info(f"📌 **Dahil Üniteler:**\n" + "\n".join([f"- {u}" for u in se
 st.sidebar.divider()
 
 if st.sidebar.button("🎲 Yeni Sınav Hazırla", use_container_width=True):
-    with st.spinner("MEB Müfredatına uygun 5 Çoktan Seçmeli + 5 Açık Uçlu Soru Hazırlanıyor..."):
-        exam_json = generate_meb_exam(selected_subject, selected_term, selected_units)
-        if exam_json:
-            st.session_state.exam_data = exam_json
-            st.session_state.exam_started = False
-            st.session_state.exam_completed = False
-            st.session_state.user_answers = {}
-            st.success("✅ Sınav başarıyla oluşturuldu! Başlamak için 'Sınavı Başlat' butonuna basınız.")
+    with st.spinner("MEB Müfredatına uygun 5 Çoktan Seçmeli + 5 Açık Uçlu Sınav Yükleniyor..."):
+        if selected_subject in MEB_QUESTION_POOL and selected_term in MEB_QUESTION_POOL[selected_subject]:
+            pool = MEB_QUESTION_POOL[selected_subject][selected_term]
+            mcqs = [q for q in pool if q['type'] == 'MCQ'][:5]
+            opens = [q for q in pool if q['type'] == 'OPEN'][:5]
+            exam_json = {
+                "school_name": "Şehit Öğretmen 5. Sınıf Ortaokulu",
+                "subject": selected_subject,
+                "term": selected_term,
+                "questions": mcqs + opens
+            }
+        else:
+            exam_json = get_fallback_exam(selected_subject, selected_term)
+            
+        st.session_state.exam_data = exam_json
+        st.session_state.exam_started = False
+        st.session_state.exam_completed = False
+        st.session_state.user_answers = {}
+        st.success("✅ Sınav başarıyla yüklendi! Başlamak için 'Sınavı Başlat' butonuna basınız.")
 
 # ==========================================
-# 8. ANA EKRAN & SINAV MODU
+# 6. ANA EKRAN & SINAV MODU
 # ==========================================
-
 if st.session_state.exam_data:
     exam = st.session_state.exam_data
     
@@ -660,7 +628,6 @@ if st.session_state.exam_data:
 
     st.divider()
 
-    # --- DURUM 1: SINAV BAŞLAMADI ---
     if not st.session_state.exam_started and not st.session_state.exam_completed:
         st.warning("⏱️ Sınav hazır! Soruları görmek ve süreyi başlatmak için aşağıdaki butona tıklayın.")
         if st.button("🚀 SINAVI BAŞLAT", type="primary", use_container_width=True):
@@ -668,7 +635,6 @@ if st.session_state.exam_data:
             st.session_state.start_time = time.time()
             st.rerun()
 
-    # --- DURUM 2: SINAV DEVAM EDİYOR ---
     elif st.session_state.exam_started and not st.session_state.exam_completed:
         elapsed_time = int(time.time() - st.session_state.start_time)
         minutes, seconds = divmod(elapsed_time, 60)
@@ -678,7 +644,6 @@ if st.session_state.exam_data:
 
         for q in exam['questions']:
             q_id = q['id']
-            clean_q_text = fix_turkish_chars(q['question_text'])
             st.markdown(f"""
             <div class="question-card">
                 <div>
@@ -687,7 +652,7 @@ if st.session_state.exam_data:
                     </span>
                     <strong style="margin-left: 10px;">Soru {q_id} (10 Puan)</strong>
                 </div>
-                <p style="font-size: 16px; margin-top: 10px;">{clean_q_text}</p>
+                <p style="font-size: 16px; margin-top: 10px;">{q['question_text']}</p>
             </div>
             """, unsafe_allow_html=True)
 
@@ -698,7 +663,7 @@ if st.session_state.exam_data:
 
             if q['type'] == 'MCQ':
                 opts = q.get('options', {})
-                formatted_opts = [f"{k}) {fix_turkish_chars(v)}" for k, v in opts.items()]
+                formatted_opts = [f"{k}) {v}" for k, v in opts.items()]
                 selected = st.radio(
                     f"Cevabınız (Soru {q_id}):",
                     formatted_opts,
@@ -720,7 +685,6 @@ if st.session_state.exam_data:
             st.session_state.exam_completed = True
             st.rerun()
 
-    # --- DURUM 3: SINAV BİTTİ & ÖĞRENCİ KARNESİ ---
     elif st.session_state.exam_completed:
         st.balloons()
         
@@ -763,9 +727,9 @@ if st.session_state.exam_data:
         for q in exam['questions']:
             q_id = q['id']
             user_ans = st.session_state.user_answers.get(q_id, "Yanıt Verilmedi")
-            correct_ans = fix_turkish_chars(q.get('correct_answer', ''))
+            correct_ans = q.get('correct_answer', '')
 
-            st.markdown(f"**Soru {q_id}: {fix_turkish_chars(q['question_text'])}**")
+            st.markdown(f"**Soru {q_id}: {q['question_text']}**")
             
             if q['type'] == 'MCQ':
                 is_correct = (user_ans == correct_ans)
@@ -777,7 +741,7 @@ if st.session_state.exam_data:
                 st.warning(f"📝 **Sizin Yanıtınız:** {user_ans}\n\n**İdeal/Örnek Cevap:** {correct_ans}")
 
             with st.expander("🔍 Detaylı Adım Adım Çözüm Açıklaması"):
-                st.write(fix_turkish_chars(q.get('solution_explanation', 'Çözüm açıklaması bulunamadı.')))
+                st.write(q.get('solution_explanation', 'Çözüm açıklaması bulunamadı.'))
             st.write("---")
 
 else:
