@@ -167,7 +167,7 @@ def generate_llm_response(prompt):
         try:
             if provider_type == "gemini" and genai:
                 genai.configure(api_key=api_key)
-                model = genai.GenerativeModel("gemini-1.5-flash")
+                model = genai.GenerativeModel("gemini-3.6-flash")
                 response = model.generate_content(
                     prompt,
                     generation_config={"temperature": 0.7, "response_mime_type": "application/json"}
