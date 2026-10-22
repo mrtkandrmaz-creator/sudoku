@@ -10,11 +10,11 @@ import matplotlib.pyplot as plt
 import numpy as np
 from datetime import datetime
 
-# ReportLab Imports for Professional PDF Generation
+# ReportLab Imports for Professional Multi-Column Layout
 from reportlab.lib.pagesizes import A4
 from reportlab.lib import colors
 from reportlab.platypus import (
-    SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle, Image as RLImage, KeepTogether, HRFlowable
+    BaseDocTemplate, PageTemplate, Frame, Paragraph, Spacer, Table, TableStyle, Image as RLImage, KeepTogether, HRFlowable, FrameBreak, NextPageTemplate
 )
 from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
 from reportlab.pdfgen import canvas
@@ -240,15 +240,15 @@ MEB_CURRICULUM = {
 # 4. GÖRSEL ÇİZİM MOTORU (MATPLOTLIB)
 # ==========================================
 def generate_question_image(diagram_type, details=None):
-    fig, ax = plt.subplots(figsize=(3, 2), dpi=100)
+    fig, ax = plt.subplots(figsize=(2.8, 1.8), dpi=100)
     
     if diagram_type == "triangle":
         p1, p2, p3 = [0, 0], [4, 0], [2, 3]
         triangle = plt.Polygon([p1, p2, p3], fill=None, edgecolor='#FF6B00', linewidth=2)
         ax.add_patch(triangle)
-        ax.text(p1[0]-0.2, p1[1]-0.2, 'A', fontsize=10, fontweight='bold')
-        ax.text(p2[0]+0.1, p2[1]-0.2, 'B', fontsize=10, fontweight='bold')
-        ax.text(p3[0], p3[1]+0.2, 'C', fontsize=10, fontweight='bold')
+        ax.text(p1[0]-0.2, p1[1]-0.2, 'A', fontsize=9, fontweight='bold')
+        ax.text(p2[0]+0.1, p2[1]-0.2, 'B', fontsize=9, fontweight='bold')
+        ax.text(p3[0], p3[1]+0.2, 'C', fontsize=9, fontweight='bold')
         ax.set_xlim(-1, 5)
         ax.set_ylim(-1, 4)
         ax.axis('off')
@@ -287,14 +287,10 @@ def generate_question_image(diagram_type, details=None):
     return buf
 
 # ==========================================
-# 5. TÜRKÇE FONT İNDİRİCİ VE ÇİFT SÜTUNLU PDF
+# 5. TÜRKÇE FONT İNDİRİCİ VE SÜTUN MİMARİSİ
 # ==========================================
 @st.cache_resource
 def setup_turkish_pdf_fonts():
-    """
-    Google Fonts üzerinden DejaVuSans fontunu doğrudan indirip ReportLab'e tanıtır.
-    Böylece Türkçe karakterlerin kütüphanede bozulması imkansız hale gelir.
-    """
     try:
         font_urls = {
             "TR-Regular": "https://github.com/dejavu-fonts/dejavu-fonts/raw/master/ttf/DejaVuSans.ttf",
@@ -313,9 +309,6 @@ def setup_turkish_pdf_fonts():
         return "Helvetica", "Helvetica-Bold", "Helvetica-Oblique"
 
 class TwoColumnCanvas(canvas.Canvas):
-    """
-    Sayfayı ortadan ikiye bölen dikey çizgi ve sayfa numarası çizen özel canvas.
-    """
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.pages = []
@@ -337,29 +330,44 @@ class TwoColumnCanvas(canvas.Canvas):
         self.setStrokeColor(colors.HexColor("#BDBDBD"))
         self.setLineWidth(0.8)
         
-        # Sayfanın Tam Ortasında Dikey Ayraç Çizgisi (TopMargin: 80, BottomMargin: 40)
-        self.line(297.5, 40, 297.5, 780)
+        # Sayfanın Tam Ortasındaki Ayraç Çizgisi
+        self.line(297.5, 40, 297.5, 720)
         
-        # Sayfa Alt Bilgisi
         self.setFont("Helvetica", 8)
         self.setFillColor(colors.HexColor("#616161"))
-        self.drawString(36, 20, "MEB 5. Sınıf Soru Fabrikası - Murat KANDIRMAZ")
-        self.drawRightString(559, 20, f"Sayfa {self._pageNumber} / {total_pages}")
+        self.drawString(25, 20, "MEB 5. Sınıf Soru Fabrikası - Murat KANDIRMAZ")
+        self.drawRightString(570, 20, f"Sayfa {self._pageNumber} / {total_pages}")
         self.restoreState()
 
 def build_pdf_exam(exam_data, show_answers=False):
     f_norm, f_bold, f_oblique = setup_turkish_pdf_fonts()
 
     buffer = io.BytesIO()
-    doc = SimpleDocTemplate(
+    
+    # BaseDocTemplate ve Çerçeveler (Frames)
+    doc = BaseDocTemplate(
         buffer,
-        pagesize=A4, # 595 x 842 pt
-        rightMargin=25,
+        pagesize=A4, # 595.27 x 841.89 pt
         leftMargin=25,
+        rightMargin=25,
         topMargin=25,
         bottomMargin=35
     )
-    
+
+    # 1. Sayfa Şablonu: Üstte Tam Genişlikte Başlık + Altta 2 Sütun
+    frame_header = Frame(25, 730, 545, 90, id='header_frame', topPadding=0, bottomPadding=0, leftPadding=0, rightPadding=0)
+    frame_left_p1 = Frame(25, 35, 255, 685, id='left_col_p1', topPadding=0, bottomPadding=0, leftPadding=0, rightPadding=5)
+    frame_right_p1 = Frame(315, 35, 255, 685, id='right_col_p1', topPadding=0, bottomPadding=0, leftPadding=5, rightPadding=0)
+
+    # 2. Sayfa ve Sonrası Şablonu: Direkt 2 Sütun
+    frame_left_p2 = Frame(25, 35, 255, 770, id='left_col_p2', topPadding=0, bottomPadding=0, leftPadding=0, rightPadding=5)
+    frame_right_p2 = Frame(315, 35, 255, 770, id='right_col_p2', topPadding=0, bottomPadding=0, leftPadding=5, rightPadding=0)
+
+    first_page_template = PageTemplate(id='FirstPage', frames=[frame_header, frame_left_p1, frame_right_p1])
+    later_page_template = PageTemplate(id='LaterPages', frames=[frame_left_p2, frame_right_p2])
+
+    doc.addPageTemplates([first_page_template, later_page_template])
+
     styles = getSampleStyleSheet()
     
     title_style = ParagraphStyle(
@@ -398,7 +406,7 @@ def build_pdf_exam(exam_data, show_answers=False):
 
     story = []
     
-    # 1. BAŞLIK VE ÖĞRENCİ BİLGİ ALANI (ÜST BÖLÜM - TAM GENİŞLİK)
+    # --- HEADER FRAME İÇERİĞİ ---
     header_text = f"<b>{exam_data['school_name'].upper()}</b><br/>" \
                   f"<b>2026-2027 EĞİTİM-ÖĞRETİM YILI 5. SINIF {exam_data['subject'].upper()} DERSİ</b><br/>" \
                   f"<u>{exam_data['term'].upper()} DEĞERLENDİRME SINAVI</u>"
@@ -407,7 +415,7 @@ def build_pdf_exam(exam_data, show_answers=False):
         header_text += " <font color='red'><b>[ DETAYLI CEVAP ANAHTARI ]</b></font>"
 
     story.append(Paragraph(header_text, title_style))
-    story.append(Spacer(1, 8))
+    story.append(Spacer(1, 6))
     
     info_data = [
         [
@@ -421,89 +429,68 @@ def build_pdf_exam(exam_data, show_answers=False):
     t_info.setStyle(TableStyle([
         ('BOX', (0,0), (-1,-1), 0.8, colors.HexColor("#424242")),
         ('VALIGN', (0,0), (-1,-1), 'MIDDLE'),
-        ('PADDING', (0,0), (-1,-1), 4),
+        ('PADDING', (0,0), (-1,-1), 3),
         ('BACKGROUND', (0,0), (-1,-1), colors.HexColor("#F5F5F5"))
     ]))
     story.append(t_info)
-    story.append(Spacer(1, 10))
-    story.append(HRFlowable(width="100%", thickness=1, color=colors.HexColor("#FF6B00"), spaceAfter=10))
+    story.append(Spacer(1, 6))
+    story.append(HRFlowable(width="100%", thickness=1, color=colors.HexColor("#FF6B00"), spaceAfter=0))
 
-    # 2. SORULARI SOL VE SAĞ SÜTUNLARA AYIRMA (İKİ SÜTUNLU TABLO DÜZENİ)
-    # Her sütunun genişliği: ~260pt (Sayfa genişliği 545pt / 2)
-    left_flowables = []
-    right_flowables = []
-    
-    questions = exam_data['questions']
-    half = (len(questions) + 1) // 2
-    left_qs = questions[:half]
-    right_qs = questions[half:]
+    # Header bitti, sol sütun çerçevesine geç!
+    story.append(FrameBreak())
+    story.append(NextPageTemplate('LaterPages'))
 
-    def render_q_list(q_list, target_list):
-        for idx, q in enumerate(q_list, start=1 if target_list is left_flowables else half + 1):
-            q_elements = []
-            q_header = f"<b>Soru {idx} ({q.get('points', 10)} Puan):</b> {q['question_text']}"
-            q_elements.append(Paragraph(q_header, q_style))
-            
-            if q.get('has_diagram') and q.get('diagram_type'):
-                img_buf = generate_question_image(q['diagram_type'])
-                if img_buf:
-                    rl_img = RLImage(img_buf, width=120, height=80)
-                    q_elements.append(Spacer(1, 3))
-                    q_elements.append(rl_img)
-                    q_elements.append(Spacer(1, 3))
-            
-            if q['type'] == 'MCQ':
-                opts = q.get('options', {})
-                opt_table_data = [
-                    [Paragraph(f"<b>A)</b> {opts.get('A', '')}", opt_style), Paragraph(f"<b>B)</b> {opts.get('B', '')}", opt_style)],
-                    [Paragraph(f"<b>C)</b> {opts.get('C', '')}", opt_style), Paragraph(f"<b>D)</b> {opts.get('D', '')}", opt_style)]
-                ]
-                t_opts = Table(opt_table_data, colWidths=[125, 125])
-                t_opts.setStyle(TableStyle([
-                    ('VALIGN', (0,0), (-1,-1), 'TOP'),
-                    ('PADDING', (0,0), (-1,-1), 2),
-                ]))
-                q_elements.append(t_opts)
-            else:
-                if not show_answers:
-                    q_elements.append(Spacer(1, 4))
-                    line_data = [[""], [""]]
-                    t_lines = Table(line_data, colWidths=[250], rowHeights=[14, 14])
-                    t_lines.setStyle(TableStyle([
-                        ('LINEBELOW', (0,0), (-1,-1), 0.5, colors.HexColor("#BDBDBD")),
-                    ]))
-                    q_elements.append(t_lines)
-                    
-            if show_answers:
+    # --- SORULARIN DİZİLİMİ ---
+    for idx, q in enumerate(exam_data['questions'], start=1):
+        q_elements = []
+        q_header = f"<b>Soru {idx} ({q.get('points', 10)} Puan):</b> {q['question_text']}"
+        q_elements.append(Paragraph(q_header, q_style))
+        
+        if q.get('has_diagram') and q.get('diagram_type'):
+            img_buf = generate_question_image(q['diagram_type'])
+            if img_buf:
+                rl_img = RLImage(img_buf, width=110, height=70)
                 q_elements.append(Spacer(1, 3))
-                ans_box = f"<b>Cevap:</b> {q.get('correct_answer', '')}<br/>" \
-                          f"<b>Açıklama:</b> {q.get('solution_explanation', '')}"
-                
-                t_sol = Table([[Paragraph(ans_box, sol_style)]], colWidths=[250])
-                t_sol.setStyle(TableStyle([
-                    ('BOX', (0,0), (-1,-1), 0.6, colors.HexColor("#2E7D32")),
-                    ('BACKGROUND', (0,0), (-1,-1), colors.HexColor("#E8F5E9")),
-                    ('PADDING', (0,0), (-1,-1), 4),
+                q_elements.append(rl_img)
+                q_elements.append(Spacer(1, 3))
+        
+        if q['type'] == 'MCQ':
+            opts = q.get('options', {})
+            opt_table_data = [
+                [Paragraph(f"<b>A)</b> {opts.get('A', '')}", opt_style), Paragraph(f"<b>B)</b> {opts.get('B', '')}", opt_style)],
+                [Paragraph(f"<b>C)</b> {opts.get('C', '')}", opt_style), Paragraph(f"<b>D)</b> {opts.get('D', '')}", opt_style)]
+            ]
+            t_opts = Table(opt_table_data, colWidths=[120, 120])
+            t_opts.setStyle(TableStyle([
+                ('VALIGN', (0,0), (-1,-1), 'TOP'),
+                ('PADDING', (0,0), (-1,-1), 2),
+            ]))
+            q_elements.append(t_opts)
+        else:
+            if not show_answers:
+                q_elements.append(Spacer(1, 4))
+                line_data = [[""], [""]]
+                t_lines = Table(line_data, colWidths=[240], rowHeights=[14, 14])
+                t_lines.setStyle(TableStyle([
+                    ('LINEBELOW', (0,0), (-1,-1), 0.5, colors.HexColor("#BDBDBD")),
                 ]))
-                q_elements.append(t_sol)
+                q_elements.append(t_lines)
+                
+        if show_answers:
+            q_elements.append(Spacer(1, 3))
+            ans_box = f"<b>Cevap:</b> {q.get('correct_answer', '')}<br/>" \
+                      f"<b>Açıklama:</b> {q.get('solution_explanation', '')}"
+            
+            t_sol = Table([[Paragraph(ans_box, sol_style)]], colWidths=[240])
+            t_sol.setStyle(TableStyle([
+                ('BOX', (0,0), (-1,-1), 0.6, colors.HexColor("#2E7D32")),
+                ('BACKGROUND', (0,0), (-1,-1), colors.HexColor("#E8F5E9")),
+                ('PADDING', (0,0), (-1,-1), 4),
+            ]))
+            q_elements.append(t_sol)
 
-            q_elements.append(Spacer(1, 10))
-            target_list.append(KeepTogether(q_elements))
-
-    render_q_list(left_qs, left_flowables)
-    render_q_list(right_qs, right_flowables)
-
-    # İki sütunu tek bir tabloda buluşturup yan yana basma
-    main_grid = Table([[left_flowables, right_flowables]], colWidths=[265, 265])
-    main_grid.setStyle(TableStyle([
-        ('VALIGN', (0,0), (-1,-1), 'TOP'),
-        ('LEFTPADDING', (0,0), (0,0), 0),
-        ('RIGHTPADDING', (0,0), (0,0), 12),
-        ('LEFTPADDING', (1,0), (1,0), 12),
-        ('RIGHTPADDING', (1,0), (1,0), 0),
-    ]))
-    
-    story.append(main_grid)
+        q_elements.append(Spacer(1, 10))
+        story.append(KeepTogether(q_elements))
 
     doc.build(story, canvasmaker=TwoColumnCanvas)
     buffer.seek(0)
