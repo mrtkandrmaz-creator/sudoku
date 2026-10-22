@@ -103,7 +103,7 @@ st.markdown("""
 st.markdown("""
 <div class="header-bar">
     <div>🎓 MEB 5. Sınıf Soru Fabrikası <span style="font-size: 18px;">(Murat KANDIRMAZ)</span></div>
-    <div class="header-sub">Universal Secrets & Environment API Okuyuculu Soru Robotu</div>
+    <div class="header-sub">Tam Otomatik Secrets.toml API Yük Dengelemeli Soru Robotu</div>
 </div>
 """, unsafe_allow_html=True)
 
@@ -144,72 +144,36 @@ MEB_FULL_CURRICULUM = {
 }
 
 # ==========================================
-# 3. KUSURSUZ / EVRENSEL API ANAHTARI TARAYICI
+# 3. SECRETS.TOML API OKUYUCU (TAM UYUMLU)
 # ==========================================
-def extract_api_keys():
-    """
-    st.secrets ve os.environ içindeki TÜM veri yapılarını özyinelemeli (recursive) tarayarak
-    Gemini ve Groq anahtarlarını biçimden bağımsız olarak çekip çıkarır.
-    """
-    gemini_keys = []
-    groq_keys = []
+def load_secrets_api_keys():
+    groq_list = []
+    gemini_list = []
 
-    def parse_value(key_name, val):
-        key_upper = str(key_name).upper()
-        if isinstance(val, str) and len(val.strip()) > 10:
-            if "GEMINI" in key_upper:
-                gemini_keys.append(val.strip())
-            elif "GROQ" in key_upper:
-                groq_keys.append(val.strip())
-            # Isim belirtilmemişse prefix analizinden tahmin et
-            elif val.startswith("AIzaSy"):
-                gemini_keys.append(val.strip())
-            elif val.startswith("gsk_"):
-                groq_keys.append(val.strip())
-        elif isinstance(val, list):
-            for item in val:
-                parse_value(key_name, item)
-
-    def walk_dict(d):
-        if hasattr(d, "items"):
-            for k, v in d.items():
-                if hasattr(v, "items") or isinstance(v, list):
-                    walk_dict(v)
-                else:
-                    parse_value(k, v)
-
-    # 1. Streamlit Secrets Tarama
     try:
-        walk_dict(st.secrets)
+        # [api_keys] altındaki groq_keys ve gemini_keys listelerini doğrudan al
+        if "api_keys" in st.secrets:
+            api_section = st.secrets["api_keys"]
+            if "groq_keys" in api_section:
+                groq_list = list(api_section["groq_keys"])
+            if "gemini_keys" in api_section:
+                gemini_list = list(api_section["gemini_keys"])
+        else:
+            # Alternatif kök seviye listeler varsa yakala
+            if "groq_keys" in st.secrets:
+                groq_list = list(st.secrets["groq_keys"])
+            if "gemini_keys" in st.secrets:
+                gemini_list = list(st.secrets["gemini_keys"])
     except Exception:
         pass
 
-    # 2. Ortam Değişkenleri (Environment Variables) Tarama
-    try:
-        walk_dict(dict(os.environ))
-    except Exception:
-        pass
-
-    # Çift kayıtları ayıkla
-    gemini_keys = list(dict.fromkeys(gemini_keys))
-    groq_keys = list(dict.fromkeys(groq_keys))
-
-    return gemini_keys, groq_keys
+    return groq_list, gemini_list
 
 # ==========================================
 # 4. YÜK DENGELEMELİ & DİNAMİK AI SORU ÜRETİCİ
 # ==========================================
 def generate_questions_with_ai(subject, unit):
-    gemini_keys, groq_keys = extract_api_keys()
-
-    # Kullanılabilir tüm API sağlayıcılarını bir havuzda topla ve karıştır
-    providers = []
-    for k in gemini_keys:
-        providers.append(("gemini", k))
-    for k in groq_keys:
-        providers.append(("groq", k))
-
-    random.shuffle(providers)
+    groq_keys, gemini_keys = load_secrets_api_keys()
 
     prompt = f"""
     Sen MEB 5. sınıf müfredatına tam hakim uzman bir ilköğretim öğretmenisin.
@@ -244,30 +208,15 @@ def generate_questions_with_ai(subject, unit):
 
     last_error = ""
 
-    # Tüm API anahtarlarını sırayla dene (Biri takılırsa otomatik diğerine geç)
-    for p_type, api_key in providers:
-        try:
-            if p_type == "gemini" and genai:
-                genai.configure(api_key=api_key)
-                model = genai.GenerativeModel('gemini-3.6-flash')
-                response = model.generate_content(
-                    prompt,
-                    generation_config={"response_mime_type": "application/json"}
-                )
-                text = response.text.strip()
-                if text.startswith("```json"): text = text[7:-3].strip()
-                elif text.startswith("```"): text = text[3:-3].strip()
-
-                parsed = json.loads(text)
-                if "questions" in parsed and len(parsed["questions"]) > 0:
-                    return parsed["questions"], f"Gemini API ({api_key[:6]}...)"
-
-            elif p_type == "groq" and Groq:
-                client = Groq(api_key=api_key)
+    # 1. Öncelik: Groq API (Çok Hızlı)
+    if Groq and groq_keys:
+        for key in groq_keys:
+            try:
+                client = Groq(api_key=key.strip())
                 completion = client.chat.completions.create(
                     model="llama-3.3-70b-versatile",
                     messages=[
-                        {"role": "system", "content": "Sen JSON çıktısı veren bir MEB soru üreticisisin."},
+                        {"role": "system", "content": "Sen JSON formatında veri döndüren bir MEB soru robotusun."},
                         {"role": "user", "content": prompt}
                     ],
                     response_format={"type": "json_object"}
@@ -275,33 +224,53 @@ def generate_questions_with_ai(subject, unit):
                 text = completion.choices[0].message.content.strip()
                 parsed = json.loads(text)
                 if "questions" in parsed and len(parsed["questions"]) > 0:
-                    return parsed["questions"], f"Groq API ({api_key[:6]}...)"
+                    return parsed["questions"], f"Groq API ({key[:8]}...)"
+            except Exception as e:
+                last_error = f"Groq Hata: {e}"
+                continue
 
-        except Exception as e:
-            last_error = str(e)
-            continue
+    # 2. Öncelik: Gemini API (Yedek)
+    if genai and gemini_keys:
+        for key in gemini_keys:
+            try:
+                genai.configure(api_key=key.strip())
+                model = genai.GenerativeModel('gemini-1.5-flash')
+                response = model.generate_content(
+                    prompt,
+                    generation_config={"response_mime_type": "application/json"}
+                )
+                text = response.text.strip()
+                if text.startswith("```json"): text = text[7:-3].strip()
+                elif text.startswith("```"): text = text[3:-3].strip()
+                
+                parsed = json.loads(text)
+                if "questions" in parsed and len(parsed["questions"]) > 0:
+                    return parsed["questions"], f"Gemini API ({key[:8]}...)"
+            except Exception as e:
+                last_error = f"Gemini Hata: {e}"
+                continue
 
-    # Hiçbiri çalışmazsa uyarı verip düşüş havuzunu döndür
-    st.error(f"⚠️ Hiçbir API anahtarı çalışmadı veya geçerli anahtar bulunamadı. Son hata: {last_error}")
-    return get_fallback_questions(subject, unit), "Yerel Statik Şablon"
+    # Hiçbir anahtar çalışmazsa uyarı verip düşüş havuzunu döndür
+    st.error(f"⚠️ Secrets içerisindeki anahtarlar yanıt vermedi. Son durum: {last_error}")
+    return get_fallback_questions(subject, unit), "Yerel Statik Havuz"
 
 def get_fallback_questions(subject, unit):
     questions = []
     for i in range(1, 6):
         questions.append({
             "id": i, "type": "MCQ",
-            "question_text": f"5. Sınıf {subject} ({unit}) ünitesiyle ilgili temel test sorusu {i}?",
-            "options": {"A": "Doğru yanıt seçeneği", "B": "Çeldirici A", "C": "Çeldirici B", "D": "Çeldirici C"},
-            "correct_answer": "A", "solution_explanation": "Bu soru MEB müfredat standartlarına göre hazırlanmıştır.",
+            "question_text": f"5. Sınıf {subject} ({unit}) ünitesiyle ilgili örnek test sorusu {i}?",
+            "options": {"A": "Doğru seçenek", "B": "Çeldirici A", "C": "Çeldirici B", "D": "Çeldirici C"},
+            "correct_answer": "A", "solution_explanation": "Bu soru MEB müfredatına uygun olarak oluşturulmuştur.",
             "points": 10, "has_diagram": True if i in [2, 3] else False, "diagram_type": "moon_phases" if i==2 else "dynamometer" if i==3 else None
         })
     for i in range(6, 11):
         questions.append({
             "id": i, "type": "OPEN",
-            "question_text": f"5. Sınıf {subject} ({unit}) ünitesiyle ilgili açık uçlu değerlendirme sorusu {i-5}?",
+            "question_text": f"5. Sınıf {subject} ({unit}) ünitesiyle ilgili açık uçlu soru {i-5}?",
             "options": {},
-            "correct_answer": "Örnek ideal öğretmen/öğrenci yanıtı.",
-            "solution_explanation": "Kazanım odaklı açıklama.",
+            "correct_answer": "Örnek ideal öğrenci yanıtı.",
+            "solution_explanation": "Kazanım açıklaması.",
             "points": 10, "has_diagram": False, "diagram_type": None
         })
     return questions
@@ -576,13 +545,13 @@ if 'exam_completed' not in st.session_state:
 if 'current_q_index' not in st.session_state:
     st.session_state.current_q_index = 0
 
-st.sidebar.header("⚙️ Müfredat & Sınav Ayarları")
+st.sidebar.header("⚙️ Müfredat Ayarları")
 selected_subject = st.sidebar.selectbox("📖 Ders Seçiniz", list(MEB_FULL_CURRICULUM.keys()))
 selected_unit = st.sidebar.selectbox("📚 Ünite Seçiniz", MEB_FULL_CURRICULUM[selected_subject])
 
 # Secrets Durumunu Göster
-gemini_k, groq_k = extract_api_keys()
-st.sidebar.info(f"🔑 **Algılanan Anahtarlar:**\n- Gemini: {len(gemini_k)} adet\n- Groq: {len(groq_k)} adet")
+groq_k, gemini_k = load_secrets_api_keys()
+st.sidebar.info(f"🔑 **secrets.toml Yüklü:**\n- Groq: {len(groq_k)} adet\n- Gemini: {len(gemini_k)} adet")
 
 st.sidebar.divider()
 
