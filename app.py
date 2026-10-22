@@ -9,6 +9,12 @@ import os
 import matplotlib.pyplot as plt
 import numpy as np
 
+# Gemini API Import (Yapay Zeka Destekli Soru Üretimi İçin)
+try:
+    import google.generativeai as genai
+except ImportError:
+    pass
+
 # ReportLab Imports
 from reportlab.lib.pagesizes import A4
 from reportlab.lib import colors
@@ -92,196 +98,126 @@ st.markdown("""
 st.markdown("""
 <div class="header-bar">
     <div>🎓 MEB 5. Sınıf Soru Fabrikası <span style="font-size: 18px;">(Murat KANDIRMAZ)</span></div>
-    <div class="header-sub">Yazılı Öncesi Akıllı Sınav & Çalışma Hazırlık Robotu</div>
+    <div class="header-sub">Yazılı Öncesi Akıllı Sınav & Çalışma Hazırlık Robotu (Yapay Zeka Destekli)</div>
 </div>
 """, unsafe_allow_html=True)
 
 # ==========================================
-# 2. MEB ONAYLI ZENGİNLEŞTİRİLMİŞ SORU BANKASI
+# 2. MEB 5. SINIF TAM MÜFREDAT Kapsamı
 # ==========================================
-MEB_QUESTION_POOL = {
-    "Fen Bilimleri": {
-        "1. Dönem 1. Yazılı (Ekim/Kasım)": [
-            {
-                "id": 1, "type": "MCQ",
-                "question_text": "G\u00fcne\u015f ile ilgili verilen a\u015fa\u011f\u0131dakilerden hangisi yanlı\u015ft\u0131r?",
-                "options": {"A": "G\u00fcne\u015f, katmanlardan olu\u015fan devasa bir gaz küresidir.", "B": "G\u00fcne\u015f yüzeyindeki so\u011fuk bölgelere 'G\u00fcne\u015f lekesi' adı verilir.", "C": "G\u00fcne\u015f, Dünya'm\u0131za en yakın yıldızdır.", "D": "G\u00fcne\u015f'in yüzey sıcaklığı merkezindeki sıcaklıktan daha fazladır."},
-                "correct_answer": "D", "solution_explanation": "Güneş'in merkez sıcaklığı yaklaşık 15 milyon °C iken, yüzey sıcaklığı yaklaşık 6000 °C'dir.", "points": 10, "has_diagram": False, "diagram_type": None
-            },
-            {
-                "id": 2, "type": "MCQ",
-                "question_text": "Dünya, G\u00fcne\u015f ve Ay'ın büyüklükleri karşılaştırıldığında doğru sıralama nasıldır?",
-                "options": {"A": "G\u00fcne\u015f > Dünya > Ay", "B": "Dünya > G\u00fcne\u015f > Ay", "C": "G\u00fcne\u015f > Ay > Dünya", "D": "Ay > Dünya > G\u00fcne\u015f"},
-                "correct_answer": "A", "solution_explanation": "Boyut sıralaması: Güneş > Dünya > Ay şeklindedir.", "points": 10, "has_diagram": True, "diagram_type": "sun_earth_moon"
-            },
-            {
-                "id": 3, "type": "MCQ",
-                "question_text": "Aşağıdaki şekilde gösterilen Ay'ın ana evresi aşağıdakilerden hangisidir?",
-                "options": {"A": "Yeni Ay", "B": "İlk Dördün", "C": "Dolunay", "D": "Son Dördün"},
-                "correct_answer": "B", "solution_explanation": "Yarım daire şeklinde görülen ve sağ tarafı aydınlık olan evre İlk Dördün'dür.", "points": 10, "has_diagram": True, "diagram_type": "moon_phases"
-            },
-            {
-                "id": 4, "type": "MCQ",
-                "question_text": "Esnek cisimlerin boyundaki değişimleri ölçmek için kullanılan, içinde yay bulunan ölçü aleti aşağıdakilerden hangisidir?",
-                "options": {"A": "Termometre", "B": "Dinamometre", "C": "Karitometre", "D": "Barometre"},
-                "correct_answer": "B", "solution_explanation": "Kuvveti ölçen ve içinde yay barındıran alet dinamometredir.", "points": 10, "has_diagram": False, "diagram_type": None
-            },
-            {
-                "id": 5, "type": "MCQ",
-                "question_text": "Aşağıdaki dinamometre modeline uygulanan kuvvet arttıkça yaydaki uzama miktarı nasıl değişir?",
-                "options": {"A": "Artar", "B": "Azalır", "C": "Değişmez", "D": "Önce artar sonra sıfırlanır"},
-                "correct_answer": "A", "solution_explanation": "Uygulanan kuvvet ile dinamometredeki uzama miktarı doğru orantılıdır, kuvvet arttıkça uzama da artar.", "points": 10, "has_diagram": True, "diagram_type": "dynamometer"
-            },
-            {
-                "id": 6, "type": "OPEN",
-                "question_text": "G\u00fcne\u015f'in içten dışa doğru katmanlarının isimlerini sırasıyla yazınız.",
-                "options": {},
-                "correct_answer": "Çekirdek, Işık Küre, Renk Küre, Taç Küre",
-                "solution_explanation": "Sırasıyla: Çekirdek, Işık Küre, Renk Küre, Taç Küre.",
-                "points": 10, "has_diagram": False, "diagram_type": None
-            },
-            {
-                "id": 7, "type": "OPEN",
-                "question_text": "Ay'ın ana evreleri arasındaki süre ortalama kaç haftadır?",
-                "options": {},
-                "correct_answer": "1 hafta (yaklaşık 7 gün)",
-                "solution_explanation": "Ay bir evreden diğer ana evreye yaklaşık 1 haftada geçer.",
-                "points": 10, "has_diagram": False, "diagram_type": None
-            },
-            {
-                "id": 8, "type": "OPEN",
-                "question_text": "Dinamometre yapımında kullanılan yayların esneklik sınırının aşılması dinamometreye nasıl zarar verir?",
-                "options": {},
-                "correct_answer": "Yay özelliğini yitirir (esnekliğini kaybeder) ve bozulur.",
-                "solution_explanation": "Esneklik sınırı aşılırsa yay kalıcı olarak deforme olur.",
-                "points": 10, "has_diagram": False, "diagram_type": None
-            },
-            {
-                "id": 9, "type": "OPEN",
-                "question_text": "Kuvvetin birimi nedir ve hangi kısaltma ile gösterilir?",
-                "options": {},
-                "correct_answer": "Newton, 'N' harfi ile gösterilir.",
-                "solution_explanation": "Kuvvet birimi Newton'dur ve büyük N harfi ile ifade edilir.",
-                "points": 10, "has_diagram": False, "diagram_type": None
-            },
-            {
-                "id": 10, "type": "OPEN",
-                "question_text": "Özdeş iki dinamometreden birinin kaliteleri aynı kalmak şartıyla yayı daha ince seçilirse bu dinamometrenin hassasiyeti nasıl etkilenir?",
-                "options": {},
-                "correct_answer": "Daha küçük kuvvetleri ölçebilir, hassasiyeti artar.",
-                "points": 10, "has_diagram": False, "diagram_type": None
-            }
-        ]
-    },
-    "Matematik": {
-        "1. Dönem 1. Yazılı (Ekim/Kasım)": [
-            {
-                "id": 1, "type": "MCQ",
-                "question_text": "Aşağıdaki şekilde gösterilen çemberin merkezi M noktası ve yarıçapı 6 cm ise çapının uzunluğu kaç cm'dir?",
-                "options": {"A": "3 cm", "B": "6 cm", "C": "12 cm", "D": "18 cm"},
-                "correct_answer": "C", "solution_explanation": "Çap yarıçapın 2 katıdır. 6 x 2 = 12 cm.", "points": 10, "has_diagram": True, "diagram_type": "circle_radius"
-            },
-            {
-                "id": 2, "type": "MCQ",
-                "question_text": "Tüm kenar uzunlukları ve iç açıları birbirine eşit olan üçgen çeşidi aşağıdakilerden hangisidir?",
-                "options": {"A": "Çeşitkenar üçgen", "B": "İkizkenar üçgen", "C": "Eşkenar üçgen", "D": "Geniş açılı üçgen"},
-                "correct_answer": "C", "solution_explanation": "Tüm kenar ve açıları eşit olan üçgenler eşkenar üçgendir.", "points": 10, "has_diagram": True, "diagram_type": "equilateral_triangle"
-            },
-            {
-                "id": 3, "type": "MCQ",
-                "question_text": "Başlangıç noktası belli, diğer ucu sonsuza kadar giden geometrik şekle ne ad verilir?",
-                "options": {"A": "Doğru parçası", "B": "Işın", "C": "Doğru", "D": "Açı"},
-                "correct_answer": "B", "solution_explanation": "Bir ucu sabit diğer ucu sonsuza uzanan şekil ışındır.", "points": 10, "has_diagram": True, "diagram_type": "ray_segment"
-            },
-            {
-                "id": 4, "type": "MCQ",
-                "question_text": "Aşağıdaki kareli koordinat düzleminde verilen A noktasının koordinatları aşağıdakilerden hangisidir?",
-                "options": {"A": "(2, 3)", "B": "(3, 2)", "C": "(4, 1)", "D": "(1, 4)"},
-                "correct_answer": "A", "solution_explanation": "X ekseninde 2, Y ekseninde 3 birim ilerlendiği için nokta (2, 3)'tür.", "points": 10, "has_diagram": True, "diagram_type": "coordinate_grid"
-            },
-            {
-                "id": 5, "type": "MCQ",
-                "question_text": "Bir üçgende bir köşeden karşı kenara indirilen ve o kenarı dik (90°) kesen doğru parçasına ne denir?",
-                "options": {"A": "Açıortay", "B": "Kenarortay", "C": "Dikme (Yükseklik)", "D": "Yarıçap"},
-                "correct_answer": "C", "solution_explanation": "Köşeden karşı kenara inen dik doğru parçasına dikme veya yükseklik denir.", "points": 10, "has_diagram": True, "diagram_type": "triangle_perpendicular"
-            },
-            {
-                "id": 6, "type": "OPEN",
-                "question_text": "Dar açılı, dik açılı ve geniş açılı üçgenlerin açı özelliklerini kısaca açıklayınız.",
-                "options": {},
-                "correct_answer": "Dar açılı üçgenin tüm açıları 90°'den küçüktür; dik açılı üçgende bir açı 90°'dir; geniş açılı üçgende ise bir açı 90°'den büyüktür.",
-                "solution_explanation": "Açı çeşitlerine göre üçgenler bu şekilde sınıflandırılır.",
-                "points": 10, "has_diagram": False, "diagram_type": None
-            },
-            {
-                "id": 7, "type": "OPEN",
-                "question_text": "Çember ile daire arasındaki temel fark nedir?",
-                "options": {},
-                "correct_answer": "Çember sadece çemberin çember yayı (çevresi) iken, daire çember ve iç bölgesinin tamamıdır.",
-                "solution_explanation": "Çember içi boş çember çizgisi, daire ise içi dolu alandır.",
-                "points": 10, "has_diagram": False, "diagram_type": None
-            },
-            {
-                "id": 8, "type": "OPEN",
-                "question_text": "Bir eşkenar üçgenin tüm iç açılarının ölçüleri toplamı kaç derecedir ve bir iç açısı kaç derecedir?",
-                "options": {},
-                "correct_answer": "İç açılar toplamı 180°, bir iç açısı 60°'dir.",
-                "solution_explanation": "180 / 3 = 60 derece.",
-                "points": 10, "has_diagram": False, "diagram_type": None
-            },
-            {
-                "id": 9, "type": "OPEN",
-                "question_text": "Kareli koordinat sisteminde yatay eksenin ve dikey eksenin matematiksel isimleri nelerdir?",
-                "options": {},
-                "correct_answer": "Yatay eksen X ekseni (apsis), dikey eksen Y ekseni (ordinat) olarak adlandırılır.",
-                "solution_explanation": "X ve Y eksenleri koordinat sistemini oluşturur.",
-                "points": 10, "has_diagram": False, "diagram_type": None
-            },
-            {
-                "id": 10, "type": "OPEN",
-                "question_text": "Doğru, doğru parçası ve ışın arasındaki farkları sembol gösterimleriyle birlikte yazınız.",
-                "options": {},
-                "correct_answer": "Doğru iki ucu sonsuz (AB), doğru parçası iki ucu sınırlı [AB], ışın bir ucu sınırlı diğer ucu sonsuz [AB) şeklindedir.",
-                "solution_explanation": "Sınır durumlarına göre sembolleri değişir.",
-                "points": 10, "has_diagram": False, "diagram_type": None
-            }
-        ]
-    }
+MEB_FULL_CURRICULUM = {
+    "Fen Bilimleri": [
+        "1. Ünite: Güneş, Dünya ve Ay",
+        "2. Ünite: Canlılar Dünyası",
+        "3. Ünite: Kuvvetin Ölçülmesi ve Sürtünme",
+        "4. Ünite: Madde ve Değişim",
+        "5. Ünite: Işığın Yayılması",
+        "6. Ünite: İnsan ve Çevre",
+        "7. Ünite: Elektrik Devre Elemanları"
+    ],
+    "Matematik": [
+        "1. Ünite: Doğal Sayılar ve Doğal Sayılarla İşlemler",
+        "2. Ünite: Kesirler",
+        "3. Ünite: Ondalık Gösterim",
+        "4. Ünite: Temel Geometrik Kavramlar ve Çizimler",
+        "5. Ünite: Üçgen ve Dörtgenler",
+        "6. Ünite: Veri Toplama ve Değerlendirme",
+        "7. Ünite: Uzunluk ve Zaman Ölçme"
+    ],
+    "Türkçe": [
+        "Sözcükte ve Söz Öbeklerinde Anlam",
+        "Cümlede Anlam ve Yorum",
+        "Paragraf Analizi ve Anlatım Biçimleri",
+        "Yazım Kuralları ve Noktalama İşaretleri"
+    ],
+    "Sosyal Bilgiler": [
+        "Birey ve Toplum",
+        "Kulturel Mirasımız",
+        "İnsanlar, Yerler ve Çevreler",
+        "Bilim, Teknoloji ve Toplum"
+    ]
 }
 
-def get_fallback_exam(subject, term):
+# ==========================================
+# 3. YAPAY ZEKA İLE DİNAMİK SORU ÜRETİCİ (GEMINI API)
+# ==========================================
+def generate_ai_questions(subject, unit, api_key):
+    if not api_key:
+        return get_fallback_questions(subject, unit)
+    
+    try:
+        genai.configure(api_key=api_key)
+        model = genai.GenerativeModel('gemini-1.5-flash')
+        
+        prompt = f"""
+        Sen uzman bir MEB 5. sınıf müfredat hazırlama öğretmenisin.
+        Ders: {subject}
+        Ünite/Konu: {unit}
+        
+        Lütfen bu konuyla ilgili tam olarak 5 adet Çoktan Seçmeli (MCQ) ve 5 adet Açık Uçlu (OPEN) olmak üzere toplam 10 adet özgün soru üret.
+        Sorular MEB kazanımlarına uygun, nitelikli ve dikkat ölçücü olmalı.
+        Görsel gerektiren sorular için uygun diagram_type belirle (Seçenekler: 'moon_phases', 'dynamometer', 'circle_radius', 'equilateral_triangle', 'ray_segment', 'coordinate_grid', 'triangle_perpendicular', 'sun_earth_moon', None).
+        
+        KESİNLİKLE aşağıdaki JSON formatında yanıt ver, başka hiçbir açıklama ekleme:
+        {{
+            "questions": [
+                {{
+                    "id": 1,
+                    "type": "MCQ",
+                    "question_text": "Soru metni...",
+                    "options": {{"A": "Seçenek A", "B": "Seçenek B", "C": "Seçenek C", "D": "Seçenek D"}},
+                    "correct_answer": "A",
+                    "solution_explanation": "Çözüm açıklaması...",
+                    "points": 10,
+                    "has_diagram": true,
+                    "diagram_type": "moon_phases"
+                }}
+            ]
+        }}
+        Not: Açık uçlu (OPEN) sorular için "options" boş sözlük {{}}, "correct_answer" ideal yanıt olmalıdır.
+        """
+        
+        response = model.generate_content(prompt)
+        text = response.text.strip()
+        if text.startswith("```json"):
+            text = text[7:-3].strip()
+        elif text.startswith("```"):
+            text = text[3:-3].strip()
+            
+        data = json.loads(text)
+        return data["questions"]
+    except Exception as e:
+        st.error(f"Yapay zeka soru üretirken hata oluştu: {e}. Varsayılan havuz kullanılıyor.")
+        return get_fallback_questions(subject, unit)
+
+def get_fallback_questions(subject, unit):
     questions = []
     for i in range(1, 6):
         questions.append({
             "id": i, "type": "MCQ",
-            "question_text": f"5. Sınıf {subject} dersi {term} dönemi örnek soru {i}?",
+            "question_text": f"5. Sınıf {subject} ({unit}) ünitesiyle ilgili örnek soru {i}?",
             "options": {"A": "Doğru seçenek", "B": "Çeldirici 1", "C": "Çeldirici 2", "D": "Çeldirici 3"},
             "correct_answer": "A", "solution_explanation": "Bu sorunun doğru yanıtı A seçeneğidir.",
-            "points": 10, "has_diagram": False, "diagram_type": None
+            "points": 10, "has_diagram": True if i in [2, 3] else False, "diagram_type": "moon_phases" if i==2 else "dynamometer" if i==3 else None
         })
     for i in range(6, 11):
         questions.append({
             "id": i, "type": "OPEN",
-            "question_text": f"5. Sınıf {subject} dersi {term} dönemi açık uçlu soru {i-5}?",
+            "question_text": f"5. Sınıf {subject} ({unit}) ünitesiyle ilgili açık uçlu soru {i-5}?",
             "options": {},
-            "correct_answer": "Örnek ideal yanıt.",
-            "solution_explanation": "Detaylı açıklama.",
+            "correct_answer": "Örnek ideal öğrenci yanıtı ve anahtar kavramlar.",
+            "solution_explanation": "Detaylı öğretmen açıklaması.",
             "points": 10, "has_diagram": False, "diagram_type": None
         })
-    return {
-        "school_name": "Şehit Öğretmen 5. Sınıf Ortaokulu",
-        "subject": subject,
-        "term": term,
-        "questions": questions
-    }
+    return questions
 
 # ==========================================
-# 3. YENİ NESİL GÖRSEL ÇİZİM MOTORU (MATPLOTLIB)
+# 4. YENİ NESİL GÖRSEL ÇİZİM MOTORU (MATPLOTLIB)
 # ==========================================
-def generate_question_image(diagram_type, details=None):
+def generate_question_image(diagram_type):
     fig, ax = plt.subplots(figsize=(3.2, 2.2), dpi=110)
     
-    if diagram_type == "triangle" or diagram_type == "triangle_perpendicular":
+    if diagram_type in ["triangle", "triangle_perpendicular"]:
         p1, p2, p3 = [0, 0], [4, 0], [2, 3]
         triangle = plt.Polygon([p1, p2, p3], fill=None, edgecolor='#FF6B00', linewidth=2)
         ax.add_patch(triangle)
@@ -310,31 +246,25 @@ def generate_question_image(diagram_type, details=None):
         ax.axis('off')
 
     elif diagram_type == "moon_phases":
-        # İlk Dördün Evresi Çizimi
         circle = plt.Circle((2, 2), 1.2, color='#333333', fill=True)
         ax.add_patch(circle)
-        # Sağ yarıyı aydınlık gösterelim
         theta = np.linspace(-np.pi/2, np.pi/2, 100)
         x = 2 + 1.2 * np.cos(theta)
         y = 2 + 1.2 * np.sin(theta)
         ax.fill_betweenx(y, 2, x, color='#FFD700', alpha=0.9)
-        ax.text(2, 0.5, "İlk Dördün Evresi", horizontalalignment='center', fontsize=9, fontweight='bold', color='#333333')
+        ax.text(2, 0.4, "Ay Evresi", horizontalalignment='center', fontsize=9, fontweight='bold', color='#333333')
         ax.set_xlim(0, 4)
         ax.set_ylim(0, 4)
         ax.axis('off')
 
     elif diagram_type == "dynamometer":
-        # Dinamometre Gövdesi ve Yay Çizimi
-        ax.plot([2, 2], [3.5, 3.8], color='black', linewidth=3) # Askı
+        ax.plot([2, 2], [3.5, 3.8], color='black', linewidth=3)
         ax.plot([1.7, 2.3], [3.5, 3.5], color='black', linewidth=3)
-        # Yay tırtılları
         y_vals = np.linspace(2.0, 3.5, 15)
         x_vals = 2 + 0.2 * np.sin(np.linspace(0, 4*np.pi, 15))
         ax.plot(x_vals, y_vals, color='#FF6B00', linewidth=2.5)
-        # Gövde kutusu
         rect = plt.Rectangle((1.5, 1.2), 1.0, 2.5, fill=False, edgecolor='gray', linewidth=1.5, linestyle='--')
         ax.add_patch(rect)
-        # Alt çengel ve kütle
         ax.plot([2, 2], [1.0, 1.2], color='black', linewidth=2)
         weight = plt.Rectangle((1.7, 0.4), 0.6, 0.6, color='#1E90FF')
         ax.add_patch(weight)
@@ -346,7 +276,7 @@ def generate_question_image(diagram_type, details=None):
     elif diagram_type == "circle_radius":
         circle = plt.Circle((2, 2), 1.3, fill=False, edgecolor='#FF6B00', linewidth=2)
         ax.add_patch(circle)
-        ax.plot([2, 3.3], [2, 2], color='#1E90FF', linewidth=2, marker='o') # Yarıçap
+        ax.plot([2, 3.3], [2, 2], color='#1E90FF', linewidth=2, marker='o')
         ax.text(2.65, 2.15, 'r = 6 cm', color='#1E90FF', fontsize=9, fontweight='bold')
         ax.plot(2, 2, marker='o', color='black')
         ax.text(1.85, 1.85, 'M', fontsize=9, fontweight='bold')
@@ -358,7 +288,7 @@ def generate_question_image(diagram_type, details=None):
         p1, p2, p3 = [1, 0.5], [3, 0.5], [2, 2.8]
         triangle = plt.Polygon([p1, p2, p3], fill=None, edgecolor='#FF6B00', linewidth=2)
         ax.add_patch(triangle)
-        ax.text(2, 1.5, '60°', fontsize=9, fontweight='bold', color='#1E90FF')
+        ax.text(2, 1.5, '60°', fontsize=9, fontweight='bold', color='#1E90FF', ha='center')
         ax.set_xlim(0, 4)
         ax.set_ylim(0, 3.5)
         ax.axis('off')
@@ -367,7 +297,7 @@ def generate_question_image(diagram_type, details=None):
         ax.plot([0.5, 3.5], [2, 2], color='#FF6B00', linewidth=2, marker='o')
         ax.text(0.5, 2.2, 'A', fontsize=10, fontweight='bold')
         ax.text(3.5, 2.2, 'B', fontsize=10, fontweight='bold')
-        ax.text(2, 1.5, 'Doğru Parçası [AB]', fontsize=9, fontweight='bold', color='#333333', ha='center')
+        ax.text(2, 1.5, '[AB] Doğru Parçası', fontsize=9, fontweight='bold', color='#333333', ha='center')
         ax.set_xlim(0, 4)
         ax.set_ylim(1, 3)
         ax.axis('off')
@@ -395,7 +325,7 @@ def generate_question_image(diagram_type, details=None):
     return buf
 
 # ==========================================
-# 4. TÜRKÇE FONT & REPORTLAB DÜZENİ
+# 5. TÜRKÇE FONT & PDF OLUŞTURUCU
 # ==========================================
 @st.cache_resource
 def setup_turkish_pdf_fonts():
@@ -470,8 +400,8 @@ def build_pdf_exam(exam_data, show_answers=False):
 
     story = []
     header_text = f"<b>{exam_data['school_name'].upper()}</b><br/>" \
-                  f"<b>2026-2027 EĞİTİM-ÖĞRETİM YILI 5. SINIF {exam_data['subject'].upper()} DERSİ</b><br/>" \
-                  f"<u>{exam_data['term'].upper()} DEĞERLENDİRME SINAVI</u>"
+                  f"<b>2026-2027 EĞİTİM YILI 5. SINIF {exam_data['subject'].upper()}</b><br/>" \
+                  f"<u>{exam_data['unit'].upper()} DEĞERLENDİRME SINAVI</u>"
     if show_answers:
         header_text += " <font color='red'><b>[ DETAYLI CEVAP ANAHTARI ]</b></font>"
 
@@ -536,13 +466,8 @@ def build_pdf_exam(exam_data, show_answers=False):
     return buffer
 
 # ==========================================
-# 5. STREAMLIT STATE & ARAYÜZ
+# 6. STREAMLIT ARAYÜZ & STATE YÖNETİMİ
 # ==========================================
-MEB_CURRICULUM = {
-    "Fen Bilimleri": {"1. Dönem 1. Yazılı (Ekim/Kasım)": ["Güneş ve Ay'ın Yapısı", "Kuvvetin Ölçülmesi"]},
-    "Matematik": {"1. Dönem 1. Yazılı (Ekim/Kasım)": ["Geometrik Şekiller ve Koordinat Sistemi"]}
-}
-
 if 'exam_started' not in st.session_state:
     st.session_state.exam_started = False
 if 'exam_data' not in st.session_state:
@@ -556,35 +481,28 @@ if 'exam_completed' not in st.session_state:
 if 'current_q_index' not in st.session_state:
     st.session_state.current_q_index = 0
 
-st.sidebar.header("⚙️ Sınav Ayarları")
-selected_subject = st.sidebar.selectbox("📖 Ders Seçiniz", list(MEB_CURRICULUM.keys()))
-terms_available = list(MEB_CURRICULUM[selected_subject].keys())
-selected_term = st.sidebar.selectbox("📅 Sınav Dönemi Seçiniz", terms_available)
-selected_units = MEB_CURRICULUM[selected_subject][selected_term]
-st.sidebar.info(f"📌 **Dahil Üniteler:**\n" + "\n".join([f"- {u}" for u in selected_units]))
+st.sidebar.header("⚙️ Yapay Zeka & Sınav Ayarları")
+api_key_input = st.sidebar.text_input("🔑 Gemini API Anahtarı (Opsiyonel)", type="password", help="Boş bırakırsanız varsayılan MEB soru bankası kullanılır.")
+selected_subject = st.sidebar.selectbox("📖 Ders Seçiniz", list(MEB_FULL_CURRICULUM.keys()))
+selected_unit = st.sidebar.selectbox("📚 Ünite Seçiniz", MEB_FULL_CURRICULUM[selected_subject])
+
 st.sidebar.divider()
 
-if st.sidebar.button("🎲 Yeni Sınav Hazırla", use_container_width=True):
-    with st.spinner("Sınav Hazırlanıyor..."):
-        if selected_subject in MEB_QUESTION_POOL and selected_term in MEB_QUESTION_POOL[selected_subject]:
-            pool = MEB_QUESTION_POOL[selected_subject][selected_term]
-            mcqs = [q for q in pool if q['type'] == 'MCQ'][:5]
-            opens = [q for q in pool if q['type'] == 'OPEN'][:5]
-            exam_json = {
-                "school_name": "Şehit Öğretmen 5. Sınıf Ortaokulu",
-                "subject": selected_subject,
-                "term": selected_term,
-                "questions": mcqs + opens
-            }
-        else:
-            exam_json = get_fallback_exam(selected_subject, selected_term)
-            
+if st.sidebar.button("🤖 AI ile Yeni Sınav Üret", use_container_width=True):
+    with st.spinner("Yapay zeka MEB müfredatına uygun soruları ve şemaları hazırlıyor..."):
+        questions = generate_ai_questions(selected_subject, selected_unit, api_key_input)
+        exam_json = {
+            "school_name": "Şehit Öğretmen 5. Sınıf Ortaokulu",
+            "subject": selected_subject,
+            "unit": selected_unit,
+            "questions": questions
+        }
         st.session_state.exam_data = exam_json
         st.session_state.exam_started = False
         st.session_state.exam_completed = False
         st.session_state.user_answers = {}
         st.session_state.current_q_index = 0
-        st.success("✅ Sınav başarıyla yüklendi! Başlamak için 'Sınavı Başlat' butonuna basınız.")
+        st.success("✅ Yapay zeka sınavı başarıyla oluşturdu!")
 
 if st.session_state.exam_data:
     exam = st.session_state.exam_data
@@ -593,9 +511,9 @@ if st.session_state.exam_data:
     
     col_pdf1, col_pdf2 = st.columns(2)
     with col_pdf1:
-        st.download_button("📄 MEB Çift Sütun Formatında Sınav Kağıdı İndir (PDF)", data=pdf_exam, file_name=f"5_Sinif_{exam['subject']}_Yazili_Sinavi.pdf", mime="application/pdf", use_container_width=True)
+        st.download_button("📄 MEB Çift Sütun PDF Sınav Kağıdı İndir", data=pdf_exam, file_name=f"5_Sinif_{exam['subject']}_Yazili.pdf", mime="application/pdf", use_container_width=True)
     with col_pdf2:
-        st.download_button("🔑 Çözüm & Cevap Anahtarı İndir (PDF)", data=pdf_sol, file_name=f"5_Sinif_{exam['subject']}_Cevap_Anahtari.pdf", mime="application/pdf", use_container_width=True)
+        st.download_button("🔑 Çözüm & Cevap Anahtarı İndir", data=pdf_sol, file_name=f"5_Sinif_{exam['subject']}_Cevaplar.pdf", mime="application/pdf", use_container_width=True)
 
     st.divider()
 
@@ -655,20 +573,11 @@ if st.session_state.exam_data:
                         default_index = idx
                         break
 
-            selected = st.radio(
-                "Lütfen seçiminizi yapınız:",
-                formatted_opts,
-                key=f"radio_q_{q_id}",
-                index=default_index
-            )
+            selected = st.radio("Lütfen seçiminizi yapınız:", formatted_opts, key=f"radio_q_{q_id}", index=default_index)
             if selected:
                 st.session_state.user_answers[q_id] = selected[0]
         else:
-            user_text = st.text_area(
-                "Cevabınızı buraya yazınız:",
-                value=saved_ans if saved_ans else "",
-                key=f"textarea_q_{q_id}"
-            )
+            user_text = st.text_area("Cevabınızı buraya yazınız:", value=saved_ans if saved_ans else "", key=f"textarea_q_{q_id}")
             if user_text:
                 st.session_state.user_answers[q_id] = user_text
 
@@ -694,11 +603,7 @@ if st.session_state.exam_data:
 
     elif st.session_state.exam_completed:
         st.balloons()
-        
-        mcq_correct = 0
-        mcq_wrong = 0
-        mcq_empty = 0
-        mcq_score = 0
+        mcq_correct, mcq_wrong, mcq_empty, mcq_score = 0, 0, 0, 0
         
         for q in exam['questions']:
             q_id = q['id']
@@ -725,7 +630,6 @@ if st.session_state.exam_data:
         k3.metric("Yanlış Cevap", f"{mcq_wrong} Soru")
         k4.metric("Boş Bırakılan", f"{mcq_empty} Soru")
 
-        st.info("ℹ️ **Not:** Açık uçlu sorular öğretmen değerlendirmesi gerektirdiği için otomatize teste dahil edilmemiştir.")
         st.divider()
         st.subheader("📝 Detaylı Soru Çözümleri ve Cevap Anahtarı")
 
@@ -749,4 +653,4 @@ if st.session_state.exam_data:
             st.write("---")
 
 else:
-    st.info("👈 Sınav oluşturmak için sol menüden dersinizi ve sınav döneminizi seçip **'Yeni Sınav Hazırla'** butonuna tıklayınız.")
+    st.info("👈 Sınav oluşturmak için sol menüden dersinizi ve ünitenizi seçip **'AI ile Yeni Sınav Üret'** butonuna tıklayınız.")
