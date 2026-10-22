@@ -97,7 +97,7 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 # ==========================================
-# 2. MEB ONAYLI UNICODE KORUMALI SORU BANKASI
+# 2. MEB ONAYLI ZENGİNLEŞTİRİLMİŞ SORU BANKASI
 # ==========================================
 MEB_QUESTION_POOL = {
     "Fen Bilimleri": {
@@ -110,27 +110,27 @@ MEB_QUESTION_POOL = {
             },
             {
                 "id": 2, "type": "MCQ",
-                "question_text": "Galileo Galilei, kendi tasarladığı teleskopla G\u00fcne\u015f lekelerini gözlemlemiş ve bu lekelerin hep aynı yöne doğru kaydığını fark etmiştir. Bu gözlem neyi kanıtlar?",
-                "options": {"A": "G\u00fcne\u015f'in Dünya etrafında dolandığını", "B": "G\u00fcne\u015f'in kendi ekseni etrafında döndüğünü", "C": "G\u00fcne\u015f'in şeklinin tam bir küp olduğunu", "D": "G\u00fcne\u015f'in katmanlarının bulunmadığını"},
-                "correct_answer": "B", "solution_explanation": "Güneş lekelerinin düzenli kayması Güneş'in kendi ekseni etrafında döndüğünü kanıtlar.", "points": 10, "has_diagram": False, "diagram_type": None
-            },
-            {
-                "id": 3, "type": "MCQ",
-                "question_text": "Dünya'nın şekli ve hareketleri ile ilgili aşağıda verilen bilgilerden hangisi doğrudur?",
-                "options": {"A": "Dünya, kutuplardan şişkin, ekvatordan basıktır.", "B": "Dünya kendi etrafındaki bir tam turunu 365 gün 6 saatte tamamlar.", "C": "Dünya'nın kendi etrafında dönmesi sonucu gece ve gündüz birbirini takip eder.", "D": "Dünya, G\u00fcne\u015f etrafında saat yönünde dolanır."},
-                "correct_answer": "C", "solution_explanation": "Dünya'nın kendi ekseni etrafındaki dönmesi gece ve gündüzü oluşturur.", "points": 10, "has_diagram": False, "diagram_type": None
-            },
-            {
-                "id": 4, "type": "MCQ",
-                "question_text": "G\u00fcne\u015f, Dünya ve Ay'ın büyüklükleri karşılaştırıldığında doğru sıralama nasıldır?",
+                "question_text": "Dünya, G\u00fcne\u015f ve Ay'ın büyüklükleri karşılaştırıldığında doğru sıralama nasıldır?",
                 "options": {"A": "G\u00fcne\u015f > Dünya > Ay", "B": "Dünya > G\u00fcne\u015f > Ay", "C": "G\u00fcne\u015f > Ay > Dünya", "D": "Ay > Dünya > G\u00fcne\u015f"},
                 "correct_answer": "A", "solution_explanation": "Boyut sıralaması: Güneş > Dünya > Ay şeklindedir.", "points": 10, "has_diagram": True, "diagram_type": "sun_earth_moon"
             },
             {
+                "id": 3, "type": "MCQ",
+                "question_text": "Aşağıdaki şekilde gösterilen Ay'ın ana evresi aşağıdakilerden hangisidir?",
+                "options": {"A": "Yeni Ay", "B": "İlk Dördün", "C": "Dolunay", "D": "Son Dördün"},
+                "correct_answer": "B", "solution_explanation": "Yarım daire şeklinde görülen ve sağ tarafı aydınlık olan evre İlk Dördün'dür.", "points": 10, "has_diagram": True, "diagram_type": "moon_phases"
+            },
+            {
+                "id": 4, "type": "MCQ",
+                "question_text": "Esnek cisimlerin boyundaki değişimleri ölçmek için kullanılan, içinde yay bulunan ölçü aleti aşağıdakilerden hangisidir?",
+                "options": {"A": "Termometre", "B": "Dinamometre", "C": "Karitometre", "D": "Barometre"},
+                "correct_answer": "B", "solution_explanation": "Kuvveti ölçen ve içinde yay barındıran alet dinamometredir.", "points": 10, "has_diagram": False, "diagram_type": None
+            },
+            {
                 "id": 5, "type": "MCQ",
-                "question_text": "Aşağıdakilerden hangisi Ay'ın ana evrelerinden biri değildir?",
-                "options": {"A": "Yeni Ay", "B": "İlk Dördün", "C": "Hilal", "D": "Dolunay"},
-                "correct_answer": "C", "solution_explanation": "Hilal ara evredir.", "points": 10, "has_diagram": False, "diagram_type": None
+                "question_text": "Aşağıdaki dinamometre modeline uygulanan kuvvet arttıkça yaydaki uzama miktarı nasıl değişir?",
+                "options": {"A": "Artar", "B": "Azalır", "C": "Değişmez", "D": "Önce artar sonra sıfırlanır"},
+                "correct_answer": "A", "solution_explanation": "Uygulanan kuvvet ile dinamometredeki uzama miktarı doğru orantılıdır, kuvvet arttıkça uzama da artar.", "points": 10, "has_diagram": True, "diagram_type": "dynamometer"
             },
             {
                 "id": 6, "type": "OPEN",
@@ -142,34 +142,33 @@ MEB_QUESTION_POOL = {
             },
             {
                 "id": 7, "type": "OPEN",
-                "question_text": "Dünya'nın kendi ekseni etrafındaki dönme hareketi ne kadar sürer ve neyi oluşturur?",
+                "question_text": "Ay'ın ana evreleri arasındaki süre ortalama kaç haftadır?",
                 "options": {},
-                "correct_answer": "24 saatte tamamlanır, gece ve gündüzü oluşturur.",
-                "solution_explanation": "1 tam tur 24 saattir ve gece-gündüzü meydana getirir.",
+                "correct_answer": "1 hafta (yaklaşık 7 gün)",
+                "solution_explanation": "Ay bir evreden diğer ana evreye yaklaşık 1 haftada geçer.",
                 "points": 10, "has_diagram": False, "diagram_type": None
             },
             {
                 "id": 8, "type": "OPEN",
-                "question_text": "Ay'ın hep aynı yüzünü görmemizin temel sebebi nedir?",
+                "question_text": "Dinamometre yapımında kullanılan yayların esneklik sınırının aşılması dinamometreye nasıl zarar verir?",
                 "options": {},
-                "correct_answer": "Kendi ekseni etrafındaki dönme süresi ile Dünya etrafındaki dolanma süresinin eşit olması.",
-                "solution_explanation": "Süreler eşit olduğu için hep aynı yüzü görünür.",
+                "correct_answer": "Yay özelliğini yitirir (esnekliğini kaybeder) ve bozulur.",
+                "solution_explanation": "Esneklik sınırı aşılırsa yay kalıcı olarak deforme olur.",
                 "points": 10, "has_diagram": False, "diagram_type": None
             },
             {
                 "id": 9, "type": "OPEN",
-                "question_text": "Ay atmosferinin çok ince olmasının sonuçları nelerdir?",
+                "question_text": "Kuvvetin birimi nedir ve hangi kısaltma ile gösterilir?",
                 "options": {},
-                "correct_answer": "Sıcaklık farkı çok fazladır ve göktaşları krater oluşturur.",
-                "solution_explanation": "Atmosfer koruma sağlayamadığı için kraterler ve aşırı sıcaklık farkları görülür.",
+                "correct_answer": "Newton, 'N' harfi ile gösterilir.",
+                "solution_explanation": "Kuvvet birimi Newton'dur ve büyük N harfi ile ifade edilir.",
                 "points": 10, "has_diagram": False, "diagram_type": None
             },
             {
                 "id": 10, "type": "OPEN",
-                "question_text": "Güneş tutulması hangi evrede gerçekleşir?",
+                "question_text": "Özdeş iki dinamometreden birinin kaliteleri aynı kalmak şartıyla yayı daha ince seçilirse bu dinamometrenin hassasiyeti nasıl etkilenir?",
                 "options": {},
-                "correct_answer": "Yeni Ay evresinde gerçekleşir.",
-                "solution_explanation": "Ay, Güneş ile Dünya arasına Yeni Ay evresinde girer.",
+                "correct_answer": "Daha küçük kuvvetleri ölçebilir, hassasiyeti artar.",
                 "points": 10, "has_diagram": False, "diagram_type": None
             }
         ]
@@ -178,72 +177,72 @@ MEB_QUESTION_POOL = {
         "1. Dönem 1. Yazılı (Ekim/Kasım)": [
             {
                 "id": 1, "type": "MCQ",
-                "question_text": "Okunuşu 'Yüz iki milyon bin kırk beş' olan doğal sayı hangisidir?",
-                "options": {"A": "102 001 045", "B": "102 010 045", "C": "120 001 045", "D": "102 001 450"},
-                "correct_answer": "A", "solution_explanation": "102 milyon 001 bin 045", "points": 10, "has_diagram": False, "diagram_type": None
+                "question_text": "Aşağıdaki şekilde gösterilen çemberin merkezi M noktası ve yarıçapı 6 cm ise çapının uzunluğu kaç cm'dir?",
+                "options": {"A": "3 cm", "B": "6 cm", "C": "12 cm", "D": "18 cm"},
+                "correct_answer": "C", "solution_explanation": "Çap yarıçapın 2 katıdır. 6 x 2 = 12 cm.", "points": 10, "has_diagram": True, "diagram_type": "circle_radius"
             },
             {
                 "id": 2, "type": "MCQ",
-                "question_text": "845 392 716 sayısının milyonlar bölüğündeki rakamların toplamı kaçtır?",
-                "options": {"A": "14", "B": "17", "C": "19", "D": "21"},
-                "correct_answer": "B", "solution_explanation": "8 + 4 + 5 = 17", "points": 10, "has_diagram": False, "diagram_type": None
+                "question_text": "Tüm kenar uzunlukları ve iç açıları birbirine eşit olan üçgen çeşidi aşağıdakilerden hangisidir?",
+                "options": {"A": "Çeşitkenar üçgen", "B": "İkizkenar üçgen", "C": "Eşkenar üçgen", "D": "Geniş açılı üçgen"},
+                "correct_answer": "C", "solution_explanation": "Tüm kenar ve açıları eşit olan üçgenler eşkenar üçgendir.", "points": 10, "has_diagram": True, "diagram_type": "equilateral_triangle"
             },
             {
                 "id": 3, "type": "MCQ",
-                "question_text": "87 604 - 39 485 işleminin sonucu kaçtır?",
-                "options": {"A": "48 119", "B": "48 219", "C": "47 119", "D": "49 119"},
-                "correct_answer": "A", "solution_explanation": "Çıkarma işlemi sonucu 48 119'dur.", "points": 10, "has_diagram": False, "diagram_type": None
+                "question_text": "Başlangıç noktası belli, diğer ucu sonsuza kadar giden geometrik şekle ne ad verilir?",
+                "options": {"A": "Doğru parçası", "B": "Işın", "C": "Doğru", "D": "Açı"},
+                "correct_answer": "B", "solution_explanation": "Bir ucu sabit diğer ucu sonsuza uzanan şekil ışındır.", "points": 10, "has_diagram": True, "diagram_type": "ray_segment"
             },
             {
                 "id": 4, "type": "MCQ",
-                "question_text": "İlk gün 24 580, ikinci gün 3 420 fazla fidan dikilmiştir. Toplam kaç fidan dikilmiştir?",
-                "options": {"A": "48 000", "B": "51 000", "C": "52 580", "D": "56 000"},
-                "correct_answer": "C", "solution_explanation": "24580 + 28000 = 52580", "points": 10, "has_diagram": False, "diagram_type": None
+                "question_text": "Aşağıdaki kareli koordinat düzleminde verilen A noktasının koordinatları aşağıdakilerden hangisidir?",
+                "options": {"A": "(2, 3)", "B": "(3, 2)", "C": "(4, 1)", "D": "(1, 4)"},
+                "correct_answer": "A", "solution_explanation": "X ekseninde 2, Y ekseninde 3 birim ilerlendiği için nokta (2, 3)'tür.", "points": 10, "has_diagram": True, "diagram_type": "coordinate_grid"
             },
             {
                 "id": 5, "type": "MCQ",
-                "question_text": "73 408 925 sayısındaki '3' ve '4' rakamlarının basamak değerleri toplamı kaçtır?",
-                "options": {"A": "3 004 000", "B": "3 040 000", "C": "3 400 000", "D": "30 040 000"},
-                "correct_answer": "B", "solution_explanation": "3 000 000 + 40 000 = 3 040 000", "points": 10, "has_diagram": False, "diagram_type": None
+                "question_text": "Bir üçgende bir köşeden karşı kenara indirilen ve o kenarı dik (90°) kesen doğru parçasına ne denir?",
+                "options": {"A": "Açıortay", "B": "Kenarortay", "C": "Dikme (Yükseklik)", "D": "Yarıçap"},
+                "correct_answer": "C", "solution_explanation": "Köşeden karşı kenara inen dik doğru parçasına dikme veya yükseklik denir.", "points": 10, "has_diagram": True, "diagram_type": "triangle_perpendicular"
             },
             {
                 "id": 6, "type": "OPEN",
-                "question_text": "4, 0, 7, 2, 9 rakamlarıyla yazılabilen en büyük ve en küçük beş basamaklı sayıların farkı kaçtır?",
+                "question_text": "Dar açılı, dik açılı ve geniş açılı üçgenlerin açı özelliklerini kısaca açıklayınız.",
                 "options": {},
-                "correct_answer": "76 521",
-                "solution_explanation": "97420 - 20479 = 76521",
+                "correct_answer": "Dar açılı üçgenin tüm açıları 90°'den küçüktür; dik açılı üçgende bir açı 90°'dir; geniş açılı üçgende ise bir açı 90°'den büyüktür.",
+                "solution_explanation": "Açı çeşitlerine göre üçgenler bu şekilde sınıflandırılır.",
                 "points": 10, "has_diagram": False, "diagram_type": None
             },
             {
                 "id": 7, "type": "OPEN",
-                "question_text": "18 450 TL televizyon ve 14 300 TL çamaşır makinesi alan kişi satıcıya 35 000 TL vermiştir. Kaç TL para üstü almalıdır?",
+                "question_text": "Çember ile daire arasındaki temel fark nedir?",
                 "options": {},
-                "correct_answer": "2 250 TL",
-                "solution_explanation": "35000 - 32750 = 2250 TL",
+                "correct_answer": "Çember sadece çemberin çember yayı (çevresi) iken, daire çember ve iç bölgesinin tamamıdır.",
+                "solution_explanation": "Çember içi boş çember çizgisi, daire ise içi dolu alandır.",
                 "points": 10, "has_diagram": False, "diagram_type": None
             },
             {
                 "id": 8, "type": "OPEN",
-                "question_text": "Çiftlikte 1450 koyun, koyunlardan 380 fazla inek ve ineklerden 520 eksik tavuk vardır. Toplam hayvan sayısı kaçtır?",
+                "question_text": "Bir eşkenar üçgenin tüm iç açılarının ölçüleri toplamı kaç derecedir ve bir iç açısı kaç derecedir?",
                 "options": {},
-                "correct_answer": "4 460",
-                "solution_explanation": "1450 + 1830 + 1310 = 4460",
+                "correct_answer": "İç açılar toplamı 180°, bir iç açısı 60°'dir.",
+                "solution_explanation": "180 / 3 = 60 derece.",
                 "points": 10, "has_diagram": False, "diagram_type": None
             },
             {
                 "id": 9, "type": "OPEN",
-                "question_text": "ABC üçgeninde A açısı 65°, B açısı 50° ise C açısı kaç derecedir?",
+                "question_text": "Kareli koordinat sisteminde yatay eksenin ve dikey eksenin matematiksel isimleri nelerdir?",
                 "options": {},
-                "correct_answer": "65 derece",
-                "solution_explanation": "180 - (65 + 50) = 65°",
-                "points": 10, "has_diagram": True, "diagram_type": "triangle"
+                "correct_answer": "Yatay eksen X ekseni (apsis), dikey eksen Y ekseni (ordinat) olarak adlandırılır.",
+                "solution_explanation": "X ve Y eksenleri koordinat sistemini oluşturur.",
+                "points": 10, "has_diagram": False, "diagram_type": None
             },
             {
                 "id": 10, "type": "OPEN",
-                "question_text": "Yüzler basamağında 4, binler basamağında 7 olan en küçük beş basamaklı doğal sayı kaçtır?",
+                "question_text": "Doğru, doğru parçası ve ışın arasındaki farkları sembol gösterimleriyle birlikte yazınız.",
                 "options": {},
-                "correct_answer": "17 400",
-                "solution_explanation": "Sayı 17 400'dür.",
+                "correct_answer": "Doğru iki ucu sonsuz (AB), doğru parçası iki ucu sınırlı [AB], ışın bir ucu sınırlı diğer ucu sonsuz [AB) şeklindedir.",
+                "solution_explanation": "Sınır durumlarına göre sembolleri değişir.",
                 "points": 10, "has_diagram": False, "diagram_type": None
             }
         ]
@@ -277,15 +276,18 @@ def get_fallback_exam(subject, term):
     }
 
 # ==========================================
-# 3. GÖRSEL ÇİZİM MOTORU (MATPLOTLIB)
+# 3. YENİ NESİL GÖRSEL ÇİZİM MOTORU (MATPLOTLIB)
 # ==========================================
 def generate_question_image(diagram_type, details=None):
-    fig, ax = plt.subplots(figsize=(2.8, 1.8), dpi=100)
+    fig, ax = plt.subplots(figsize=(3.2, 2.2), dpi=110)
     
-    if diagram_type == "triangle":
+    if diagram_type == "triangle" or diagram_type == "triangle_perpendicular":
         p1, p2, p3 = [0, 0], [4, 0], [2, 3]
         triangle = plt.Polygon([p1, p2, p3], fill=None, edgecolor='#FF6B00', linewidth=2)
         ax.add_patch(triangle)
+        if diagram_type == "triangle_perpendicular":
+            ax.plot([2, 2], [0, 3], color='#1E90FF', linestyle='--', linewidth=1.5)
+            ax.text(2.1, 1.5, 'Dikme (h)', color='#1E90FF', fontsize=8, fontweight='bold')
         ax.text(p1[0]-0.2, p1[1]-0.2, 'A', fontsize=9, fontweight='bold')
         ax.text(p2[0]+0.1, p2[1]-0.2, 'B', fontsize=9, fontweight='bold')
         ax.text(p3[0], p3[1]+0.2, 'C', fontsize=9, fontweight='bold')
@@ -293,22 +295,94 @@ def generate_question_image(diagram_type, details=None):
         ax.set_ylim(-1, 4)
         ax.axis('off')
         
-    elif diagram_type in ["space_system", "sun_earth_moon"]:
+    elif diagram_type == "sun_earth_moon":
         sun = plt.Circle((1, 2), 0.7, color='#FF8C00')
         earth = plt.Circle((4, 2), 0.4, color='#1E90FF')
         moon = plt.Circle((5.2, 2), 0.15, color='#A9A9A9')
-        
         ax.add_patch(sun)
         ax.add_patch(earth)
         ax.add_patch(moon)
-        
         ax.text(1, 0.9, 'Güneş', horizontalalignment='center', fontweight='bold', color='#FF8C00', fontsize=8)
         ax.text(4, 1.3, 'Dünya', horizontalalignment='center', fontweight='bold', color='#1E90FF', fontsize=8)
         ax.text(5.2, 1.6, 'Ay', horizontalalignment='center', fontweight='bold', color='#A9A9A9', fontsize=8)
-        
         ax.set_xlim(-0.5, 6.5)
         ax.set_ylim(0, 4)
         ax.axis('off')
+
+    elif diagram_type == "moon_phases":
+        # İlk Dördün Evresi Çizimi
+        circle = plt.Circle((2, 2), 1.2, color='#333333', fill=True)
+        ax.add_patch(circle)
+        # Sağ yarıyı aydınlık gösterelim
+        theta = np.linspace(-np.pi/2, np.pi/2, 100)
+        x = 2 + 1.2 * np.cos(theta)
+        y = 2 + 1.2 * np.sin(theta)
+        ax.fill_betweenx(y, 2, x, color='#FFD700', alpha=0.9)
+        ax.text(2, 0.5, "İlk Dördün Evresi", horizontalalignment='center', fontsize=9, fontweight='bold', color='#333333')
+        ax.set_xlim(0, 4)
+        ax.set_ylim(0, 4)
+        ax.axis('off')
+
+    elif diagram_type == "dynamometer":
+        # Dinamometre Gövdesi ve Yay Çizimi
+        ax.plot([2, 2], [3.5, 3.8], color='black', linewidth=3) # Askı
+        ax.plot([1.7, 2.3], [3.5, 3.5], color='black', linewidth=3)
+        # Yay tırtılları
+        y_vals = np.linspace(2.0, 3.5, 15)
+        x_vals = 2 + 0.2 * np.sin(np.linspace(0, 4*np.pi, 15))
+        ax.plot(x_vals, y_vals, color='#FF6B00', linewidth=2.5)
+        # Gövde kutusu
+        rect = plt.Rectangle((1.5, 1.2), 1.0, 2.5, fill=False, edgecolor='gray', linewidth=1.5, linestyle='--')
+        ax.add_patch(rect)
+        # Alt çengel ve kütle
+        ax.plot([2, 2], [1.0, 1.2], color='black', linewidth=2)
+        weight = plt.Rectangle((1.7, 0.4), 0.6, 0.6, color='#1E90FF')
+        ax.add_patch(weight)
+        ax.text(2, 0.7, 'G', color='white', fontsize=9, fontweight='bold', ha='center', va='center')
+        ax.set_xlim(0.5, 3.5)
+        ax.set_ylim(0, 4)
+        ax.axis('off')
+
+    elif diagram_type == "circle_radius":
+        circle = plt.Circle((2, 2), 1.3, fill=False, edgecolor='#FF6B00', linewidth=2)
+        ax.add_patch(circle)
+        ax.plot([2, 3.3], [2, 2], color='#1E90FF', linewidth=2, marker='o') # Yarıçap
+        ax.text(2.65, 2.15, 'r = 6 cm', color='#1E90FF', fontsize=9, fontweight='bold')
+        ax.plot(2, 2, marker='o', color='black')
+        ax.text(1.85, 1.85, 'M', fontsize=9, fontweight='bold')
+        ax.set_xlim(0, 4.5)
+        ax.set_ylim(0, 4)
+        ax.axis('off')
+
+    elif diagram_type == "equilateral_triangle":
+        p1, p2, p3 = [1, 0.5], [3, 0.5], [2, 2.8]
+        triangle = plt.Polygon([p1, p2, p3], fill=None, edgecolor='#FF6B00', linewidth=2)
+        ax.add_patch(triangle)
+        ax.text(2, 1.5, '60°', fontsize=9, fontweight='bold', color='#1E90FF')
+        ax.set_xlim(0, 4)
+        ax.set_ylim(0, 3.5)
+        ax.axis('off')
+
+    elif diagram_type == "ray_segment":
+        ax.plot([0.5, 3.5], [2, 2], color='#FF6B00', linewidth=2, marker='o')
+        ax.text(0.5, 2.2, 'A', fontsize=10, fontweight='bold')
+        ax.text(3.5, 2.2, 'B', fontsize=10, fontweight='bold')
+        ax.text(2, 1.5, 'Doğru Parçası [AB]', fontsize=9, fontweight='bold', color='#333333', ha='center')
+        ax.set_xlim(0, 4)
+        ax.set_ylim(1, 3)
+        ax.axis('off')
+
+    elif diagram_type == "coordinate_grid":
+        ax.axhline(0, color='gray', linewidth=1)
+        ax.axvline(0, color='gray', linewidth=1)
+        ax.grid(True, linestyle=':', alpha=0.6)
+        ax.plot(2, 3, marker='o', markersize=8, color='#FF6B00')
+        ax.text(2.2, 3.1, 'A (2, 3)', fontsize=9, fontweight='bold', color='#FF6B00')
+        ax.set_xlim(-1, 5)
+        ax.set_ylim(-1, 5)
+        ax.set_xticks(range(0, 5))
+        ax.set_yticks(range(0, 5))
+        
     else:
         plt.close(fig)
         return None
@@ -462,16 +536,11 @@ def build_pdf_exam(exam_data, show_answers=False):
     return buffer
 
 # ==========================================
-# 5. STREAMLIT STATE & ARAYÜZ (TEK TEK SORU GÖSTERME MİMARİSİ)
+# 5. STREAMLIT STATE & ARAYÜZ
 # ==========================================
 MEB_CURRICULUM = {
-    "Fen Bilimleri": {"1. Dönem 1. Yazılı (Ekim/Kasım)": ["Güneş'in Yapısı ve Özellikleri", "Dünya'nın Şekli ve Hareketleri"]},
-    "Matematik": {"1. Dönem 1. Yazılı (Ekim/Kasım)": ["Doğal Sayılar ve İşlemler"]},
-    "Türkçe": {"1. Dönem 1. Yazılı (Ekim/Kasım)": ["Sözcükte Anlam ve Paragraf"]},
-    "Sosyal Bilgiler": {"1. Dönem 1. Yazılı (Ekim/Kasım)": ["Birey ve Toplum"]},
-    "Din Kültürü ve Ahlak Bilgisi": {"1. Dönem 1. Yazılı (Ekim/Kasım)": ["Allah İnancı"]},
-    "İngilizce": {"1. Dönem 1. Yazılı (Ekim/Kasım)": ["Unit 1 & Unit 2"]},
-    "Almanca": {"1. Dönem 1. Yazılı (Ekim/Kasım)": ["Hallo! & Meine Schule"]}
+    "Fen Bilimleri": {"1. Dönem 1. Yazılı (Ekim/Kasım)": ["Güneş ve Ay'ın Yapısı", "Kuvvetin Ölçülmesi"]},
+    "Matematik": {"1. Dönem 1. Yazılı (Ekim/Kasım)": ["Geometrik Şekiller ve Koordinat Sistemi"]}
 }
 
 if 'exam_started' not in st.session_state:
@@ -530,7 +599,6 @@ if st.session_state.exam_data:
 
     st.divider()
 
-    # --- DURUM 1: SINAV BAŞLAMADI ---
     if not st.session_state.exam_started and not st.session_state.exam_completed:
         st.warning("⏱️ Sınav hazır! Soruları tek tek çözmek ve süreyi başlatmak için aşağıdaki butona tıklayın.")
         if st.button("🚀 SINAVI BAŞLAT", type="primary", use_container_width=True):
@@ -539,7 +607,6 @@ if st.session_state.exam_data:
             st.session_state.current_q_index = 0
             st.rerun()
 
-    # --- DURUM 2: SINAV DEVAM EDİYOR (HER SAYFADA TEK SORU) ---
     elif st.session_state.exam_started and not st.session_state.exam_completed:
         elapsed_time = int(time.time() - st.session_state.start_time)
         minutes, seconds = divmod(elapsed_time, 60)
@@ -549,7 +616,6 @@ if st.session_state.exam_data:
         q = exam['questions'][curr_idx]
         q_id = q['id']
 
-        # Üst Bilgi & Süre & İlerleme Çubuğu
         col_t1, col_t2 = st.columns([2, 1])
         with col_t1:
             st.markdown(f"### 📝 Soru {curr_idx + 1} / {total_qs}")
@@ -559,7 +625,6 @@ if st.session_state.exam_data:
         st.progress((curr_idx + 1) / total_qs)
         st.divider()
 
-        # Soru Kartı
         st.markdown(f"""
         <div class="question-card">
             <div>
@@ -577,14 +642,12 @@ if st.session_state.exam_data:
             if img_buf:
                 st.image(img_buf, width=320)
 
-        # Cevap Giriş Alanı
         saved_ans = st.session_state.user_answers.get(q_id, None)
 
         if q['type'] == 'MCQ':
             opts = q.get('options', {})
             formatted_opts = [f"{k}) {v}" for k, v in opts.items()]
             
-            # Kayıtlı cevabın indeksini bul
             default_index = None
             if saved_ans:
                 for idx, opt_str in enumerate(formatted_opts):
@@ -611,9 +674,7 @@ if st.session_state.exam_data:
 
         st.markdown("<br/>", unsafe_allow_html=True)
 
-        # Navigasyon Butonları (Önceki / Sonraki / Sınavı Bitir)
         nav_col1, nav_col2, nav_col3 = st.columns([1, 1, 1])
-        
         with nav_col1:
             if curr_idx > 0:
                 if st.button("⬅️ Önceki Soru", use_container_width=True):
@@ -631,7 +692,6 @@ if st.session_state.exam_data:
                     st.session_state.exam_completed = True
                     st.rerun()
 
-    # --- DURUM 3: SINAV BİTTİ & KARNE ---
     elif st.session_state.exam_completed:
         st.balloons()
         
