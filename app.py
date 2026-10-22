@@ -455,7 +455,7 @@ def generate_meb_exam(subject, term, units):
     
     KRİTİK KURALLAR:
     1. Sınavda TAM 10 soru olmalıdır.
-    2. 7 Soru Çoktan Seçmeli (MCQ), 3 Soru Açık Uçlu (OPEN) olmalıdır.
+    2. 5 Soru Çoktan Seçmeli (MCQ), 5 Soru Açık Uçlu (OPEN) olmalıdır.
     3. Çoktan Seçmeli sorularda 4 ŞIK (A, B, C, D) bulunmalı ve hepsi mantıklı, birbirinden tamamen farklı olmalıdır.
     4. Yalnızca Matematik ve Fen Bilimleri derslerinde uygun sorular için "has_diagram": true yapabilir ve "diagram_type" seçebilirsin.
     5. Her soru için pedagojik, detaylı, adım adım açık yazılmış çözümler ekle.
