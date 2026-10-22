@@ -202,9 +202,9 @@ MEB_CURRICULUM = {
         "2. Dönem 2. Yazılı (Mayıs/Haziran)": ["Üçgen ve Dörtgenler (Açılar, Özellikler)", "Veri Toplama ve Değerlendirme", "Uzunluk ve Zaman Ölçme", "Alan Ölçme"]
     },
     "Fen Bilimleri": {
-        "1. Dönem 1. Yazılı (Ekim/Kasım)": ["Güneş'in Yapısı ve Özellikleri", "Dünya'nın Şekli ve Hareketleri"],
+        "1. Dönem 1. Yazılı (Ekim/Kasım)": ["Güneş'in Yapısı ve Özellikleri", "Dünya'nın Şekli ve Hareketleri","Ayın Evreleri ve Hareketleri","Dinamometre","Kuvvetin Ölçülmesi ve Sürtünme","Güneş’in yapısı, temel özellikleri ve Dünya ile büyüklük kıyaslaması"],
         "1. Dönem 2. Yazılı (Aralık/Ocak)": ["Ay'ın Yapısı, Özellikleri ve Evreleri", "Dünya, Güneş ve Ay Sistemleri"],
-        "2. Dönem 1. Yazılı (Mart/Nisan)": ["Canlıları Tanıyalım (Mikroskobik Canlılar, Mantarlar, Bitkiler, Hayvanlar)", "Kuvvetin Ölçülmesi ve Sürtünme"],
+        "2. Dönem 1. Yazılı (Mart/Nisan)": ["Canlıları Tanıyalım (Mikroskobik Canlılar, Mantarlar, Bitkiler, Hayvanlar)"],
         "2. Dönem 2. Yazılı (Mayıs/Haziran)": ["Maddenin Hal Değişimi", "Maddenin Ayırt Edici Özellikleri", "Işığın Yayılması ve Yansıması", "Işık ve Gölge"]
     },
     "Türkçe": {
