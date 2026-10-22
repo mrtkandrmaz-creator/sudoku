@@ -10,7 +10,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 from datetime import datetime
 
-# ReportLab Imports for Professional Multi-Column Layout
+# ReportLab Imports
 from reportlab.lib.pagesizes import A4
 from reportlab.lib import colors
 from reportlab.platypus import (
@@ -107,6 +107,28 @@ st.markdown("""
     <div class="header-sub">Yazılı Öncesi Akıllı Sınav & Çalışma Hazırlık Robotu</div>
 </div>
 """, unsafe_allow_html=True)
+
+# ==========================================
+# METİN TEMİZLEME & TÜRKÇE KARAKTER ONARICI
+# ==========================================
+def fix_turkish_chars(text):
+    """
+    Kare (■) veya hatalı çıkan Türkçe karakterleri düzeltir.
+    """
+    if not isinstance(text, str):
+        return text
+    
+    replacements = {
+        '■': 'ş',
+        'þ': 'ş', 'Þ': 'Ş',
+        'ð': 'ğ', 'Ð': 'Ğ',
+        'ý': 'ı', 'Ý': 'İ',
+        'þ': 'ş', 'Þ': 'Ş',
+    }
+    for bad, good in replacements.items():
+        text = text.replace(bad, good)
+        
+    return text
 
 # ==========================================
 # 2. SECRET TARAMA & DİNAMİK API KULLANIMI
@@ -287,15 +309,18 @@ def generate_question_image(diagram_type, details=None):
     return buf
 
 # ==========================================
-# 5. TÜRKÇE FONT İNDİRİCİ VE SÜTUN MİMARİSİ
+# 5. TÜRKÇE FONT & REPORTLAB DÜZENİ
 # ==========================================
 @st.cache_resource
 def setup_turkish_pdf_fonts():
+    """
+    Fontu doğrudan indirip ReportLab'e tanıtır ve varsayılan UTF-8 eşleşmesini kurar.
+    """
     try:
         font_urls = {
-            "TR-Regular": "https://github.com/dejavu-fonts/dejavu-fonts/raw/master/ttf/DejaVuSans.ttf",
-            "TR-Bold": "https://github.com/dejavu-fonts/dejavu-fonts/raw/master/ttf/DejaVuSans-Bold.ttf",
-            "TR-Oblique": "https://github.com/dejavu-fonts/dejavu-fonts/raw/master/ttf/DejaVuSans-Oblique.ttf"
+            "TR-Regular": "https://raw.githubusercontent.com/google/fonts/main/ofl/dejavusans/DejaVuSans.ttf",
+            "TR-Bold": "https://raw.githubusercontent.com/google/fonts/main/ofl/dejavusans/DejaVuSans-Bold.ttf",
+            "TR-Oblique": "https://raw.githubusercontent.com/google/fonts/main/ofl/dejavusans/DejaVuSans-Oblique.ttf"
         }
         
         for name, url in font_urls.items():
@@ -330,12 +355,12 @@ class TwoColumnCanvas(canvas.Canvas):
         self.setStrokeColor(colors.HexColor("#BDBDBD"))
         self.setLineWidth(0.8)
         
-        # Sayfanın Tam Ortasındaki Ayraç Çizgisi
+        # Dikey Çizgi
         self.line(297.5, 40, 297.5, 720)
         
-        self.setFont("Helvetica", 8)
+        self.setFont("TR-Regular" if "TR-Regular" in pdfmetrics.getRegisteredFontNames() else "Helvetica", 8)
         self.setFillColor(colors.HexColor("#616161"))
-        self.drawString(25, 20, "MEB 5. Sınıf Soru Fabrikası - Murat KANDIRMAZ")
+        self.drawString(25, 20, fix_turkish_chars("MEB 5. Sınıf Soru Fabrikası - Murat KANDIRMAZ"))
         self.drawRightString(570, 20, f"Sayfa {self._pageNumber} / {total_pages}")
         self.restoreState()
 
@@ -344,22 +369,19 @@ def build_pdf_exam(exam_data, show_answers=False):
 
     buffer = io.BytesIO()
     
-    # BaseDocTemplate ve Çerçeveler (Frames)
     doc = BaseDocTemplate(
         buffer,
-        pagesize=A4, # 595.27 x 841.89 pt
+        pagesize=A4,
         leftMargin=25,
         rightMargin=25,
         topMargin=25,
         bottomMargin=35
     )
 
-    # 1. Sayfa Şablonu: Üstte Tam Genişlikte Başlık + Altta 2 Sütun
     frame_header = Frame(25, 730, 545, 90, id='header_frame', topPadding=0, bottomPadding=0, leftPadding=0, rightPadding=0)
     frame_left_p1 = Frame(25, 35, 255, 685, id='left_col_p1', topPadding=0, bottomPadding=0, leftPadding=0, rightPadding=5)
     frame_right_p1 = Frame(315, 35, 255, 685, id='right_col_p1', topPadding=0, bottomPadding=0, leftPadding=5, rightPadding=0)
 
-    # 2. Sayfa ve Sonrası Şablonu: Direkt 2 Sütun
     frame_left_p2 = Frame(25, 35, 255, 770, id='left_col_p2', topPadding=0, bottomPadding=0, leftPadding=0, rightPadding=5)
     frame_right_p2 = Frame(315, 35, 255, 770, id='right_col_p2', topPadding=0, bottomPadding=0, leftPadding=5, rightPadding=0)
 
@@ -407,9 +429,9 @@ def build_pdf_exam(exam_data, show_answers=False):
     story = []
     
     # --- HEADER FRAME İÇERİĞİ ---
-    header_text = f"<b>{exam_data['school_name'].upper()}</b><br/>" \
-                  f"<b>2026-2027 EĞİTİM-ÖĞRETİM YILI 5. SINIF {exam_data['subject'].upper()} DERSİ</b><br/>" \
-                  f"<u>{exam_data['term'].upper()} DEĞERLENDİRME SINAVI</u>"
+    header_text = f"<b>{fix_turkish_chars(exam_data['school_name']).upper()}</b><br/>" \
+                  f"<b>2026-2027 EĞİTİM-ÖĞRETİM YILI 5. SINIF {fix_turkish_chars(exam_data['subject']).upper()} DERSİ</b><br/>" \
+                  f"<u>{fix_turkish_chars(exam_data['term']).upper()} DEĞERLENDİRME SINAVI</u>"
                   
     if show_answers:
         header_text += " <font color='red'><b>[ DETAYLI CEVAP ANAHTARI ]</b></font>"
@@ -419,10 +441,10 @@ def build_pdf_exam(exam_data, show_answers=False):
     
     info_data = [
         [
-            Paragraph("<b>Adı Soyadı:</b> ....................................", opt_style),
-            Paragraph("<b>Sınıf/Şube:</b> 5 / .......", opt_style),
-            Paragraph("<b>Numara:</b> ............", opt_style),
-            Paragraph("<b>Puan:</b> .......", opt_style)
+            Paragraph(fix_turkish_chars("<b>Adı Soyadı:</b> ...................................."), opt_style),
+            Paragraph(fix_turkish_chars("<b>Sınıf/Şube:</b> 5 / ......."), opt_style),
+            Paragraph(fix_turkish_chars("<b>Numara:</b> ............"), opt_style),
+            Paragraph(fix_turkish_chars("<b>Puan:</b> ......."), opt_style)
         ]
     ]
     t_info = Table(info_data, colWidths=[180, 110, 110, 145])
@@ -436,14 +458,14 @@ def build_pdf_exam(exam_data, show_answers=False):
     story.append(Spacer(1, 6))
     story.append(HRFlowable(width="100%", thickness=1, color=colors.HexColor("#FF6B00"), spaceAfter=0))
 
-    # Header bitti, sol sütun çerçevesine geç!
     story.append(FrameBreak())
     story.append(NextPageTemplate('LaterPages'))
 
     # --- SORULARIN DİZİLİMİ ---
     for idx, q in enumerate(exam_data['questions'], start=1):
         q_elements = []
-        q_header = f"<b>Soru {idx} ({q.get('points', 10)} Puan):</b> {q['question_text']}"
+        clean_question_text = fix_turkish_chars(q['question_text'])
+        q_header = f"<b>Soru {idx} ({q.get('points', 10)} Puan):</b> {clean_question_text}"
         q_elements.append(Paragraph(q_header, q_style))
         
         if q.get('has_diagram') and q.get('diagram_type'):
@@ -456,9 +478,14 @@ def build_pdf_exam(exam_data, show_answers=False):
         
         if q['type'] == 'MCQ':
             opts = q.get('options', {})
+            opt_a = fix_turkish_chars(opts.get('A', ''))
+            opt_b = fix_turkish_chars(opts.get('B', ''))
+            opt_c = fix_turkish_chars(opts.get('C', ''))
+            opt_d = fix_turkish_chars(opts.get('D', ''))
+            
             opt_table_data = [
-                [Paragraph(f"<b>A)</b> {opts.get('A', '')}", opt_style), Paragraph(f"<b>B)</b> {opts.get('B', '')}", opt_style)],
-                [Paragraph(f"<b>C)</b> {opts.get('C', '')}", opt_style), Paragraph(f"<b>D)</b> {opts.get('D', '')}", opt_style)]
+                [Paragraph(f"<b>A)</b> {opt_a}", opt_style), Paragraph(f"<b>B)</b> {opt_b}", opt_style)],
+                [Paragraph(f"<b>C)</b> {opt_c}", opt_style), Paragraph(f"<b>D)</b> {opt_d}", opt_style)]
             ]
             t_opts = Table(opt_table_data, colWidths=[120, 120])
             t_opts.setStyle(TableStyle([
@@ -478,8 +505,10 @@ def build_pdf_exam(exam_data, show_answers=False):
                 
         if show_answers:
             q_elements.append(Spacer(1, 3))
-            ans_box = f"<b>Cevap:</b> {q.get('correct_answer', '')}<br/>" \
-                      f"<b>Açıklama:</b> {q.get('solution_explanation', '')}"
+            clean_correct = fix_turkish_chars(q.get('correct_answer', ''))
+            clean_sol = fix_turkish_chars(q.get('solution_explanation', ''))
+            ans_box = f"<b>Cevap:</b> {clean_correct}<br/>" \
+                      f"<b>Açıklama:</b> {clean_sol}"
             
             t_sol = Table([[Paragraph(ans_box, sol_style)]], colWidths=[240])
             t_sol.setStyle(TableStyle([
@@ -510,7 +539,7 @@ def generate_meb_exam(subject, term, units):
     1. Sınavda TAM OLARAK 5 TANE Çoktan Seçmeli (MCQ) ve 5 TANE Açık Uçlu (OPEN) soru olmalıdır.
     2. Çoktan seçmeli soruların tamamında 4 farklı ve mantıklı şık (A, B, C, D) olmalıdır.
     3. Yalnızca Matematik ve Fen Bilimleri dersleri için gerekiyorsa "has_diagram": true ve uygun "diagram_type" ('triangle', 'space_system', 'fraction_pie') belirt.
-    4. Türkçe karakterlerin imlasına ve kelimelerin doğruluğuna özen göster.
+    4. Türkçe karakterlerin (ş, ğ, ı, ö, ü, ç) eksiksiz ve doğru yazılmasına ÖZELLİKLE dikkat et.
     
     ÇIKTI FORMATI (Sadece geçerli JSON döndür):
     {{
@@ -645,6 +674,7 @@ if st.session_state.exam_data:
 
         for q in exam['questions']:
             q_id = q['id']
+            clean_q_text = fix_turkish_chars(q['question_text'])
             st.markdown(f"""
             <div class="question-card">
                 <div>
@@ -653,7 +683,7 @@ if st.session_state.exam_data:
                     </span>
                     <strong style="margin-left: 10px;">Soru {q_id} (10 Puan)</strong>
                 </div>
-                <p style="font-size: 16px; margin-top: 10px;">{q['question_text']}</p>
+                <p style="font-size: 16px; margin-top: 10px;">{clean_q_text}</p>
             </div>
             """, unsafe_allow_html=True)
 
@@ -664,7 +694,7 @@ if st.session_state.exam_data:
 
             if q['type'] == 'MCQ':
                 opts = q.get('options', {})
-                formatted_opts = [f"{k}) {v}" for k, v in opts.items()]
+                formatted_opts = [f"{k}) {fix_turkish_chars(v)}" for k, v in opts.items()]
                 selected = st.radio(
                     f"Cevabınız (Soru {q_id}):",
                     formatted_opts,
@@ -729,9 +759,9 @@ if st.session_state.exam_data:
         for q in exam['questions']:
             q_id = q['id']
             user_ans = st.session_state.user_answers.get(q_id, "Yanıt Verilmedi")
-            correct_ans = q.get('correct_answer', '')
+            correct_ans = fix_turkish_chars(q.get('correct_answer', ''))
 
-            st.markdown(f"**Soru {q_id}: {q['question_text']}**")
+            st.markdown(f"**Soru {q_id}: {fix_turkish_chars(q['question_text'])}**")
             
             if q['type'] == 'MCQ':
                 is_correct = (user_ans == correct_ans)
@@ -743,7 +773,7 @@ if st.session_state.exam_data:
                 st.warning(f"📝 **Sizin Yanıtınız:** {user_ans}\n\n**İdeal/Örnek Cevap:** {correct_ans}")
 
             with st.expander("🔍 Detaylı Adım Adım Çözüm Açıklaması"):
-                st.write(q.get('solution_explanation', 'Çözüm açıklaması bulunamadı.'))
+                st.write(fix_turkish_chars(q.get('solution_explanation', 'Çözüm açıklaması bulunamadı.')))
             st.write("---")
 
 else:
