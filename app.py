@@ -55,9 +55,9 @@ st.markdown("""
         border: 1px solid #e0e0e0;
         border-left: 6px solid #FF6B00;
         border-radius: 10px;
-        padding: 20px;
+        padding: 25px;
         margin-bottom: 20px;
-        box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+        box-shadow: 0 4px 12px rgba(0,0,0,0.08);
     }
     .badge-mcq {
         background-color: #e3f2fd;
@@ -97,33 +97,33 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 # ==========================================
-# 2. MEB ONAYLI KUSURSUZ SORU BANKASI
+# 2. MEB ONAYLI UNICODE KORUMALI SORU BANKASI
 # ==========================================
 MEB_QUESTION_POOL = {
     "Fen Bilimleri": {
         "1. Dönem 1. Yazılı (Ekim/Kasım)": [
             {
                 "id": 1, "type": "MCQ",
-                "question_text": "Güneş ile ilgili verilen aşağıdakilerden hangisi yanlıştır?",
-                "options": {"A": "Güneş, katmanlardan oluşan devasa bir gaz küresidir.", "B": "Güneş yüzeyindeki soğuk bölgelere 'Güneş lekesi' adı verilir.", "C": "Güneş, Dünya'mıza en yakın yıldızdır.", "D": "Güneş'in yüzey sıcaklığı merkezindeki sıcaklıktan daha fazladır."},
+                "question_text": "G\u00fcne\u015f ile ilgili verilen a\u015fa\u011f\u0131dakilerden hangisi yanlı\u015ft\u0131r?",
+                "options": {"A": "G\u00fcne\u015f, katmanlardan olu\u015fan devasa bir gaz küresidir.", "B": "G\u00fcne\u015f yüzeyindeki so\u011fuk bölgelere 'G\u00fcne\u015f lekesi' adı verilir.", "C": "G\u00fcne\u015f, Dünya'm\u0131za en yakın yıldızdır.", "D": "G\u00fcne\u015f'in yüzey sıcaklığı merkezindeki sıcaklıktan daha fazladır."},
                 "correct_answer": "D", "solution_explanation": "Güneş'in merkez sıcaklığı yaklaşık 15 milyon °C iken, yüzey sıcaklığı yaklaşık 6000 °C'dir.", "points": 10, "has_diagram": False, "diagram_type": None
             },
             {
                 "id": 2, "type": "MCQ",
-                "question_text": "Galileo Galilei, kendi tasarladığı teleskopla Güneş lekelerini gözlemlemiş ve bu lekelerin hep aynı yöne doğru kaydığını fark etmiştir. Bu gözlem neyi kanıtlar?",
-                "options": {"A": "Güneş'in Dünya etrafında dolandığını", "B": "Güneş'in kendi ekseni etrafında döndüğünü", "C": "Güneş'in şeklinin tam bir küp olduğunu", "D": "Güneş'in katmanlarının bulunmadığını"},
+                "question_text": "Galileo Galilei, kendi tasarladığı teleskopla G\u00fcne\u015f lekelerini gözlemlemiş ve bu lekelerin hep aynı yöne doğru kaydığını fark etmiştir. Bu gözlem neyi kanıtlar?",
+                "options": {"A": "G\u00fcne\u015f'in Dünya etrafında dolandığını", "B": "G\u00fcne\u015f'in kendi ekseni etrafında döndüğünü", "C": "G\u00fcne\u015f'in şeklinin tam bir küp olduğunu", "D": "G\u00fcne\u015f'in katmanlarının bulunmadığını"},
                 "correct_answer": "B", "solution_explanation": "Güneş lekelerinin düzenli kayması Güneş'in kendi ekseni etrafında döndüğünü kanıtlar.", "points": 10, "has_diagram": False, "diagram_type": None
             },
             {
                 "id": 3, "type": "MCQ",
                 "question_text": "Dünya'nın şekli ve hareketleri ile ilgili aşağıda verilen bilgilerden hangisi doğrudur?",
-                "options": {"A": "Dünya, kutuplardan şişkin, ekvatordan basıktır.", "B": "Dünya kendi etrafındaki bir tam turunu 365 gün 6 saatte tamamlar.", "C": "Dünya'nın kendi etrafında dönmesi sonucu gece ve gündüz birbirini takip eder.", "D": "Dünya, Güneş etrafında saat yönünde dolanır."},
+                "options": {"A": "Dünya, kutuplardan şişkin, ekvatordan basıktır.", "B": "Dünya kendi etrafındaki bir tam turunu 365 gün 6 saatte tamamlar.", "C": "Dünya'nın kendi etrafında dönmesi sonucu gece ve gündüz birbirini takip eder.", "D": "Dünya, G\u00fcne\u015f etrafında saat yönünde dolanır."},
                 "correct_answer": "C", "solution_explanation": "Dünya'nın kendi ekseni etrafındaki dönmesi gece ve gündüzü oluşturur.", "points": 10, "has_diagram": False, "diagram_type": None
             },
             {
                 "id": 4, "type": "MCQ",
-                "question_text": "Güneş, Dünya ve Ay'ın büyüklükleri karşılaştırıldığında doğru sıralama nasıldır?",
-                "options": {"A": "Güneş > Dünya > Ay", "B": "Dünya > Güneş > Ay", "C": "Güneş > Ay > Dünya", "D": "Ay > Dünya > Güneş"},
+                "question_text": "G\u00fcne\u015f, Dünya ve Ay'ın büyüklükleri karşılaştırıldığında doğru sıralama nasıldır?",
+                "options": {"A": "G\u00fcne\u015f > Dünya > Ay", "B": "Dünya > G\u00fcne\u015f > Ay", "C": "G\u00fcne\u015f > Ay > Dünya", "D": "Ay > Dünya > G\u00fcne\u015f"},
                 "correct_answer": "A", "solution_explanation": "Boyut sıralaması: Güneş > Dünya > Ay şeklindedir.", "points": 10, "has_diagram": True, "diagram_type": "sun_earth_moon"
             },
             {
@@ -134,7 +134,7 @@ MEB_QUESTION_POOL = {
             },
             {
                 "id": 6, "type": "OPEN",
-                "question_text": "Güneş'in içten dışa doğru katmanlarının isimlerini sırasıyla yazınız.",
+                "question_text": "G\u00fcne\u015f'in içten dışa doğru katmanlarının isimlerini sırasıyla yazınız.",
                 "options": {},
                 "correct_answer": "Çekirdek, Işık Küre, Renk Küre, Taç Küre",
                 "solution_explanation": "Sırasıyla: Çekirdek, Işık Küre, Renk Küre, Taç Küre.",
@@ -462,7 +462,7 @@ def build_pdf_exam(exam_data, show_answers=False):
     return buffer
 
 # ==========================================
-# 5. STREAMLIT STATE & ARAYÜZ
+# 5. STREAMLIT STATE & ARAYÜZ (TEK TEK SORU GÖSTERME MİMARİSİ)
 # ==========================================
 MEB_CURRICULUM = {
     "Fen Bilimleri": {"1. Dönem 1. Yazılı (Ekim/Kasım)": ["Güneş'in Yapısı ve Özellikleri", "Dünya'nın Şekli ve Hareketleri"]},
@@ -484,6 +484,8 @@ if 'user_answers' not in st.session_state:
     st.session_state.user_answers = {}
 if 'exam_completed' not in st.session_state:
     st.session_state.exam_completed = False
+if 'current_q_index' not in st.session_state:
+    st.session_state.current_q_index = 0
 
 st.sidebar.header("⚙️ Sınav Ayarları")
 selected_subject = st.sidebar.selectbox("📖 Ders Seçiniz", list(MEB_CURRICULUM.keys()))
@@ -512,6 +514,7 @@ if st.sidebar.button("🎲 Yeni Sınav Hazırla", use_container_width=True):
         st.session_state.exam_started = False
         st.session_state.exam_completed = False
         st.session_state.user_answers = {}
+        st.session_state.current_q_index = 0
         st.success("✅ Sınav başarıyla yüklendi! Başlamak için 'Sınavı Başlat' butonuna basınız.")
 
 if st.session_state.exam_data:
@@ -527,59 +530,111 @@ if st.session_state.exam_data:
 
     st.divider()
 
+    # --- DURUM 1: SINAV BAŞLAMADI ---
     if not st.session_state.exam_started and not st.session_state.exam_completed:
-        st.warning("⏱️ Sınav hazır! Soruları görmek ve süreyi başlatmak için aşağıdaki butona tıklayın.")
+        st.warning("⏱️ Sınav hazır! Soruları tek tek çözmek ve süreyi başlatmak için aşağıdaki butona tıklayın.")
         if st.button("🚀 SINAVI BAŞLAT", type="primary", use_container_width=True):
             st.session_state.exam_started = True
             st.session_state.start_time = time.time()
+            st.session_state.current_q_index = 0
             st.rerun()
 
+    # --- DURUM 2: SINAV DEVAM EDİYOR (HER SAYFADA TEK SORU) ---
     elif st.session_state.exam_started and not st.session_state.exam_completed:
         elapsed_time = int(time.time() - st.session_state.start_time)
         minutes, seconds = divmod(elapsed_time, 60)
-        st.subheader(f"⏱️ Geçen Süre: {minutes:02d}:{seconds:02d}")
-        st.progress(len(st.session_state.user_answers) / 10.0)
+        
+        total_qs = len(exam['questions'])
+        curr_idx = st.session_state.current_q_index
+        q = exam['questions'][curr_idx]
+        q_id = q['id']
 
-        for q in exam['questions']:
-            q_id = q['id']
-            st.markdown(f"""
-            <div class="question-card">
-                <div>
-                    <span class="{'badge-mcq' if q['type']=='MCQ' else 'badge-open'}">
-                        { 'Çoktan Seçmeli' if q['type']=='MCQ' else 'Açık Uçlu' }
-                    </span>
-                    <strong style="margin-left: 10px;">Soru {q_id} (10 Puan)</strong>
-                </div>
-                <p style="font-size: 16px; margin-top: 10px;">{q['question_text']}</p>
+        # Üst Bilgi & Süre & İlerleme Çubuğu
+        col_t1, col_t2 = st.columns([2, 1])
+        with col_t1:
+            st.markdown(f"### 📝 Soru {curr_idx + 1} / {total_qs}")
+        with col_t2:
+            st.markdown(f"**⏱️ Süre:** `{minutes:02d}:{seconds:02d}`")
+            
+        st.progress((curr_idx + 1) / total_qs)
+        st.divider()
+
+        # Soru Kartı
+        st.markdown(f"""
+        <div class="question-card">
+            <div>
+                <span class="{'badge-mcq' if q['type']=='MCQ' else 'badge-open'}">
+                    { 'Çoktan Seçmeli' if q['type']=='MCQ' else 'Açık Uçlu' }
+                </span>
+                <strong style="margin-left: 10px;">Puan: 10</strong>
             </div>
-            """, unsafe_allow_html=True)
+            <p style="font-size: 17px; margin-top: 15px; font-weight: 600;">{q['question_text']}</p>
+        </div>
+        """, unsafe_allow_html=True)
 
-            if q.get('has_diagram') and q.get('diagram_type'):
-                img_buf = generate_question_image(q['diagram_type'])
-                if img_buf:
-                    st.image(img_buf, width=300)
+        if q.get('has_diagram') and q.get('diagram_type'):
+            img_buf = generate_question_image(q['diagram_type'])
+            if img_buf:
+                st.image(img_buf, width=320)
 
-            if q['type'] == 'MCQ':
-                opts = q.get('options', {})
-                formatted_opts = [f"{k}) {v}" for k, v in opts.items()]
-                selected = st.radio(f"Cevabınız (Soru {q_id}):", formatted_opts, key=f"q_{q_id}", index=None)
-                if selected:
-                    st.session_state.user_answers[q_id] = selected[0]
-            else:
-                user_text = st.text_area(f"Cevabınızı buraya yazınız (Soru {q_id}):", key=f"q_{q_id}")
-                if user_text:
-                    st.session_state.user_answers[q_id] = user_text
+        # Cevap Giriş Alanı
+        saved_ans = st.session_state.user_answers.get(q_id, None)
 
-            st.write("---")
+        if q['type'] == 'MCQ':
+            opts = q.get('options', {})
+            formatted_opts = [f"{k}) {v}" for k, v in opts.items()]
+            
+            # Kayıtlı cevabın indeksini bul
+            default_index = None
+            if saved_ans:
+                for idx, opt_str in enumerate(formatted_opts):
+                    if opt_str.startswith(saved_ans):
+                        default_index = idx
+                        break
+
+            selected = st.radio(
+                "Lütfen seçiminizi yapınız:",
+                formatted_opts,
+                key=f"radio_q_{q_id}",
+                index=default_index
+            )
+            if selected:
+                st.session_state.user_answers[q_id] = selected[0]
+        else:
+            user_text = st.text_area(
+                "Cevabınızı buraya yazınız:",
+                value=saved_ans if saved_ans else "",
+                key=f"textarea_q_{q_id}"
+            )
+            if user_text:
+                st.session_state.user_answers[q_id] = user_text
 
         st.markdown("<br/>", unsafe_allow_html=True)
-        if st.button("🛑 SINAVI BİTİR VE KARNEYİ GÖR", type="primary", use_container_width=True):
-            st.session_state.exam_started = False
-            st.session_state.exam_completed = True
-            st.rerun()
 
+        # Navigasyon Butonları (Önceki / Sonraki / Sınavı Bitir)
+        nav_col1, nav_col2, nav_col3 = st.columns([1, 1, 1])
+        
+        with nav_col1:
+            if curr_idx > 0:
+                if st.button("⬅️ Önceki Soru", use_container_width=True):
+                    st.session_state.current_q_index -= 1
+                    st.rerun()
+                    
+        with nav_col3:
+            if curr_idx < total_qs - 1:
+                if st.button("Sonraki Soru ➡️", type="primary", use_container_width=True):
+                    st.session_state.current_q_index += 1
+                    st.rerun()
+            else:
+                if st.button("🛑 SINAVI BİTİR VE KARNEYİ GÖR", type="primary", use_container_width=True):
+                    st.session_state.exam_started = False
+                    st.session_state.exam_completed = True
+                    st.rerun()
+
+    # --- DURUM 3: SINAV BİTTİ & KARNE ---
     elif st.session_state.exam_completed:
         st.balloons()
+        
         mcq_correct = 0
         mcq_wrong = 0
         mcq_empty = 0
