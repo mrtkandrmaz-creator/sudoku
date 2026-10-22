@@ -103,7 +103,7 @@ st.markdown("""
 st.markdown("""
 <div class="header-bar">
     <div>🎓 MEB 5. Sınıf Soru Fabrikası <span style="font-size: 18px;">(Murat KANDIRMAZ)</span></div>
-    <div class="header-sub">Çoklu Gemini & Groq API Hibrit Soru Üretim Robotu</div>
+    <div class="header-sub">Universal Secrets & Environment API Okuyuculu Soru Robotu</div>
 </div>
 """, unsafe_allow_html=True)
 
@@ -144,61 +144,86 @@ MEB_FULL_CURRICULUM = {
 }
 
 # ==========================================
-# 3. STREAMLIT SECRETS 'TOML' API OKUYUCU
+# 3. KUSURSUZ / EVRENSEL API ANAHTARI TARAYICI
 # ==========================================
 def extract_api_keys():
+    """
+    st.secrets ve os.environ içindeki TÜM veri yapılarını özyinelemeli (recursive) tarayarak
+    Gemini ve Groq anahtarlarını biçimden bağımsız olarak çekip çıkarır.
+    """
     gemini_keys = []
     groq_keys = []
-    
+
+    def parse_value(key_name, val):
+        key_upper = str(key_name).upper()
+        if isinstance(val, str) and len(val.strip()) > 10:
+            if "GEMINI" in key_upper:
+                gemini_keys.append(val.strip())
+            elif "GROQ" in key_upper:
+                groq_keys.append(val.strip())
+            # Isim belirtilmemişse prefix analizinden tahmin et
+            elif val.startswith("AIzaSy"):
+                gemini_keys.append(val.strip())
+            elif val.startswith("gsk_"):
+                groq_keys.append(val.strip())
+        elif isinstance(val, list):
+            for item in val:
+                parse_value(key_name, item)
+
+    def walk_dict(d):
+        if hasattr(d, "items"):
+            for k, v in d.items():
+                if hasattr(v, "items") or isinstance(v, list):
+                    walk_dict(v)
+                else:
+                    parse_value(k, v)
+
+    # 1. Streamlit Secrets Tarama
     try:
-        # Gemini Keys Arama
-        if "GEMINI_API_KEYS" in st.secrets:
-            keys = st.secrets["GEMINI_API_KEYS"]
-            if isinstance(keys, list):
-                gemini_keys.extend(keys)
-            elif isinstance(keys, str):
-                gemini_keys.append(keys)
-        if "GEMINI_API_KEY" in st.secrets:
-            gemini_keys.append(st.secrets["GEMINI_API_KEY"])
-
-        # Groq Keys Arama
-        if "GROQ_API_KEYS" in st.secrets:
-            keys = st.secrets["GROQ_API_KEYS"]
-            if isinstance(keys, list):
-                groq_keys.extend(keys)
-            elif isinstance(keys, str):
-                groq_keys.append(keys)
-        if "GROQ_API_KEY" in st.secrets:
-            groq_keys.append(st.secrets["GROQ_API_KEY"])
-
+        walk_dict(st.secrets)
     except Exception:
         pass
 
-    # Çift kayıtları temizle
+    # 2. Ortam Değişkenleri (Environment Variables) Tarama
+    try:
+        walk_dict(dict(os.environ))
+    except Exception:
+        pass
+
+    # Çift kayıtları ayıkla
     gemini_keys = list(dict.fromkeys(gemini_keys))
     groq_keys = list(dict.fromkeys(groq_keys))
-    
+
     return gemini_keys, groq_keys
 
 # ==========================================
-# 4. YÜK DENGELEMELİ & YEDEKLİ AI SORU ÜRETİCİ
+# 4. YÜK DENGELEMELİ & DİNAMİK AI SORU ÜRETİCİ
 # ==========================================
 def generate_questions_with_ai(subject, unit):
     gemini_keys, groq_keys = extract_api_keys()
-    
+
+    # Kullanılabilir tüm API sağlayıcılarını bir havuzda topla ve karıştır
+    providers = []
+    for k in gemini_keys:
+        providers.append(("gemini", k))
+    for k in groq_keys:
+        providers.append(("groq", k))
+
+    random.shuffle(providers)
+
     prompt = f"""
     Sen MEB 5. sınıf müfredatına tam hakim uzman bir ilköğretim öğretmenisin.
     Ders: {subject}
     Ünite/Konu: {unit}
 
     Lütfen bu ünite ile ilgili 5 adet Çoktan Seçmeli (MCQ) ve 5 adet Açık Uçlu (OPEN) olmak üzere toplam 10 özgün soru üret.
-    Sorular MEB kazanımlarına tam uygun, çeldiricileri mantıklı ve açıklayıcı olmalıdır.
-    Soru ile ilgili çizim/şema gerekiyorsa "has_diagram": true yap ve "diagram_type" alanını şu değerlerden biri seç:
+    Sorular MEB kazanımlarına tam uygun olmalıdır.
+    Görsel gerekiyorsa "has_diagram": true yap ve "diagram_type" alanını şunlardan biri seç:
     ['moon_phases', 'dynamometer', 'circle_radius', 'equilateral_triangle', 'ray_segment', 'coordinate_grid', 'triangle_perpendicular', 'sun_earth_moon']
-    Eğer görsel gerekmiyorsa "has_diagram": false ve "diagram_type": null yaz.
+    Gerekmiyorsa "has_diagram": false ve "diagram_type": null yaz.
 
-    ÇIKTI BİÇİMİ: Sadece ve sadece geçerli bir JSON objesi döndür.
-    JSON Şablonu:
+    SADECE VE SADECE GEÇERLİ JSON DÖNDÜR.
+    Şablon:
     {{
         "questions": [
             {{
@@ -207,38 +232,38 @@ def generate_questions_with_ai(subject, unit):
                 "question_text": "Soru metni...",
                 "options": {{"A": "A şıkkı", "B": "B şıkkı", "C": "C şıkkı", "D": "D şıkkı"}},
                 "correct_answer": "A",
-                "solution_explanation": "Detaylı açıklama...",
+                "solution_explanation": "Açıklama...",
                 "points": 10,
                 "has_diagram": true,
                 "diagram_type": "moon_phases"
             }}
         ]
     }}
-    Açık uçlu (OPEN) sorular için "options": {{}} ve "correct_answer": "İdeal öğrenci cevabı" olmalıdır.
+    Açık uçlu (OPEN) sorular için "options": {{}} ve "correct_answer": "İdeal cevap" yaz.
     """
 
-    # 1. AŞAMA: GEMINI API KEYS DENEME
-    if genai and gemini_keys:
-        for key in gemini_keys:
-            try:
-                genai.configure(api_key=key)
-                model = genai.GenerativeModel('gemini-1.5-flash')
-                response = model.generate_content(prompt)
+    last_error = ""
+
+    # Tüm API anahtarlarını sırayla dene (Biri takılırsa otomatik diğerine geç)
+    for p_type, api_key in providers:
+        try:
+            if p_type == "gemini" and genai:
+                genai.configure(api_key=api_key)
+                model = genai.GenerativeModel('gemini-3.6-flash')
+                response = model.generate_content(
+                    prompt,
+                    generation_config={"response_mime_type": "application/json"}
+                )
                 text = response.text.strip()
                 if text.startswith("```json"): text = text[7:-3].strip()
                 elif text.startswith("```"): text = text[3:-3].strip()
-                
+
                 parsed = json.loads(text)
                 if "questions" in parsed and len(parsed["questions"]) > 0:
-                    return parsed["questions"], "Gemini API"
-            except Exception:
-                continue
+                    return parsed["questions"], f"Gemini API ({api_key[:6]}...)"
 
-    # 2. AŞAMA: GROQ API KEYS DENEME (YEDEK SİSTEM)
-    if Groq and groq_keys:
-        for key in groq_keys:
-            try:
-                client = Groq(api_key=key)
+            elif p_type == "groq" and Groq:
+                client = Groq(api_key=api_key)
                 completion = client.chat.completions.create(
                     model="llama-3.3-70b-versatile",
                     messages=[
@@ -250,11 +275,14 @@ def generate_questions_with_ai(subject, unit):
                 text = completion.choices[0].message.content.strip()
                 parsed = json.loads(text)
                 if "questions" in parsed and len(parsed["questions"]) > 0:
-                    return parsed["questions"], "Groq API"
-            except Exception:
-                continue
+                    return parsed["questions"], f"Groq API ({api_key[:6]}...)"
 
-    # 3. AŞAMA: HİÇBİR API ÇALIŞMAZSA VARSAYILAN HAVUZ
+        except Exception as e:
+            last_error = str(e)
+            continue
+
+    # Hiçbiri çalışmazsa uyarı verip düşüş havuzunu döndür
+    st.error(f"⚠️ Hiçbir API anahtarı çalışmadı veya geçerli anahtar bulunamadı. Son hata: {last_error}")
     return get_fallback_questions(subject, unit), "Yerel Statik Şablon"
 
 def get_fallback_questions(subject, unit):
@@ -554,7 +582,7 @@ selected_unit = st.sidebar.selectbox("📚 Ünite Seçiniz", MEB_FULL_CURRICULUM
 
 # Secrets Durumunu Göster
 gemini_k, groq_k = extract_api_keys()
-st.sidebar.info(f"🔑 **Tanımlı Anahtarlar:**\n- Gemini: {len(gemini_k)} adet\n- Groq: {len(groq_k)} adet")
+st.sidebar.info(f"🔑 **Algılanan Anahtarlar:**\n- Gemini: {len(gemini_k)} adet\n- Groq: {len(groq_k)} adet")
 
 st.sidebar.divider()
 
