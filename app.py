@@ -147,7 +147,7 @@ def generate_ai_questions(subject, unit, api_key):
     
     try:
         genai.configure(api_key=api_key)
-        model = genai.GenerativeModel('gemini-1.5-flash')
+        model = genai.GenerativeModel('gemini-3.6-flash')
         
         prompt = f"""
         Sen uzman bir MEB 5. sınıf müfredat hazırlama öğretmenisin.
