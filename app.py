@@ -8,9 +8,8 @@ import urllib.request
 import os
 import matplotlib.pyplot as plt
 import numpy as np
-from datetime import datetime
 
-# ReportLab Imports
+# ReportLab Imports for Professional Multi-Column Layout
 from reportlab.lib.pagesizes import A4
 from reportlab.lib import colors
 from reportlab.platypus import (
@@ -109,24 +108,60 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 # ==========================================
-# METİN TEMİZLEME & TÜRKÇE KARAKTER ONARICI
+# AKILLI TÜRKÇE KARAKTER ONARICI (ADVANCED FIXER)
 # ==========================================
 def fix_turkish_chars(text):
     """
-    Kare (■) veya hatalı çıkan Türkçe karakterleri düzeltir.
+    LLM çıktısındaki bozuk veya kare (■) geçen tüm Türkçe karakterleri kesin olarak onarır.
     """
     if not isinstance(text, str):
         return text
     
-    replacements = {
-        '■': 'ş',
-        'þ': 'ş', 'Þ': 'Ş',
-        'ð': 'ğ', 'Ð': 'Ğ',
-        'ý': 'ı', 'Ý': 'İ',
-        'þ': 'ş', 'Þ': 'Ş',
-    }
-    for bad, good in replacements.items():
-        text = text.replace(bad, good)
+    # 1. Tekil Karakter Değişimleri
+    text = text.replace('þ', 'ş').replace('Þ', 'Ş')
+    text = text.replace('ð', 'ğ').replace('Ð', 'Ğ')
+    text = text.replace('ý', 'ı').replace('Ý', 'İ')
+    
+    # 2. ■ Karakteri İçeren Desen Kalıplarının Onarımı
+    replacements = [
+        (r'Güne■', 'Güneş'),
+        (r'güne■', 'güneş'),
+        (r'olu■', 'oluş'),
+        (r'a■a■', 'aşağ'),
+        (r'A■a■', 'Aşağ'),
+        (r's■r', 'sır'),
+        (r'S■r', 'Sır'),
+        (r'd■■', 'dış'),
+        (r'D■■', 'Dış'),
+        (r's■c', 'sıc'),
+        (r'S■c', 'Sıc'),
+        (r'de■il', 'değil'),
+        (r'De■il', 'Değil'),
+        (r'I■■k', 'Işık'),
+        (r'i■■k', 'ışık'),
+        (r'Ta■', 'Taş'),
+        (r'ta■', 'taş'),
+        (r'geli■', 'geliş'),
+        (r'Geli■', 'Geliş'),
+        (r'döndü■', 'döndüğ'),
+        (r'oldu■', 'olduğ'),
+        (r'doland■', 'dolandı'),
+        (r'kar■■', 'karşı'),
+        (r'büyüklük s■', 'büyüklük sı'),
+        (r'sonucunda gerçekle■', 'sonucunda gerçekleş'),
+        (r'verilmi■', 'verilmiş'),
+        (r' do■ru', ' doğru'),
+        (r'Do■ru', 'Doğru'),
+        (r'ya■am', 'yaşam'),
+        (r'kayna■', 'kaynağ'),
+        (r'■ekil', 'şekil'),
+        (r'■ekl', 'şekl'),
+        (r'■ık', 'şık'),
+        (r'■', 'ş') # Kalan tüm ■ simgelerini 'ş' olarak tamamla
+    ]
+    
+    for pattern, repl in replacements:
+        text = re.sub(pattern, repl, text)
         
     return text
 
@@ -196,7 +231,7 @@ def generate_llm_response(prompt):
                 client = Groq(api_key=api_key)
                 chat_completion = client.chat.completions.create(
                     messages=[
-                        {"role": "system", "content": "Sen MEB müfredatına %100 uyumlu JSON formatında çıktı üreten uzman bir öğretmensin."},
+                        {"role": "system", "content": "Sen MEB müfredatına %100 uyumlu Türkçe karakterleri tam kullanan JSON üreten bir öğretmensin."},
                         {"role": "user", "content": prompt}
                     ],
                     model="llama-3.3-70b-versatile",
@@ -253,7 +288,7 @@ MEB_CURRICULUM = {
     "Almanca": {
         "1. Dönem 1. Yazılı (Ekim/Kasım)": ["Hallo! (Begrüßung, Sich vorstellen - Begrüßungsformeln, Name, Alter)"],
         "1. Dönem 2. Yazılı (Aralık/Ocak)": ["Meine Schule (Schulsachen, Schulfächer, Zahlen bis 20)"],
-        "2. Dönem 1. Yazılı (Mart/Nisan)": ["Meine Familie und Tiere (Familienmitglieder, Haustiere)"],
+        "2. Dönem 2. Yazılı (Mart/Nisan)": ["Meine Familie und Tiere (Familienmitglieder, Haustiere)"],
         "2. Dönem 2. Yazılı (Mayıs/Haziran)": ["Meine Hobbys und Freizeit (Aktivitäten, Wochentage, Vorlieben)"]
     }
 }
@@ -314,7 +349,7 @@ def generate_question_image(diagram_type, details=None):
 @st.cache_resource
 def setup_turkish_pdf_fonts():
     """
-    Fontu doğrudan indirip ReportLab'e tanıtır ve varsayılan UTF-8 eşleşmesini kurar.
+    DejaVuSans Türkçe fontunu indirip yükler.
     """
     try:
         font_urls = {
@@ -355,10 +390,11 @@ class TwoColumnCanvas(canvas.Canvas):
         self.setStrokeColor(colors.HexColor("#BDBDBD"))
         self.setLineWidth(0.8)
         
-        # Dikey Çizgi
+        # Dikey Ayraç Çizgisi
         self.line(297.5, 40, 297.5, 720)
         
-        self.setFont("TR-Regular" if "TR-Regular" in pdfmetrics.getRegisteredFontNames() else "Helvetica", 8)
+        font_name = "TR-Regular" if "TR-Regular" in pdfmetrics.getRegisteredFontNames() else "Helvetica"
+        self.setFont(font_name, 8)
         self.setFillColor(colors.HexColor("#616161"))
         self.drawString(25, 20, fix_turkish_chars("MEB 5. Sınıf Soru Fabrikası - Murat KANDIRMAZ"))
         self.drawRightString(570, 20, f"Sayfa {self._pageNumber} / {total_pages}")
@@ -443,7 +479,7 @@ def build_pdf_exam(exam_data, show_answers=False):
         [
             Paragraph(fix_turkish_chars("<b>Adı Soyadı:</b> ...................................."), opt_style),
             Paragraph(fix_turkish_chars("<b>Sınıf/Şube:</b> 5 / ......."), opt_style),
-            Paragraph(fix_turkish_chars("<b>Numara:</b> ............"), opt_style),
+            Paragraph(fix_turkish_chars("<b>Numara:</b> ............."), opt_style),
             Paragraph(fix_turkish_chars("<b>Puan:</b> ......."), opt_style)
         ]
     ]
@@ -539,7 +575,7 @@ def generate_meb_exam(subject, term, units):
     1. Sınavda TAM OLARAK 5 TANE Çoktan Seçmeli (MCQ) ve 5 TANE Açık Uçlu (OPEN) soru olmalıdır.
     2. Çoktan seçmeli soruların tamamında 4 farklı ve mantıklı şık (A, B, C, D) olmalıdır.
     3. Yalnızca Matematik ve Fen Bilimleri dersleri için gerekiyorsa "has_diagram": true ve uygun "diagram_type" ('triangle', 'space_system', 'fraction_pie') belirt.
-    4. Türkçe karakterlerin (ş, ğ, ı, ö, ü, ç) eksiksiz ve doğru yazılmasına ÖZELLİKLE dikkat et.
+    4. Türkçe karakterlerin (ş, ğ, ı, ö, ü, ç) tam ve eksiksiz yazılması şarttır.
     
     ÇIKTI FORMATI (Sadece geçerli JSON döndür):
     {{
