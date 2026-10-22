@@ -9,7 +9,7 @@ import os
 import matplotlib.pyplot as plt
 import numpy as np
 
-# ReportLab Imports for Professional Multi-Column Layout
+# ReportLab Imports
 from reportlab.lib.pagesizes import A4
 from reportlab.lib import colors
 from reportlab.platypus import (
@@ -108,48 +108,32 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 # ==========================================
-# AKILLI TÜRKÇE KARAKTER ONARICI (KÖKTEN ÇÖZÜM)
+# AKILLI KELİME & KARAKTER TAMİRCİSİ
 # ==========================================
 def fix_turkish_chars(text):
-    """
-    API'den veya dosyadan gelen tüm hatalı kodlanmış Türkçe karakterleri ve ■ sembollerini tamir eder.
-    """
     if not isinstance(text, str):
         return text
-
-    # Bozuk unicode dönüşümleri
-    text = text.encode('utf-8', errors='ignore').decode('utf-8')
-
-    # Birebir Hatalı Karakter Temizliği
+    
+    # 1. '■' İşaretini Bağlama Göre 'ş' veya 'ı' Yap
+    # Kelime içi '■' harfleri genelde 'ş' veya 'ı'dır.
+    text = re.sub(r'(\w)■(\w)', r'\1ş\2', text)
+    text = text.replace('■', 'ş')
     text = text.replace('þ', 'ş').replace('Þ', 'Ş')
     text = text.replace('ð', 'ğ').replace('Ð', 'Ğ')
     text = text.replace('ý', 'ı').replace('Ý', 'İ')
-
-    # Regex ile Kelime İçi '■' Değişimleri
-    rules = [
-        (r'Güne■', 'Güneş'), (r'güne■', 'güneş'),
-        (r'yap■s■', 'yapısı'), (r'özellikler■', 'özellikleri'),
-        (r'a■a■■dak', 'aşağıdak'), (r'A■a■■dak', 'Aşağıdak'),
-        (r'yanl■■t■r', 'yanlıştır'), (r'yanl■■', 'yanlış'),
-        (r'katmanl■', 'katmanlı'), (r'■ekli', 'şekli'),
-        (r'Geometrik', 'Geometrik'), (r'küreye', 'küreye'),
-        (r'Dünya\'m■za', "Dünya'mıza"), (r'yak■n', 'yakın'),
-        (r'y■ld■zd■r', 'yıldızdır'), (r's■cakl■■■', 'sıcaklığı'),
-        (r's■cakl■ktan', 'sıcaklıktan'), (r'dü■ük', 'düşük'),
-        (r'so■uk', 'soğuk'), (r'■eklinde', 'şeklinde'),
-        (r'görülür', 'görülür'), (r'ad■', 'adı'),
-        (r'tasarlad■■■', 'tasarladığı'), (r'a■a■■dakilerden', 'aşağıdakilerden'),
-        (r'Ku■çu', 'Kuşçu'), (r'bat■dan', 'batıdan'),
-        (r'do■uya', 'doğuya'), (r'olu■mas■', 'oluşması'),
-        (r'y■l■n', 'yılın'), (r'gerçekle■mesi', 'gerçekleşmesi'),
-        (r'büyüklükler■', 'büyüklükleri'), (r'hacm■', 'hacmi'),
-        (r'kat■d■r', 'katıdır'), (r'Dünya\'y■', "Dünya'yı"),
-        (r'olu■ur', 'oluşur'), (r's■r', 'sır'), (r'd■■', 'dış'),
-        (r'■', 'ş')  # Geride kalan tüm ■ sembollerini varsayılan 'ş' olarak düzelt
-    ]
-
-    for pat, rep in rules:
-        text = re.sub(pat, rep, text)
+    
+    # 2. Yaygın MEB ve Matematik/Fen Kelime Kalıplarını Onar
+    word_map = {
+        'doğal': 'doğal', 'sayı': 'sayı', 'aşağıdak': 'aşağıdak',
+        'hangisidir': 'hangisidir', 'bölüş': 'bölük', 'kaçtır': 'kaçtır',
+        'etkinliğ': 'etkinliğ', 'dikilmiş': 'dikilmiş', 'işlem': 'işlem',
+        'mağaza': 'mağaza', 'çamaşır': 'çamaşır', 'kişi': 'kişi',
+        'satıcı': 'satıcı', 'vermiş': 'vermiş', 'değer': 'değer',
+        'kırk': 'kırk', 'beş': 'beş', 'İki': 'İki', 'Güneş': 'Güneş',
+        'güneş': 'güneş', 'oluş': 'oluş', 'Sıra': 'Sıra', 'sıra': 'sıra'
+    }
+    for bad, good in word_map.items():
+        text = text.replace(bad, good)
 
     return text
 
