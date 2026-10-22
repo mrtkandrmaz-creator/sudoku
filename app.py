@@ -51,7 +51,7 @@ st.markdown("""
         box-shadow: 0 4px 15px rgba(255, 107, 0, 0.3);
         margin-bottom: 25px;
         display: flex;
-        justify: space-between;
+        justify-content: space-between;
         align-items: center;
     }
     .header-sub {
@@ -107,20 +107,34 @@ st.markdown("""
 # 2. SECRET TARAMA & DİNAMİK API KULLANIMI
 # ==========================================
 def extract_api_keys():
-    """Streamlit secrets içerisindeki TÜM Gemini ve Groq keylerini otomatik tespit eder."""
+    """
+    secrets.toml içerisindeki [api_keys] altındaki listeleri ve 
+    diğer tüm Gemini / Groq anahtarlarını otomatik tespit eder.
+    """
     gemini_keys = []
     groq_keys = []
     
+    def parse_value(key_name, val):
+        key_upper = str(key_name).upper()
+        if isinstance(val, str):
+            if "GEMINI" in key_upper:
+                gemini_keys.append(val.strip())
+            elif "GROQ" in key_upper:
+                groq_keys.append(val.strip())
+        elif isinstance(val, list):
+            for item in val:
+                if isinstance(item, str):
+                    if "GEMINI" in key_upper:
+                        gemini_keys.append(item.strip())
+                    elif "GROQ" in key_upper:
+                        groq_keys.append(item.strip())
+
     def search_dict(d):
         for k, v in d.items():
             if isinstance(v, dict):
                 search_dict(v)
-            elif isinstance(v, str):
-                key_upper = k.upper()
-                if "GEMINI" in key_upper:
-                    gemini_keys.append(v.strip())
-                elif "GROQ" in key_upper:
-                    groq_keys.append(v.strip())
+            else:
+                parse_value(k, v)
                     
     try:
         search_dict(st.secrets)
@@ -204,6 +218,24 @@ MEB_CURRICULUM = {
         "1. Dönem 2. Yazılı (Aralık/Ocak)": ["Kültür ve Miras (Anadolu ve Mezopotamya Uygarlıkları)", "Çevremizdeki Doğal ve Beşeri Unsurlar"],
         "2. Dönem 1. Yazılı (Mart/Nisan)": ["İnsanlar, Yerler ve Çevreler (Yeryüzü Şekilleri, İklim, İnsan Faaliyetleri)"],
         "2. Dönem 2. Yazılı (Mayıs/Haziran)": ["Üretim, Tüketim ve Dağıtım", "Etkin Vatandaşlık (Yönetim Biçimleri, Katılım)"]
+    },
+    "Din Kültürü ve Ahlak Bilgisi": {
+        "1. Dönem 1. Yazılı (Ekim/Kasım)": ["Allah İnancı (Allah Vardır ve Birdir, Allah Yaradandır)", "İhlas Suresi ve Anlamı"],
+        "1. Dönem 2. Yazılı (Aralık/Ocak)": ["Ramazan ve Oruç (Oruç İbadeti, Sahur, İftar, Teravih)", "Kültürümüzde Ramazan ve Oruç"],
+        "2. Dönem 1. Yazılı (Mart/Nisan)": ["Adap ve Nezaket (Nezaket Kuralları, Selamlaşma Adabı, İletişim)", "Tahiyyat Duası ve Anlamı"],
+        "2. Dönem 2. Yazılı (Mayıs/Haziran)": ["Hz. Muhammed ve Aile Hayatı (Peygamberimizin Ailesi)", "Çevremizde Dinin İzleri (Mimaride, Musikide, Edebiyatta)"]
+    },
+    "İngilizce": {
+        "1. Dönem 1. Yazılı (Ekim/Kasım)": ["Unit 1: Hello (Greetings, Countries, Nationalities, School Subjects)"],
+        "1. Dönem 2. Yazılı (Aralık/Ocak)": ["Unit 2: My Town (Places in a town, Directions)", "Unit 3: Games and Hobbies"],
+        "2. Dönem 1. Yazılı (Mart/Nisan)": ["Unit 4: My Daily Routine (Time, Daily Activities)", "Unit 5: Health (Illnesses, Suggestions)"],
+        "2. Dönem 2. Yazılı (Mayıs/Haziran)": ["Unit 6: Movies (Types of movies, Expressing likes/dislikes)", "Unit 7: Party Time", "Unit 8: Fitness"]
+    },
+    "Almanca": {
+        "1. Dönem 1. Yazılı (Ekim/Kasım)": ["Hallo! (Begrüßung, Sich vorstellen - Begrüßungsformeln, Name, Alter)"],
+        "1. Dönem 2. Yazılı (Aralık/Ocak)": ["Meine Schule (Schulsachen, Schulfächer, Zahlen bis 20)"],
+        "2. Dönem 1. Yazılı (Mart/Nisan)": ["Meine Familie und Tiere (Familienmitglieder, Haustiere)"],
+        "2. Dönem 2. Yazılı (Mayıs/Haziran)": ["Meine Hobbys und Freizeit (Aktivitäten, Wochentage, Vorlieben)"]
     }
 }
 
@@ -217,7 +249,6 @@ def generate_question_image(diagram_type, details=None):
     fig, ax = plt.subplots(figsize=(4, 3), dpi=120)
     
     if diagram_type == "triangle":
-        # Rastgele veya özel üçgen çizimi
         p1, p2, p3 = [0, 0], [4, 0], [2, 3]
         triangle = plt.Polygon([p1, p2, p3], fill=None, edgecolor='#FF6B00', linewidth=2.5)
         ax.add_patch(triangle)
@@ -231,7 +262,6 @@ def generate_question_image(diagram_type, details=None):
         ax.axis('off')
         
     elif diagram_type in ["space_system", "sun_earth_moon"]:
-        # Dünya, Güneş ve Ay Çizimi
         sun = plt.Circle((1, 2), 0.7, color='#FF8C00', label='Güneş')
         earth = plt.Circle((4, 2), 0.4, color='#1E90FF', label='Dünya')
         moon = plt.Circle((5.2, 2), 0.15, color='#A9A9A9', label='Ay')
@@ -244,7 +274,6 @@ def generate_question_image(diagram_type, details=None):
         ax.text(4, 1.3, 'Dünya', horizontalalignment='center', fontweight='bold', color='#1E90FF')
         ax.text(5.2, 1.6, 'Ay', horizontalalignment='center', fontweight='bold', color='#A9A9A9')
         
-        # Yörünge çizgisi
         orbit = plt.Circle((4, 2), 1.2, fill=False, linestyle='--', color='gray', alpha=0.5)
         ax.add_patch(orbit)
         
@@ -253,7 +282,6 @@ def generate_question_image(diagram_type, details=None):
         ax.axis('off')
         
     elif diagram_type == "fraction_pie":
-        # Kesir Görseli
         sizes = [1, 1, 1, 1]
         colors_list = ['#FF6B00', '#FF6B00', '#E0E0E0', '#E0E0E0']
         ax.pie(sizes, colors=colors_list, wedgeprops={"edgecolor":"black", "linewidth":1.5})
@@ -288,14 +316,13 @@ def build_pdf_exam(exam_data, show_answers=False):
     
     styles = getSampleStyleSheet()
     
-    # Özel Stil Tanımları
     title_style = ParagraphStyle(
         'ExamTitle',
         parent=styles['Heading1'],
         fontName='Helvetica-Bold',
         fontSize=13,
         leading=16,
-        alignment=1, # Center
+        alignment=1,
         textColor=colors.HexColor("#1A237E")
     )
     
@@ -329,7 +356,6 @@ def build_pdf_exam(exam_data, show_answers=False):
 
     story = []
     
-    # 1. SINAV BAŞLIĞI VE ÖĞRENCİ BİLGİ PLAKASI
     header_text = f"<b>{exam_data['school_name'].upper()}</b><br/>" \
                   f"<b>2026-2027 EĞİTİM-ÖĞRETİM YILI 5. SINIF {exam_data['subject'].upper()} DERSİ</b><br/>" \
                   f"<u>{exam_data['term'].upper()} DEĞERLENDİRME SINAVI</u>"
@@ -340,7 +366,6 @@ def build_pdf_exam(exam_data, show_answers=False):
     story.append(Paragraph(header_text, title_style))
     story.append(Spacer(1, 10))
     
-    # Öğrenci Bilgi & Puan Tablosu
     info_data = [
         [
             Paragraph("<b>Adı Soyadı:</b> ........................................", opt_style),
@@ -360,15 +385,12 @@ def build_pdf_exam(exam_data, show_answers=False):
     story.append(Spacer(1, 15))
     story.append(HRFlowable(width="100%", thickness=1, color=colors.HexColor("#FF6B00"), spaceAfter=15))
 
-    # 2. SORULARIN DİZİLİMİ
     for idx, q in enumerate(exam_data['questions'], start=1):
         q_elements = []
         
-        # Soru Metni
         q_header = f"<b>Soru {idx} ({q.get('points', 10)} Puan):</b> {q['question_text']}"
         q_elements.append(Paragraph(q_header, q_style))
         
-        # Soru Görseli Varsa
         if q.get('has_diagram') and q.get('diagram_type'):
             img_buf = generate_question_image(q['diagram_type'])
             if img_buf:
@@ -377,7 +399,6 @@ def build_pdf_exam(exam_data, show_answers=False):
                 q_elements.append(rl_img)
                 q_elements.append(Spacer(1, 4))
         
-        # Çoktan Seçmeli Şıklar
         if q['type'] == 'MCQ':
             opts = q.get('options', {})
             opt_table_data = [
@@ -391,7 +412,6 @@ def build_pdf_exam(exam_data, show_answers=False):
             ]))
             q_elements.append(t_opts)
         else:
-            # Açık Uçlu Soru için Cevap Alanı Çizgileri
             if not show_answers:
                 q_elements.append(Spacer(1, 5))
                 line_data = [[""], [""]]
@@ -401,7 +421,6 @@ def build_pdf_exam(exam_data, show_answers=False):
                 ]))
                 q_elements.append(t_lines)
                 
-        # Detaylı Çözüm (Cevap Anahtarı Modu Açıksa)
         if show_answers:
             q_elements.append(Spacer(1, 4))
             ans_box = f"<b>Doğru Cevap / Yanıt:</b> {q.get('correct_answer', '')}<br/>" \
@@ -418,7 +437,6 @@ def build_pdf_exam(exam_data, show_answers=False):
         q_elements.append(Spacer(1, 12))
         story.append(KeepTogether(q_elements))
 
-    # PDF İnşa Et
     doc.build(story)
     buffer.seek(0)
     return buffer
@@ -439,10 +457,10 @@ def generate_meb_exam(subject, term, units):
     1. Sınavda TAM 10 soru olmalıdır.
     2. 7 Soru Çoktan Seçmeli (MCQ), 3 Soru Açık Uçlu (OPEN) olmalıdır.
     3. Çoktan Seçmeli sorularda 4 ŞIK (A, B, C, D) bulunmalı ve hepsi mantıklı, birbirinden tamamen farklı olmalıdır.
-    4. Sorulardan en az 2 tanesinde görsel/şekil çizimi gereksinimi olmalıdır (Örn: Matematikte 'triangle' veya 'fraction_pie', Fen Bilimlerinde 'sun_earth_moon').
+    4. Yalnızca Matematik ve Fen Bilimleri derslerinde uygun sorular için "has_diagram": true yapabilir ve "diagram_type" seçebilirsin.
     5. Her soru için pedagojik, detaylı, adım adım açık yazılmış çözümler ekle.
     
-    ÇIKTI FORMATI (Sadece geçerli JSON dündür):
+    ÇIKTI FORMATI (Sadece geçerli JSON döndür):
     {{
         "school_name": "Şehit Öğretmen 5. Sınıf Ortaokulu",
         "subject": "{subject}",
@@ -461,8 +479,8 @@ def generate_meb_exam(subject, term, units):
                 "correct_answer": "A",
                 "solution_explanation": "Adım adım detaylı çözüm açıklaması...",
                 "points": 10,
-                "has_diagram": true,
-                "diagram_type": "triangle"
+                "has_diagram": false,
+                "diagram_type": null
             }},
             {{
                 "id": 8,
@@ -483,7 +501,6 @@ def generate_meb_exam(subject, term, units):
         return None
         
     try:
-        # JSON Temizliği
         clean_json = raw_response.strip()
         if "```json" in clean_json:
             clean_json = clean_json.split("```json")[1].split("```")[0].strip()
@@ -500,7 +517,6 @@ def generate_meb_exam(subject, term, units):
 # 7. STREAMLIT STATE & ARAYÜZ
 # ==========================================
 
-# Session State Başlatma
 if 'exam_started' not in st.session_state:
     st.session_state.exam_started = False
 if 'exam_data' not in st.session_state:
@@ -524,7 +540,6 @@ st.sidebar.info(f"📌 **Dahil Üniteler:**\n" + "\n".join([f"- {u}" for u in se
 
 st.sidebar.divider()
 
-# Sınav Oluşturma Butonu
 if st.sidebar.button("🎲 Yeni Sınav Hazırla", use_container_width=True):
     with st.spinner("MEB Müfredatına uygun 10 özgün soru hazırlanıyor..."):
         exam_json = generate_meb_exam(selected_subject, selected_term, selected_units)
@@ -542,7 +557,6 @@ if st.sidebar.button("🎲 Yeni Sınav Hazırla", use_container_width=True):
 if st.session_state.exam_data:
     exam = st.session_state.exam_data
     
-    # PDF İndirme Seçenekleri (Sınav Öncesi veya Sonrası)
     pdf_exam = build_pdf_exam(exam, show_answers=False)
     pdf_sol = build_pdf_exam(exam, show_answers=True)
     
@@ -576,7 +590,6 @@ if st.session_state.exam_data:
 
     # --- DURUM 2: SINAV DEVAM EDİYOR ---
     elif st.session_state.exam_started and not st.session_state.exam_completed:
-        # Üst Panel: Zamanlayıcı & Sınavı Bitir Butonu
         elapsed_time = int(time.time() - st.session_state.start_time)
         minutes, seconds = divmod(elapsed_time, 60)
         
@@ -591,7 +604,6 @@ if st.session_state.exam_data:
 
         st.progress(len(st.session_state.user_answers) / 10.0)
 
-        # Soruların Listelenmesi
         for q in exam['questions']:
             q_id = q['id']
             st.markdown(f"""
@@ -606,13 +618,11 @@ if st.session_state.exam_data:
             </div>
             """, unsafe_allow_html=True)
 
-            # Şekil/Diyagram Çizimi Varsa
             if q.get('has_diagram') and q.get('diagram_type'):
                 img_buf = generate_question_image(q['diagram_type'])
                 if img_buf:
                     st.image(img_buf, width=320)
 
-            # Yanıt Giriş Alanları
             if q['type'] == 'MCQ':
                 opts = q.get('options', {})
                 formatted_opts = [f"{k}) {v}" for k, v in opts.items()]
@@ -623,7 +633,7 @@ if st.session_state.exam_data:
                     index=None
                 )
                 if selected:
-                    st.session_state.user_answers[q_id] = selected[0] # Sadece 'A', 'B' harfini alır
+                    st.session_state.user_answers[q_id] = selected[0]
             else:
                 user_text = st.text_area(f"Cevabınızı buraya yazınız (Soru {q_id}):", key=f"q_{q_id}")
                 if user_text:
@@ -631,7 +641,7 @@ if st.session_state.exam_data:
 
             st.write("---")
 
-    # --- DURUM 3: SINAV BİTTİ (DEĞERLENDİRME & ÇÖZÜMLER) ---
+    # --- DURUM 3: SINAV BİTTİ ---
     elif st.session_state.exam_completed:
         st.balloons()
         st.success("🎉 Sınavı tamamladınız! Aşağıdan sonuçlarınızı ve detaylı çözümleri inceleyebilirsiniz.")
