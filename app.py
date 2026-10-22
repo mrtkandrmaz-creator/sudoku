@@ -16,6 +16,8 @@ from reportlab.platypus import (
 )
 from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
 from reportlab.pdfgen import canvas
+from reportlab.pdfbase import pdfmetrics
+from reportlab.pdfbase.ttfonts import TTFont
 
 # API SDKs
 try:
@@ -87,6 +89,15 @@ st.markdown("""
         font-size: 12px;
     }
     
+    /* Karne Card */
+    .report-card {
+        background-color: #f9fbe7;
+        border: 2px solid #c0ca33;
+        border-radius: 12px;
+        padding: 25px;
+        margin-bottom: 25px;
+    }
+    
     /* Buttons */
     .stButton>button {
         border-radius: 8px;
@@ -148,7 +159,6 @@ GEMINI_KEYS, GROQ_KEYS = extract_api_keys()
 def generate_llm_response(prompt):
     """
     Tüm Gemini ve Groq API'lerini sırayla dener (Load-balancer / Fallback).
-    Bir API hata verirse/limite takılırsa diğerine geçer.
     """
     providers = []
     for k in GEMINI_KEYS:
@@ -156,7 +166,7 @@ def generate_llm_response(prompt):
     for k in GROQ_KEYS:
         providers.append(("groq", k))
         
-    random.shuffle(providers) # Yük dağılımı
+    random.shuffle(providers)
     
     if not providers:
         st.error("🚨 `.streamlit/secrets.toml` içerisinde geçerli Gemini veya Groq API Anahtarı bulunamadı!")
@@ -202,9 +212,9 @@ MEB_CURRICULUM = {
         "2. Dönem 2. Yazılı (Mayıs/Haziran)": ["Üçgen ve Dörtgenler (Açılar, Özellikler)", "Veri Toplama ve Değerlendirme", "Uzunluk ve Zaman Ölçme", "Alan Ölçme"]
     },
     "Fen Bilimleri": {
-        "1. Dönem 1. Yazılı (Ekim/Kasım)": ["Güneş'in Yapısı ve Özellikleri", "Dünya'nın Şekli ve Hareketleri","Ayın Evreleri ve Hareketleri","Dinamometre","Kuvvetin Ölçülmesi ve Sürtünme","Güneş’in yapısı, temel özellikleri ve Dünya ile büyüklük kıyaslaması"],
+        "1. Dönem 1. Yazılı (Ekim/Kasım)": ["Güneş'in Yapısı ve Özellikleri", "Dünya'nın Şekli ve Hareketleri"],
         "1. Dönem 2. Yazılı (Aralık/Ocak)": ["Ay'ın Yapısı, Özellikleri ve Evreleri", "Dünya, Güneş ve Ay Sistemleri"],
-        "2. Dönem 1. Yazılı (Mart/Nisan)": ["Canlıları Tanıyalım (Mikroskobik Canlılar, Mantarlar, Bitkiler, Hayvanlar)"],
+        "2. Dönem 1. Yazılı (Mart/Nisan)": ["Canlıları Tanıyalım (Mikroskobik Canlılar, Mantarlar, Bitkiler, Hayvanlar)", "Kuvvetin Ölçülmesi ve Sürtünme"],
         "2. Dönem 2. Yazılı (Mayıs/Haziran)": ["Maddenin Hal Değişimi", "Maddenin Ayırt Edici Özellikleri", "Işığın Yayılması ve Yansıması", "Işık ve Gölge"]
     },
     "Türkçe": {
@@ -243,9 +253,6 @@ MEB_CURRICULUM = {
 # 4. GÖRSEL ÇİZİM MOTORU (MATPLOTLIB)
 # ==========================================
 def generate_question_image(diagram_type, details=None):
-    """
-    Soruya özel Matplotlib tabanlı matematik/geometri/fen görselleri üretir.
-    """
     fig, ax = plt.subplots(figsize=(4, 3), dpi=120)
     
     if diagram_type == "triangle":
@@ -262,9 +269,9 @@ def generate_question_image(diagram_type, details=None):
         ax.axis('off')
         
     elif diagram_type in ["space_system", "sun_earth_moon"]:
-        sun = plt.Circle((1, 2), 0.7, color='#FF8C00', label='Güneş')
-        earth = plt.Circle((4, 2), 0.4, color='#1E90FF', label='Dünya')
-        moon = plt.Circle((5.2, 2), 0.15, color='#A9A9A9', label='Ay')
+        sun = plt.Circle((1, 2), 0.7, color='#FF8C00')
+        earth = plt.Circle((4, 2), 0.4, color='#1E90FF')
+        moon = plt.Circle((5.2, 2), 0.15, color='#A9A9A9')
         
         ax.add_patch(sun)
         ax.add_patch(earth)
@@ -298,12 +305,26 @@ def generate_question_image(diagram_type, details=None):
     return buf
 
 # ==========================================
-# 5. GERÇEK MEB FORMATINDA PDF ÜRETİCİ
+# 5. TÜRKÇE FONT DESTEKLİ PDF ÜRETİCİ
 # ==========================================
+def register_turkish_fonts():
+    try:
+        pdfmetrics.registerFont(TTFont('TRFont', 'DejaVuSans.ttf'))
+        pdfmetrics.registerFont(TTFont('TRFont-Bold', 'DejaVuSans-Bold.ttf'))
+        pdfmetrics.registerFont(TTFont('TRFont-Oblique', 'DejaVuSans-Oblique.ttf'))
+        return 'TRFont', 'TRFont-Bold', 'TRFont-Oblique'
+    except Exception:
+        try:
+            pdfmetrics.registerFont(TTFont('TRFont', 'arial.ttf'))
+            pdfmetrics.registerFont(TTFont('TRFont-Bold', 'arialbd.ttf'))
+            pdfmetrics.registerFont(TTFont('TRFont-Oblique', 'aria.ttf'))
+            return 'TRFont', 'TRFont-Bold', 'TRFont-Oblique'
+        except Exception:
+            return 'Helvetica', 'Helvetica-Bold', 'Helvetica-Oblique'
+
 def build_pdf_exam(exam_data, show_answers=False):
-    """
-    ReportLab kütüphanesi ile yüksek kalitede, MEB standartlarında PDF üretir.
-    """
+    font_norm, font_bold, font_oblique = register_turkish_fonts()
+
     buffer = io.BytesIO()
     doc = SimpleDocTemplate(
         buffer,
@@ -319,7 +340,7 @@ def build_pdf_exam(exam_data, show_answers=False):
     title_style = ParagraphStyle(
         'ExamTitle',
         parent=styles['Heading1'],
-        fontName='Helvetica-Bold',
+        fontName=font_bold,
         fontSize=13,
         leading=16,
         alignment=1,
@@ -329,7 +350,7 @@ def build_pdf_exam(exam_data, show_answers=False):
     q_style = ParagraphStyle(
         'QuestionText',
         parent=styles['Normal'],
-        fontName='Helvetica-Bold',
+        fontName=font_bold,
         fontSize=10,
         leading=14,
         textColor=colors.HexColor("#212121"),
@@ -339,7 +360,7 @@ def build_pdf_exam(exam_data, show_answers=False):
     opt_style = ParagraphStyle(
         'OptionText',
         parent=styles['Normal'],
-        fontName='Helvetica',
+        fontName=font_norm,
         fontSize=9.5,
         leading=13,
         textColor=colors.HexColor("#424242")
@@ -348,7 +369,7 @@ def build_pdf_exam(exam_data, show_answers=False):
     sol_style = ParagraphStyle(
         'SolutionText',
         parent=styles['Normal'],
-        fontName='Helvetica-Oblique',
+        fontName=font_oblique,
         fontSize=9,
         leading=12,
         textColor=colors.HexColor("#1B5E20")
@@ -442,23 +463,21 @@ def build_pdf_exam(exam_data, show_answers=False):
     return buffer
 
 # ==========================================
-# 6. LLM PROMPT VE SORU ÜRETİMİ
+# 6. LLM PROMPT VE SORU ÜRETİMİ (5 MCQ / 5 OPEN)
 # ==========================================
 def generate_meb_exam(subject, term, units):
     prompt = f"""
-    Sen MEB (Milli Eğitim Bakanlığı) 5. Sınıf {subject} dersi müfredatına %100 hakim uzman bir ölçme ve değerlendirme öğretmenisin.
+    Sen MEB (Milli Eğitim Bakanlığı) 5. Sınıf {subject} dersi müfredatına %100 hakim uzman bir öğretmen ve ölçme değerlendirme uzmanısın.
     
-    Lütfen şu sınav için TAM OLARAK 10 SORUDAN oluşan yazılı sınavı JSON formatında üret:
-    - Ders: 5. Sınıf {subject}
-    - Sınav Dönemi: {term}
-    - Kapsanan Üniteler: {', '.join(units)}
+    Lütfen {subject} dersi için {term} dönemini kapsayan TAM 10 SORUDAN oluşan özgün bir sınav hazırlat:
+    - Dahil Üniteler: {', '.join(units)}
     
-    KRİTİK KURALLAR:
-    1. Sınavda TAM 10 soru olmalıdır.
-    2. 5 Soru Çoktan Seçmeli (MCQ), 5 Soru Açık Uçlu (OPEN) olmalıdır.
-    3. Çoktan Seçmeli sorularda 4 ŞIK (A, B, C, D) bulunmalı ve hepsi mantıklı, birbirinden tamamen farklı olmalıdır.
-    4. Yalnızca Matematik ve Fen Bilimleri derslerinde uygun sorular için "has_diagram": true yapabilir ve "diagram_type" seçebilirsin.
-    5. Her soru için pedagojik, detaylı, adım adım açık yazılmış çözümler ekle.
+    ÖNEMLİ KURALLAR:
+    1. Sınavda TAM OLARAK 5 TANE Çoktan Seçmeli (MCQ) ve 5 TANE Açık Uçlu (OPEN) soru olmalıdır.
+    2. Çoktan seçmeli soruların tamamında 4 farklı ve mantıklı şık (A, B, C, D) olmalıdır.
+    3. Her sorunun puanı 10 puandır (Toplam 100 Puan).
+    4. Yalnızca Matematik ve Fen Bilimleri dersleri için gerekiyorsa "has_diagram": true ve uygun "diagram_type" ('triangle', 'space_system', 'fraction_pie') belirt.
+    5. Her sorunun çözümü pedagogik ve adım adım detaylı anlatımlı olmalıdır.
     
     ÇIKTI FORMATI (Sadece geçerli JSON döndür):
     {{
@@ -470,24 +489,19 @@ def generate_meb_exam(subject, term, units):
                 "id": 1,
                 "type": "MCQ",
                 "question_text": "Soru metni...",
-                "options": {{
-                    "A": "Şık A",
-                    "B": "Şık B",
-                    "C": "Şık C",
-                    "D": "Şık D"
-                }},
+                "options": {{ "A": "...", "B": "...", "C": "...", "D": "..." }},
                 "correct_answer": "A",
-                "solution_explanation": "Adım adım detaylı çözüm açıklaması...",
+                "solution_explanation": "Detaylı adım adım açıklama...",
                 "points": 10,
                 "has_diagram": false,
                 "diagram_type": null
             }},
             {{
-                "id": 8,
+                "id": 6,
                 "type": "OPEN",
                 "question_text": "Açık uçlu soru metni...",
-                "correct_answer": "Örnek ideal cevap...",
-                "solution_explanation": "Öğrencinin vermesi gereken puanlama detayları...",
+                "correct_answer": "İdeal cevap...",
+                "solution_explanation": "Kapsamlı açıklama...",
                 "points": 10,
                 "has_diagram": false,
                 "diagram_type": null
@@ -541,7 +555,7 @@ st.sidebar.info(f"📌 **Dahil Üniteler:**\n" + "\n".join([f"- {u}" for u in se
 st.sidebar.divider()
 
 if st.sidebar.button("🎲 Yeni Sınav Hazırla", use_container_width=True):
-    with st.spinner("MEB Müfredatına uygun 10 özgün soru hazırlanıyor..."):
+    with st.spinner("MEB Müfredatına uygun 5 Çoktan Seçmeli + 5 Açık Uçlu Soru Hazırlanıyor..."):
         exam_json = generate_meb_exam(selected_subject, selected_term, selected_units)
         if exam_json:
             st.session_state.exam_data = exam_json
@@ -593,17 +607,10 @@ if st.session_state.exam_data:
         elapsed_time = int(time.time() - st.session_state.start_time)
         minutes, seconds = divmod(elapsed_time, 60)
         
-        c_timer, c_end = st.columns([3, 1])
-        with c_timer:
-            st.subheader(f"⏱️ Geçen Süre: {minutes:02d}:{seconds:02d}")
-        with c_end:
-            if st.button("🛑 SINAVI BİTİR", type="primary", use_container_width=True):
-                st.session_state.exam_started = False
-                st.session_state.exam_completed = True
-                st.rerun()
-
+        st.subheader(f"⏱️ Geçen Süre: {minutes:02d}:{seconds:02d}")
         st.progress(len(st.session_state.user_answers) / 10.0)
 
+        # Soruların Sıralanması
         for q in exam['questions']:
             q_id = q['id']
             st.markdown(f"""
@@ -612,7 +619,7 @@ if st.session_state.exam_data:
                     <span class="{'badge-mcq' if q['type']=='MCQ' else 'badge-open'}">
                         { 'Çoktan Seçmeli' if q['type']=='MCQ' else 'Açık Uçlu' }
                     </span>
-                    <strong style="margin-left: 10px;">Soru {q_id} ({q.get('points', 10)} Puan)</strong>
+                    <strong style="margin-left: 10px;">Soru {q_id} (10 Puan)</strong>
                 </div>
                 <p style="font-size: 16px; margin-top: 10px;">{q['question_text']}</p>
             </div>
@@ -641,37 +648,78 @@ if st.session_state.exam_data:
 
             st.write("---")
 
-    # --- DURUM 3: SINAV BİTTİ ---
+        # --- SAYFA ALTINA YERLEŞTİRİLEN SINAVI BİTİR BUTONU ---
+        st.markdown("<br/>", unsafe_allow_html=True)
+        if st.button("🛑 SINAVI BİTİR VE KARNEYİ GÖR", type="primary", use_container_width=True):
+            st.session_state.exam_started = False
+            st.session_state.exam_completed = True
+            st.rerun()
+
+    # --- DURUM 3: SINAV BİTTİ & ÖĞRENCİ KARNESİ ---
     elif st.session_state.exam_completed:
         st.balloons()
-        st.success("🎉 Sınavı tamamladınız! Aşağıdan sonuçlarınızı ve detaylı çözümleri inceleyebilirsiniz.")
-
-        total_score = 0
-        mcq_count = 0
+        
+        # Puanlama Hesaplamaları
+        mcq_correct = 0
+        mcq_wrong = 0
+        mcq_empty = 0
+        mcq_score = 0
+        
+        open_count = 0
         
         for q in exam['questions']:
             q_id = q['id']
-            user_ans = st.session_state.user_answers.get(q_id, "Boş")
-            correct_ans = q.get('correct_answer', '')
-
-            st.markdown(f"### Soru {q_id}: {q['question_text']}")
+            user_ans = st.session_state.user_answers.get(q_id, None)
             
             if q['type'] == 'MCQ':
-                mcq_count += 1
+                if not user_ans:
+                    mcq_empty += 1
+                elif user_ans == q.get('correct_answer'):
+                    mcq_correct += 1
+                    mcq_score += 10
+                else:
+                    mcq_wrong += 1
+            else:
+                open_count += 1
+
+        # 🏅 SINAV KARNESİ PANELİ
+        st.markdown("""
+        <div class="report-card">
+            <h2 style="color: #33691E; text-align: center; margin-bottom: 5px;">📊 ÖĞRENCİ SINAV KARNESİ</h2>
+            <p style="text-align: center; color: #558B2F;">5. Sınıf Değerlendirme ve Başarı Raporu</p>
+        </div>
+        """, unsafe_allow_html=True)
+
+        k1, k2, k3, k4 = st.columns(4)
+        k1.metric("Test Puanı (MCQ)", f"{mcq_score} / 50")
+        k2.metric("Doğru Cevap", f"{mcq_correct} Soru")
+        k3.metric("Yanlış Cevap", f"{mcq_wrong} Soru")
+        k4.metric("Boş Bırakılan", f"{mcq_empty} Soru")
+
+        st.info("ℹ️ **Not:** Açık uçlu sorular (50 Puan değerinde) öğretmen/veli değerlendirmesi gerektirdiği için test puanına otomatize dahil edilmemiştir. Aşağıdaki cevap anahtarıyla karşılaştırabilirsiniz.")
+
+        st.divider()
+        st.subheader("📝 Detaylı Soru Çözümleri ve Cevap Anahtarı")
+
+        for q in exam['questions']:
+            q_id = q['id']
+            user_ans = st.session_state.user_answers.get(q_id, "Yanıt Verilmedi")
+            correct_ans = q.get('correct_answer', '')
+
+            st.markdown(f"**Soru {q_id}: {q['question_text']}**")
+            
+            if q['type'] == 'MCQ':
                 is_correct = (user_ans == correct_ans)
                 if is_correct:
-                    total_score += q.get('points', 10)
-                    st.success(f"✅ **Tebrikler!** Doğru Cevap: **{correct_ans}** | Sizin Cevabınız: **{user_ans}**")
+                    st.success(f"✅ **Doğru!** Cevabınız: **{user_ans}**")
                 else:
                     st.error(f"❌ **Yanlış!** Doğru Cevap: **{correct_ans}** | Sizin Cevabınız: **{user_ans}**")
             else:
-                st.info(f"📝 **Açık Uçlu Soru Cevabınız:** {user_ans}\n\n**İdeal Cevap:** {correct_ans}")
+                st.warning(f"📝 **Sizin Yanıtınız:** {user_ans}\n\n**İdeal/Örnek Cevap:** {correct_ans}")
 
-            with st.expander("🔍 Detaylı Çözümü ve Açıklamayı Gör"):
-                st.write(q.get('solution_explanation', 'Çözüm açıklaması mevcut değil.'))
-            st.divider()
-
-        st.metric(label="Çoktan Seçmeli Sorulardan Tahmini Puanınız", value=f"{total_score} Puan")
+            with st.expander("🔍 Detaylı Adım Adım Çözüm Açıklaması"):
+                st.write(q.get('solution_explanation', 'Çözüm açıklaması bulunamadı.'))
+            st.write("---")
 
 else:
     st.info("👈 Sınav oluşturmak için sol menüden dersinizi ve sınav döneminizi seçip **'Yeni Sınav Hazırla'** butonuna tıklayınız.")
