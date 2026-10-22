@@ -1,3 +1,4 @@
+# -*- coding: utf-8 -*-
 import streamlit as st
 import random
 import json
@@ -96,33 +97,33 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 # ==========================================
-# 2. MEB ONAYLI KUSURSUZ SORU BANKASI (UNICODE KORUMALI)
+# 2. MEB ONAYLI KUSURSUZ SORU BANKASI
 # ==========================================
 MEB_QUESTION_POOL = {
     "Fen Bilimleri": {
         "1. Dönem 1. Yazılı (Ekim/Kasım)": [
             {
                 "id": 1, "type": "MCQ",
-                "question_text": "G\u00fcne\u015f ile ilgili verilen a\u015fa\u011f\u0131dakilerden hangisi yanlı\u015ft\u0131r?",
-                "options": {"A": "G\u00fcne\u015f, katmanlardan olu\u015fan devasa bir gaz küresidir.", "B": "G\u00fcne\u015f yüzeyindeki so\u011fuk bölgelere 'G\u00fcne\u015f lekesi' adı verilir.", "C": "G\u00fcne\u015f, Dünya'm\u0131za en yakın yıldızdır.", "D": "G\u00fcne\u015f'in yüzey sıcaklığı merkezindeki sıcaklıktan daha fazladır."},
+                "question_text": "Güneş ile ilgili verilen aşağıdakilerden hangisi yanlıştır?",
+                "options": {"A": "Güneş, katmanlardan oluşan devasa bir gaz küresidir.", "B": "Güneş yüzeyindeki soğuk bölgelere 'Güneş lekesi' adı verilir.", "C": "Güneş, Dünya'mıza en yakın yıldızdır.", "D": "Güneş'in yüzey sıcaklığı merkezindeki sıcaklıktan daha fazladır."},
                 "correct_answer": "D", "solution_explanation": "Güneş'in merkez sıcaklığı yaklaşık 15 milyon °C iken, yüzey sıcaklığı yaklaşık 6000 °C'dir.", "points": 10, "has_diagram": False, "diagram_type": None
             },
             {
                 "id": 2, "type": "MCQ",
-                "question_text": "Galileo Galilei, kendi tasarladığı teleskopla G\u00fcne\u015f lekelerini gözlemlemiş ve bu lekelerin hep aynı yöne doğru kaydığını fark etmiştir. Bu gözlem neyi kanıtlar?",
-                "options": {"A": "G\u00fcne\u015f'in Dünya etrafında dolandığını", "B": "G\u00fcne\u015f'in kendi ekseni etrafında döndüğünü", "C": "G\u00fcne\u015f'in şeklinin tam bir küp olduğunu", "D": "G\u00fcne\u015f'in katmanlarının bulunmadığını"},
+                "question_text": "Galileo Galilei, kendi tasarladığı teleskopla Güneş lekelerini gözlemlemiş ve bu lekelerin hep aynı yöne doğru kaydığını fark etmiştir. Bu gözlem neyi kanıtlar?",
+                "options": {"A": "Güneş'in Dünya etrafında dolandığını", "B": "Güneş'in kendi ekseni etrafında döndüğünü", "C": "Güneş'in şeklinin tam bir küp olduğunu", "D": "Güneş'in katmanlarının bulunmadığını"},
                 "correct_answer": "B", "solution_explanation": "Güneş lekelerinin düzenli kayması Güneş'in kendi ekseni etrafında döndüğünü kanıtlar.", "points": 10, "has_diagram": False, "diagram_type": None
             },
             {
                 "id": 3, "type": "MCQ",
                 "question_text": "Dünya'nın şekli ve hareketleri ile ilgili aşağıda verilen bilgilerden hangisi doğrudur?",
-                "options": {"A": "Dünya, kutuplardan şişkin, ekvatordan basıktır.", "B": "Dünya kendi etrafındaki bir tam turunu 365 gün 6 saatte tamamlar.", "C": "Dünya'nın kendi etrafında dönmesi sonucu gece ve gündüz birbirini takip eder.", "D": "Dünya, G\u00fcne\u015f etrafında saat yönünde dolanır."},
+                "options": {"A": "Dünya, kutuplardan şişkin, ekvatordan basıktır.", "B": "Dünya kendi etrafındaki bir tam turunu 365 gün 6 saatte tamamlar.", "C": "Dünya'nın kendi etrafında dönmesi sonucu gece ve gündüz birbirini takip eder.", "D": "Dünya, Güneş etrafında saat yönünde dolanır."},
                 "correct_answer": "C", "solution_explanation": "Dünya'nın kendi ekseni etrafındaki dönmesi gece ve gündüzü oluşturur.", "points": 10, "has_diagram": False, "diagram_type": None
             },
             {
                 "id": 4, "type": "MCQ",
-                "question_text": "G\u00fcne\u015f, Dünya ve Ay'ın büyüklükleri karşılaştırıldığında doğru sıralama nasıldır?",
-                "options": {"A": "G\u00fcne\u015f > Dünya > Ay", "B": "Dünya > G\u00fcne\u015f > Ay", "C": "G\u00fcne\u015f > Ay > Dünya", "D": "Ay > Dünya > G\u00fcne\u015f"},
+                "question_text": "Güneş, Dünya ve Ay'ın büyüklükleri karşılaştırıldığında doğru sıralama nasıldır?",
+                "options": {"A": "Güneş > Dünya > Ay", "B": "Dünya > Güneş > Ay", "C": "Güneş > Ay > Dünya", "D": "Ay > Dünya > Güneş"},
                 "correct_answer": "A", "solution_explanation": "Boyut sıralaması: Güneş > Dünya > Ay şeklindedir.", "points": 10, "has_diagram": True, "diagram_type": "sun_earth_moon"
             },
             {
@@ -133,7 +134,7 @@ MEB_QUESTION_POOL = {
             },
             {
                 "id": 6, "type": "OPEN",
-                "question_text": "G\u00fcne\u015f'in içten dışa doğru katmanlarının isimlerini sırasıyla yazınız.",
+                "question_text": "Güneş'in içten dışa doğru katmanlarının isimlerini sırasıyla yazınız.",
                 "options": {},
                 "correct_answer": "Çekirdek, Işık Küre, Renk Küre, Taç Küre",
                 "solution_explanation": "Sırasıyla: Çekirdek, Işık Küre, Renk Küre, Taç Küre.",
