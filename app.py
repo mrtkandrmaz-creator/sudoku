@@ -108,61 +108,49 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 # ==========================================
-# AKILLI TÜRKÇE KARAKTER ONARICI (ADVANCED FIXER)
+# AKILLI TÜRKÇE KARAKTER ONARICI (KÖKTEN ÇÖZÜM)
 # ==========================================
 def fix_turkish_chars(text):
     """
-    LLM çıktısındaki bozuk veya kare (■) geçen tüm Türkçe karakterleri kesin olarak onarır.
+    API'den veya dosyadan gelen tüm hatalı kodlanmış Türkçe karakterleri ve ■ sembollerini tamir eder.
     """
     if not isinstance(text, str):
         return text
-    
-    # 1. Tekil Karakter Değişimleri
+
+    # Bozuk unicode dönüşümleri
+    text = text.encode('utf-8', errors='ignore').decode('utf-8')
+
+    # Birebir Hatalı Karakter Temizliği
     text = text.replace('þ', 'ş').replace('Þ', 'Ş')
     text = text.replace('ð', 'ğ').replace('Ð', 'Ğ')
     text = text.replace('ý', 'ı').replace('Ý', 'İ')
-    
-    # 2. ■ Karakteri İçeren Desen Kalıplarının Onarımı
-    replacements = [
-        (r'Güne■', 'Güneş'),
-        (r'güne■', 'güneş'),
-        (r'olu■', 'oluş'),
-        (r'a■a■', 'aşağ'),
-        (r'A■a■', 'Aşağ'),
-        (r's■r', 'sır'),
-        (r'S■r', 'Sır'),
-        (r'd■■', 'dış'),
-        (r'D■■', 'Dış'),
-        (r's■c', 'sıc'),
-        (r'S■c', 'Sıc'),
-        (r'de■il', 'değil'),
-        (r'De■il', 'Değil'),
-        (r'I■■k', 'Işık'),
-        (r'i■■k', 'ışık'),
-        (r'Ta■', 'Taş'),
-        (r'ta■', 'taş'),
-        (r'geli■', 'geliş'),
-        (r'Geli■', 'Geliş'),
-        (r'döndü■', 'döndüğ'),
-        (r'oldu■', 'olduğ'),
-        (r'doland■', 'dolandı'),
-        (r'kar■■', 'karşı'),
-        (r'büyüklük s■', 'büyüklük sı'),
-        (r'sonucunda gerçekle■', 'sonucunda gerçekleş'),
-        (r'verilmi■', 'verilmiş'),
-        (r' do■ru', ' doğru'),
-        (r'Do■ru', 'Doğru'),
-        (r'ya■am', 'yaşam'),
-        (r'kayna■', 'kaynağ'),
-        (r'■ekil', 'şekil'),
-        (r'■ekl', 'şekl'),
-        (r'■ık', 'şık'),
-        (r'■', 'ş') # Kalan tüm ■ simgelerini 'ş' olarak tamamla
+
+    # Regex ile Kelime İçi '■' Değişimleri
+    rules = [
+        (r'Güne■', 'Güneş'), (r'güne■', 'güneş'),
+        (r'yap■s■', 'yapısı'), (r'özellikler■', 'özellikleri'),
+        (r'a■a■■dak', 'aşağıdak'), (r'A■a■■dak', 'Aşağıdak'),
+        (r'yanl■■t■r', 'yanlıştır'), (r'yanl■■', 'yanlış'),
+        (r'katmanl■', 'katmanlı'), (r'■ekli', 'şekli'),
+        (r'Geometrik', 'Geometrik'), (r'küreye', 'küreye'),
+        (r'Dünya\'m■za', "Dünya'mıza"), (r'yak■n', 'yakın'),
+        (r'y■ld■zd■r', 'yıldızdır'), (r's■cakl■■■', 'sıcaklığı'),
+        (r's■cakl■ktan', 'sıcaklıktan'), (r'dü■ük', 'düşük'),
+        (r'so■uk', 'soğuk'), (r'■eklinde', 'şeklinde'),
+        (r'görülür', 'görülür'), (r'ad■', 'adı'),
+        (r'tasarlad■■■', 'tasarladığı'), (r'a■a■■dakilerden', 'aşağıdakilerden'),
+        (r'Ku■çu', 'Kuşçu'), (r'bat■dan', 'batıdan'),
+        (r'do■uya', 'doğuya'), (r'olu■mas■', 'oluşması'),
+        (r'y■l■n', 'yılın'), (r'gerçekle■mesi', 'gerçekleşmesi'),
+        (r'büyüklükler■', 'büyüklükleri'), (r'hacm■', 'hacmi'),
+        (r'kat■d■r', 'katıdır'), (r'Dünya\'y■', "Dünya'yı"),
+        (r'olu■ur', 'oluşur'), (r's■r', 'sır'), (r'd■■', 'dış'),
+        (r'■', 'ş')  # Geride kalan tüm ■ sembollerini varsayılan 'ş' olarak düzelt
     ]
-    
-    for pattern, repl in replacements:
-        text = re.sub(pattern, repl, text)
-        
+
+    for pat, rep in rules:
+        text = re.sub(pat, rep, text)
+
     return text
 
 # ==========================================
@@ -226,18 +214,18 @@ def generate_llm_response(prompt):
                     prompt,
                     generation_config={"temperature": 0.7, "response_mime_type": "application/json"}
                 )
-                return response.text
+                return fix_turkish_chars(response.text)
             elif provider_type == "groq" and Groq:
                 client = Groq(api_key=api_key)
                 chat_completion = client.chat.completions.create(
                     messages=[
-                        {"role": "system", "content": "Sen MEB müfredatına %100 uyumlu Türkçe karakterleri tam kullanan JSON üreten bir öğretmensin."},
+                        {"role": "system", "content": "Sen MEB müfredatına %100 uyumlu Türkçe karakterleri eksiksiz kullanan JSON üreten bir öğretmensin."},
                         {"role": "user", "content": prompt}
                     ],
                     model="llama-3.3-70b-versatile",
                     response_format={"type": "json_object"}
                 )
-                return chat_completion.choices[0].message.content
+                return fix_turkish_chars(chat_completion.choices[0].message.content)
         except Exception as e:
             last_error = str(e)
             continue
@@ -288,7 +276,7 @@ MEB_CURRICULUM = {
     "Almanca": {
         "1. Dönem 1. Yazılı (Ekim/Kasım)": ["Hallo! (Begrüßung, Sich vorstellen - Begrüßungsformeln, Name, Alter)"],
         "1. Dönem 2. Yazılı (Aralık/Ocak)": ["Meine Schule (Schulsachen, Schulfächer, Zahlen bis 20)"],
-        "2. Dönem 2. Yazılı (Mart/Nisan)": ["Meine Familie und Tiere (Familienmitglieder, Haustiere)"],
+        "2. Dönem 1. Yazılı (Mart/Nisan)": ["Meine Familie und Tiere (Familienmitglieder, Haustiere)"],
         "2. Dönem 2. Yazılı (Mayıs/Haziran)": ["Meine Hobbys und Freizeit (Aktivitäten, Wochentage, Vorlieben)"]
     }
 }
@@ -348,9 +336,6 @@ def generate_question_image(diagram_type, details=None):
 # ==========================================
 @st.cache_resource
 def setup_turkish_pdf_fonts():
-    """
-    DejaVuSans Türkçe fontunu indirip yükler.
-    """
     try:
         font_urls = {
             "TR-Regular": "https://raw.githubusercontent.com/google/fonts/main/ofl/dejavusans/DejaVuSans.ttf",
@@ -390,7 +375,6 @@ class TwoColumnCanvas(canvas.Canvas):
         self.setStrokeColor(colors.HexColor("#BDBDBD"))
         self.setLineWidth(0.8)
         
-        # Dikey Ayraç Çizgisi
         self.line(297.5, 40, 297.5, 720)
         
         font_name = "TR-Regular" if "TR-Regular" in pdfmetrics.getRegisteredFontNames() else "Helvetica"
