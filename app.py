@@ -4,12 +4,14 @@ import json
 import re
 import io
 import time
+import urllib.request
+import os
 import matplotlib.pyplot as plt
 import numpy as np
 from datetime import datetime
 
 # ReportLab Imports for Professional PDF Generation
-from reportlab.lib.pagesizes import letter, A4
+from reportlab.lib.pagesizes import A4
 from reportlab.lib import colors
 from reportlab.platypus import (
     SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle, Image as RLImage, KeepTogether, HRFlowable
@@ -42,7 +44,6 @@ st.set_page_config(
 
 st.markdown("""
 <style>
-    /* Header Bar Styling */
     .header-bar {
         background: linear-gradient(90deg, #FF6B00 0%, #FF8800 100%);
         padding: 18px 25px;
@@ -61,8 +62,6 @@ st.markdown("""
         font-weight: 400;
         opacity: 0.9;
     }
-    
-    /* Quiz & Question Card Styling */
     .question-card {
         background-color: #ffffff;
         border: 1px solid #e0e0e0;
@@ -88,8 +87,6 @@ st.markdown("""
         font-weight: 600;
         font-size: 12px;
     }
-    
-    /* Karne Card */
     .report-card {
         background-color: #f9fbe7;
         border: 2px solid #c0ca33;
@@ -97,8 +94,6 @@ st.markdown("""
         padding: 25px;
         margin-bottom: 25px;
     }
-    
-    /* Buttons */
     .stButton>button {
         border-radius: 8px;
         font-weight: 600;
@@ -106,7 +101,6 @@ st.markdown("""
 </style>
 """, unsafe_allow_html=True)
 
-# Custom Header Bar
 st.markdown("""
 <div class="header-bar">
     <div>🎓 MEB 5. Sınıf Soru Fabrikası <span style="font-size: 18px;">(Murat KANDIRMAZ)</span></div>
@@ -118,10 +112,6 @@ st.markdown("""
 # 2. SECRET TARAMA & DİNAMİK API KULLANIMI
 # ==========================================
 def extract_api_keys():
-    """
-    secrets.toml içerisindeki [api_keys] altındaki listeleri ve 
-    diğer tüm Gemini / Groq anahtarlarını otomatik tespit eder.
-    """
     gemini_keys = []
     groq_keys = []
     
@@ -157,9 +147,6 @@ def extract_api_keys():
 GEMINI_KEYS, GROQ_KEYS = extract_api_keys()
 
 def generate_llm_response(prompt):
-    """
-    Tüm Gemini ve Groq API'lerini sırayla dener (Load-balancer / Fallback).
-    """
     providers = []
     for k in GEMINI_KEYS:
         providers.append(("gemini", k))
@@ -202,7 +189,7 @@ def generate_llm_response(prompt):
     return None
 
 # ==========================================
-# 3. MEB MÜFREDAT VE SINAV DÖNEMLERİ DATA
+# 3. MEB MÜFREDAT DATA
 # ==========================================
 MEB_CURRICULUM = {
     "Matematik": {
@@ -253,17 +240,15 @@ MEB_CURRICULUM = {
 # 4. GÖRSEL ÇİZİM MOTORU (MATPLOTLIB)
 # ==========================================
 def generate_question_image(diagram_type, details=None):
-    fig, ax = plt.subplots(figsize=(4, 3), dpi=120)
+    fig, ax = plt.subplots(figsize=(3, 2), dpi=100)
     
     if diagram_type == "triangle":
         p1, p2, p3 = [0, 0], [4, 0], [2, 3]
-        triangle = plt.Polygon([p1, p2, p3], fill=None, edgecolor='#FF6B00', linewidth=2.5)
+        triangle = plt.Polygon([p1, p2, p3], fill=None, edgecolor='#FF6B00', linewidth=2)
         ax.add_patch(triangle)
-        ax.text(p1[0]-0.2, p1[1]-0.2, 'A', fontsize=12, fontweight='bold')
-        ax.text(p2[0]+0.1, p2[1]-0.2, 'B', fontsize=12, fontweight='bold')
-        ax.text(p3[0], p3[1]+0.2, 'C', fontsize=12, fontweight='bold')
-        if details and "angle" in details:
-            ax.text(2, 0.3, f"{details.get('angle_value', '60')}°", color='red', fontsize=10)
+        ax.text(p1[0]-0.2, p1[1]-0.2, 'A', fontsize=10, fontweight='bold')
+        ax.text(p2[0]+0.1, p2[1]-0.2, 'B', fontsize=10, fontweight='bold')
+        ax.text(p3[0], p3[1]+0.2, 'C', fontsize=10, fontweight='bold')
         ax.set_xlim(-1, 5)
         ax.set_ylim(-1, 4)
         ax.axis('off')
@@ -277,12 +262,9 @@ def generate_question_image(diagram_type, details=None):
         ax.add_patch(earth)
         ax.add_patch(moon)
         
-        ax.text(1, 1.0, 'Güneş', horizontalalignment='center', fontweight='bold', color='#FF8C00')
-        ax.text(4, 1.3, 'Dünya', horizontalalignment='center', fontweight='bold', color='#1E90FF')
-        ax.text(5.2, 1.6, 'Ay', horizontalalignment='center', fontweight='bold', color='#A9A9A9')
-        
-        orbit = plt.Circle((4, 2), 1.2, fill=False, linestyle='--', color='gray', alpha=0.5)
-        ax.add_patch(orbit)
+        ax.text(1, 0.9, 'Güneş', horizontalalignment='center', fontweight='bold', color='#FF8C00', fontsize=8)
+        ax.text(4, 1.3, 'Dünya', horizontalalignment='center', fontweight='bold', color='#1E90FF', fontsize=8)
+        ax.text(5.2, 1.6, 'Ay', horizontalalignment='center', fontweight='bold', color='#A9A9A9', fontsize=8)
         
         ax.set_xlim(-0.5, 6.5)
         ax.set_ylim(0, 4)
@@ -291,7 +273,7 @@ def generate_question_image(diagram_type, details=None):
     elif diagram_type == "fraction_pie":
         sizes = [1, 1, 1, 1]
         colors_list = ['#FF6B00', '#FF6B00', '#E0E0E0', '#E0E0E0']
-        ax.pie(sizes, colors=colors_list, wedgeprops={"edgecolor":"black", "linewidth":1.5})
+        ax.pie(sizes, colors=colors_list, wedgeprops={"edgecolor":"black", "linewidth":1})
         
     else:
         plt.close(fig)
@@ -305,165 +287,230 @@ def generate_question_image(diagram_type, details=None):
     return buf
 
 # ==========================================
-# 5. TÜRKÇE FONT DESTEKLİ PDF ÜRETİCİ
+# 5. TÜRKÇE FONT İNDİRİCİ VE ÇİFT SÜTUNLU PDF
 # ==========================================
-def register_turkish_fonts():
+@st.cache_resource
+def setup_turkish_pdf_fonts():
+    """
+    Google Fonts üzerinden DejaVuSans fontunu doğrudan indirip ReportLab'e tanıtır.
+    Böylece Türkçe karakterlerin kütüphanede bozulması imkansız hale gelir.
+    """
     try:
-        pdfmetrics.registerFont(TTFont('TRFont', 'DejaVuSans.ttf'))
-        pdfmetrics.registerFont(TTFont('TRFont-Bold', 'DejaVuSans-Bold.ttf'))
-        pdfmetrics.registerFont(TTFont('TRFont-Oblique', 'DejaVuSans-Oblique.ttf'))
-        return 'TRFont', 'TRFont-Bold', 'TRFont-Oblique'
+        font_urls = {
+            "TR-Regular": "https://github.com/dejavu-fonts/dejavu-fonts/raw/master/ttf/DejaVuSans.ttf",
+            "TR-Bold": "https://github.com/dejavu-fonts/dejavu-fonts/raw/master/ttf/DejaVuSans-Bold.ttf",
+            "TR-Oblique": "https://github.com/dejavu-fonts/dejavu-fonts/raw/master/ttf/DejaVuSans-Oblique.ttf"
+        }
+        
+        for name, url in font_urls.items():
+            font_path = f"{name}.ttf"
+            if not os.path.exists(font_path):
+                urllib.request.urlretrieve(url, font_path)
+            pdfmetrics.registerFont(TTFont(name, font_path))
+            
+        return "TR-Regular", "TR-Bold", "TR-Oblique"
     except Exception:
-        try:
-            pdfmetrics.registerFont(TTFont('TRFont', 'arial.ttf'))
-            pdfmetrics.registerFont(TTFont('TRFont-Bold', 'arialbd.ttf'))
-            pdfmetrics.registerFont(TTFont('TRFont-Oblique', 'aria.ttf'))
-            return 'TRFont', 'TRFont-Bold', 'TRFont-Oblique'
-        except Exception:
-            return 'Helvetica', 'Helvetica-Bold', 'Helvetica-Oblique'
+        return "Helvetica", "Helvetica-Bold", "Helvetica-Oblique"
+
+class TwoColumnCanvas(canvas.Canvas):
+    """
+    Sayfayı ortadan ikiye bölen dikey çizgi ve sayfa numarası çizen özel canvas.
+    """
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.pages = []
+
+    def showPage(self):
+        self.pages.append(dict(self.__dict__))
+        self._startPage()
+
+    def save(self):
+        num_pages = len(self.pages)
+        for page in self.pages:
+            self.__dict__.update(page)
+            self.draw_center_line_and_footer(num_pages)
+            super().showPage()
+        super().save()
+
+    def draw_center_line_and_footer(self, total_pages):
+        self.saveState()
+        self.setStrokeColor(colors.HexColor("#BDBDBD"))
+        self.setLineWidth(0.8)
+        
+        # Sayfanın Tam Ortasında Dikey Ayraç Çizgisi (TopMargin: 80, BottomMargin: 40)
+        self.line(297.5, 40, 297.5, 780)
+        
+        # Sayfa Alt Bilgisi
+        self.setFont("Helvetica", 8)
+        self.setFillColor(colors.HexColor("#616161"))
+        self.drawString(36, 20, "MEB 5. Sınıf Soru Fabrikası - Murat KANDIRMAZ")
+        self.drawRightString(559, 20, f"Sayfa {self._pageNumber} / {total_pages}")
+        self.restoreState()
 
 def build_pdf_exam(exam_data, show_answers=False):
-    font_norm, font_bold, font_oblique = register_turkish_fonts()
+    f_norm, f_bold, f_oblique = setup_turkish_pdf_fonts()
 
     buffer = io.BytesIO()
     doc = SimpleDocTemplate(
         buffer,
-        pagesize=A4,
-        rightMargin=36,
-        leftMargin=36,
-        topMargin=36,
-        bottomMargin=36
+        pagesize=A4, # 595 x 842 pt
+        rightMargin=25,
+        leftMargin=25,
+        topMargin=25,
+        bottomMargin=35
     )
     
     styles = getSampleStyleSheet()
     
     title_style = ParagraphStyle(
         'ExamTitle',
-        parent=styles['Heading1'],
-        fontName=font_bold,
-        fontSize=13,
-        leading=16,
+        fontName=f_bold,
+        fontSize=11,
+        leading=14,
         alignment=1,
         textColor=colors.HexColor("#1A237E")
     )
     
     q_style = ParagraphStyle(
         'QuestionText',
-        parent=styles['Normal'],
-        fontName=font_bold,
-        fontSize=10,
-        leading=14,
+        fontName=f_bold,
+        fontSize=8.5,
+        leading=11,
         textColor=colors.HexColor("#212121"),
-        spaceAfter=6
+        spaceAfter=4
     )
     
     opt_style = ParagraphStyle(
         'OptionText',
-        parent=styles['Normal'],
-        fontName=font_norm,
-        fontSize=9.5,
-        leading=13,
+        fontName=f_norm,
+        fontSize=8,
+        leading=10,
         textColor=colors.HexColor("#424242")
     )
     
     sol_style = ParagraphStyle(
         'SolutionText',
-        parent=styles['Normal'],
-        fontName=font_oblique,
-        fontSize=9,
-        leading=12,
+        fontName=f_oblique,
+        fontSize=7.5,
+        leading=9.5,
         textColor=colors.HexColor("#1B5E20")
     )
 
     story = []
     
+    # 1. BAŞLIK VE ÖĞRENCİ BİLGİ ALANI (ÜST BÖLÜM - TAM GENİŞLİK)
     header_text = f"<b>{exam_data['school_name'].upper()}</b><br/>" \
                   f"<b>2026-2027 EĞİTİM-ÖĞRETİM YILI 5. SINIF {exam_data['subject'].upper()} DERSİ</b><br/>" \
                   f"<u>{exam_data['term'].upper()} DEĞERLENDİRME SINAVI</u>"
                   
     if show_answers:
-        header_text += " <font color='red'><b>[ DETAYLI CEVAP ANAHTARI & ÇÖZÜM FASİKÜLÜ ]</b></font>"
+        header_text += " <font color='red'><b>[ DETAYLI CEVAP ANAHTARI ]</b></font>"
 
     story.append(Paragraph(header_text, title_style))
-    story.append(Spacer(1, 10))
+    story.append(Spacer(1, 8))
     
     info_data = [
         [
-            Paragraph("<b>Adı Soyadı:</b> ........................................", opt_style),
-            Paragraph("<b>Sınıf / Şube:</b> 5 / .......", opt_style),
+            Paragraph("<b>Adı Soyadı:</b> ....................................", opt_style),
+            Paragraph("<b>Sınıf/Şube:</b> 5 / .......", opt_style),
             Paragraph("<b>Numara:</b> ............", opt_style),
-            Paragraph("<b>ALDIĞI PUAN:</b> .......", opt_style)
+            Paragraph("<b>Puan:</b> .......", opt_style)
         ]
     ]
-    t_info = Table(info_data, colWidths=[200, 100, 100, 120])
+    t_info = Table(info_data, colWidths=[180, 110, 110, 145])
     t_info.setStyle(TableStyle([
-        ('BOX', (0,0), (-1,-1), 1, colors.HexColor("#424242")),
+        ('BOX', (0,0), (-1,-1), 0.8, colors.HexColor("#424242")),
         ('VALIGN', (0,0), (-1,-1), 'MIDDLE'),
-        ('PADDING', (0,0), (-1,-1), 6),
+        ('PADDING', (0,0), (-1,-1), 4),
         ('BACKGROUND', (0,0), (-1,-1), colors.HexColor("#F5F5F5"))
     ]))
     story.append(t_info)
-    story.append(Spacer(1, 15))
-    story.append(HRFlowable(width="100%", thickness=1, color=colors.HexColor("#FF6B00"), spaceAfter=15))
+    story.append(Spacer(1, 10))
+    story.append(HRFlowable(width="100%", thickness=1, color=colors.HexColor("#FF6B00"), spaceAfter=10))
 
-    for idx, q in enumerate(exam_data['questions'], start=1):
-        q_elements = []
-        
-        q_header = f"<b>Soru {idx} ({q.get('points', 10)} Puan):</b> {q['question_text']}"
-        q_elements.append(Paragraph(q_header, q_style))
-        
-        if q.get('has_diagram') and q.get('diagram_type'):
-            img_buf = generate_question_image(q['diagram_type'])
-            if img_buf:
-                rl_img = RLImage(img_buf, width=150, height=112)
-                q_elements.append(Spacer(1, 4))
-                q_elements.append(rl_img)
-                q_elements.append(Spacer(1, 4))
-        
-        if q['type'] == 'MCQ':
-            opts = q.get('options', {})
-            opt_table_data = [
-                [Paragraph(f"<b>A)</b> {opts.get('A', '')}", opt_style), Paragraph(f"<b>B)</b> {opts.get('B', '')}", opt_style)],
-                [Paragraph(f"<b>C)</b> {opts.get('C', '')}", opt_style), Paragraph(f"<b>D)</b> {opts.get('D', '')}", opt_style)]
-            ]
-            t_opts = Table(opt_table_data, colWidths=[250, 250])
-            t_opts.setStyle(TableStyle([
-                ('VALIGN', (0,0), (-1,-1), 'TOP'),
-                ('PADDING', (0,0), (-1,-1), 3),
-            ]))
-            q_elements.append(t_opts)
-        else:
-            if not show_answers:
-                q_elements.append(Spacer(1, 5))
-                line_data = [[""], [""]]
-                t_lines = Table(line_data, colWidths=[520], rowHeights=[18, 18])
-                t_lines.setStyle(TableStyle([
-                    ('LINEBELOW', (0,0), (-1,-1), 0.5, colors.HexColor("#BDBDBD")),
-                ]))
-                q_elements.append(t_lines)
-                
-        if show_answers:
-            q_elements.append(Spacer(1, 4))
-            ans_box = f"<b>Doğru Cevap / Yanıt:</b> {q.get('correct_answer', '')}<br/>" \
-                      f"<b>Detaylı Çözüm Açıklaması:</b> {q.get('solution_explanation', '')}"
+    # 2. SORULARI SOL VE SAĞ SÜTUNLARA AYIRMA (İKİ SÜTUNLU TABLO DÜZENİ)
+    # Her sütunun genişliği: ~260pt (Sayfa genişliği 545pt / 2)
+    left_flowables = []
+    right_flowables = []
+    
+    questions = exam_data['questions']
+    half = (len(questions) + 1) // 2
+    left_qs = questions[:half]
+    right_qs = questions[half:]
+
+    def render_q_list(q_list, target_list):
+        for idx, q in enumerate(q_list, start=1 if target_list is left_flowables else half + 1):
+            q_elements = []
+            q_header = f"<b>Soru {idx} ({q.get('points', 10)} Puan):</b> {q['question_text']}"
+            q_elements.append(Paragraph(q_header, q_style))
             
-            t_sol = Table([[Paragraph(ans_box, sol_style)]], colWidths=[520])
-            t_sol.setStyle(TableStyle([
-                ('BOX', (0,0), (-1,-1), 0.8, colors.HexColor("#2E7D32")),
-                ('BACKGROUND', (0,0), (-1,-1), colors.HexColor("#E8F5E9")),
-                ('PADDING', (0,0), (-1,-1), 6),
-            ]))
-            q_elements.append(t_sol)
+            if q.get('has_diagram') and q.get('diagram_type'):
+                img_buf = generate_question_image(q['diagram_type'])
+                if img_buf:
+                    rl_img = RLImage(img_buf, width=120, height=80)
+                    q_elements.append(Spacer(1, 3))
+                    q_elements.append(rl_img)
+                    q_elements.append(Spacer(1, 3))
+            
+            if q['type'] == 'MCQ':
+                opts = q.get('options', {})
+                opt_table_data = [
+                    [Paragraph(f"<b>A)</b> {opts.get('A', '')}", opt_style), Paragraph(f"<b>B)</b> {opts.get('B', '')}", opt_style)],
+                    [Paragraph(f"<b>C)</b> {opts.get('C', '')}", opt_style), Paragraph(f"<b>D)</b> {opts.get('D', '')}", opt_style)]
+                ]
+                t_opts = Table(opt_table_data, colWidths=[125, 125])
+                t_opts.setStyle(TableStyle([
+                    ('VALIGN', (0,0), (-1,-1), 'TOP'),
+                    ('PADDING', (0,0), (-1,-1), 2),
+                ]))
+                q_elements.append(t_opts)
+            else:
+                if not show_answers:
+                    q_elements.append(Spacer(1, 4))
+                    line_data = [[""], [""]]
+                    t_lines = Table(line_data, colWidths=[250], rowHeights=[14, 14])
+                    t_lines.setStyle(TableStyle([
+                        ('LINEBELOW', (0,0), (-1,-1), 0.5, colors.HexColor("#BDBDBD")),
+                    ]))
+                    q_elements.append(t_lines)
+                    
+            if show_answers:
+                q_elements.append(Spacer(1, 3))
+                ans_box = f"<b>Cevap:</b> {q.get('correct_answer', '')}<br/>" \
+                          f"<b>Açıklama:</b> {q.get('solution_explanation', '')}"
+                
+                t_sol = Table([[Paragraph(ans_box, sol_style)]], colWidths=[250])
+                t_sol.setStyle(TableStyle([
+                    ('BOX', (0,0), (-1,-1), 0.6, colors.HexColor("#2E7D32")),
+                    ('BACKGROUND', (0,0), (-1,-1), colors.HexColor("#E8F5E9")),
+                    ('PADDING', (0,0), (-1,-1), 4),
+                ]))
+                q_elements.append(t_sol)
 
-        q_elements.append(Spacer(1, 12))
-        story.append(KeepTogether(q_elements))
+            q_elements.append(Spacer(1, 10))
+            target_list.append(KeepTogether(q_elements))
 
-    doc.build(story)
+    render_q_list(left_qs, left_flowables)
+    render_q_list(right_qs, right_flowables)
+
+    # İki sütunu tek bir tabloda buluşturup yan yana basma
+    main_grid = Table([[left_flowables, right_flowables]], colWidths=[265, 265])
+    main_grid.setStyle(TableStyle([
+        ('VALIGN', (0,0), (-1,-1), 'TOP'),
+        ('LEFTPADDING', (0,0), (0,0), 0),
+        ('RIGHTPADDING', (0,0), (0,0), 12),
+        ('LEFTPADDING', (1,0), (1,0), 12),
+        ('RIGHTPADDING', (1,0), (1,0), 0),
+    ]))
+    
+    story.append(main_grid)
+
+    doc.build(story, canvasmaker=TwoColumnCanvas)
     buffer.seek(0)
     return buffer
 
 # ==========================================
-# 6. LLM PROMPT VE SORU ÜRETİMİ (5 MCQ / 5 OPEN)
+# 6. LLM PROMPT VE SORU ÜRETİMİ
 # ==========================================
 def generate_meb_exam(subject, term, units):
     prompt = f"""
@@ -475,9 +522,8 @@ def generate_meb_exam(subject, term, units):
     ÖNEMLİ KURALLAR:
     1. Sınavda TAM OLARAK 5 TANE Çoktan Seçmeli (MCQ) ve 5 TANE Açık Uçlu (OPEN) soru olmalıdır.
     2. Çoktan seçmeli soruların tamamında 4 farklı ve mantıklı şık (A, B, C, D) olmalıdır.
-    3. Her sorunun puanı 10 puandır (Toplam 100 Puan).
-    4. Yalnızca Matematik ve Fen Bilimleri dersleri için gerekiyorsa "has_diagram": true ve uygun "diagram_type" ('triangle', 'space_system', 'fraction_pie') belirt.
-    5. Her sorunun çözümü pedagogik ve adım adım detaylı anlatımlı olmalıdır.
+    3. Yalnızca Matematik ve Fen Bilimleri dersleri için gerekiyorsa "has_diagram": true ve uygun "diagram_type" ('triangle', 'space_system', 'fraction_pie') belirt.
+    4. Türkçe karakterlerin imlasına ve kelimelerin doğruluğuna özen göster.
     
     ÇIKTI FORMATI (Sadece geçerli JSON döndür):
     {{
@@ -577,7 +623,7 @@ if st.session_state.exam_data:
     col_pdf1, col_pdf2 = st.columns(2)
     with col_pdf1:
         st.download_button(
-            "📄 MEB Formatında Sınav Kağıdı İndir (PDF)",
+            "📄 MEB Çift Sütun Formatında Sınav Kağıdı İndir (PDF)",
             data=pdf_exam,
             file_name=f"5_Sinif_{exam['subject']}_Yazili_Sinavi.pdf",
             mime="application/pdf",
@@ -610,7 +656,6 @@ if st.session_state.exam_data:
         st.subheader(f"⏱️ Geçen Süre: {minutes:02d}:{seconds:02d}")
         st.progress(len(st.session_state.user_answers) / 10.0)
 
-        # Soruların Sıralanması
         for q in exam['questions']:
             q_id = q['id']
             st.markdown(f"""
@@ -628,7 +673,7 @@ if st.session_state.exam_data:
             if q.get('has_diagram') and q.get('diagram_type'):
                 img_buf = generate_question_image(q['diagram_type'])
                 if img_buf:
-                    st.image(img_buf, width=320)
+                    st.image(img_buf, width=300)
 
             if q['type'] == 'MCQ':
                 opts = q.get('options', {})
@@ -648,7 +693,6 @@ if st.session_state.exam_data:
 
             st.write("---")
 
-        # --- SAYFA ALTINA YERLEŞTİRİLEN SINAVI BİTİR BUTONU ---
         st.markdown("<br/>", unsafe_allow_html=True)
         if st.button("🛑 SINAVI BİTİR VE KARNEYİ GÖR", type="primary", use_container_width=True):
             st.session_state.exam_started = False
@@ -659,13 +703,10 @@ if st.session_state.exam_data:
     elif st.session_state.exam_completed:
         st.balloons()
         
-        # Puanlama Hesaplamaları
         mcq_correct = 0
         mcq_wrong = 0
         mcq_empty = 0
         mcq_score = 0
-        
-        open_count = 0
         
         for q in exam['questions']:
             q_id = q['id']
@@ -679,10 +720,7 @@ if st.session_state.exam_data:
                     mcq_score += 10
                 else:
                     mcq_wrong += 1
-            else:
-                open_count += 1
 
-        # 🏅 SINAV KARNESİ PANELİ
         st.markdown("""
         <div class="report-card">
             <h2 style="color: #33691E; text-align: center; margin-bottom: 5px;">📊 ÖĞRENCİ SINAV KARNESİ</h2>
@@ -696,7 +734,7 @@ if st.session_state.exam_data:
         k3.metric("Yanlış Cevap", f"{mcq_wrong} Soru")
         k4.metric("Boş Bırakılan", f"{mcq_empty} Soru")
 
-        st.info("ℹ️ **Not:** Açık uçlu sorular (50 Puan değerinde) öğretmen/veli değerlendirmesi gerektirdiği için test puanına otomatize dahil edilmemiştir. Aşağıdaki cevap anahtarıyla karşılaştırabilirsiniz.")
+        st.info("ℹ️ **Not:** Açık uçlu sorular öğretmen/veli değerlendirmesi gerektirdiği için otomatize teste dahil edilmemiştir.")
 
         st.divider()
         st.subheader("📝 Detaylı Soru Çözümleri ve Cevap Anahtarı")
