@@ -9,13 +9,18 @@ import os
 import matplotlib.pyplot as plt
 import numpy as np
 
-# Gemini API Import (Yapay Zeka Destekli Soru Üretimi İçin)
+# API İstemci Kütüphaneleri
 try:
     import google.generativeai as genai
 except ImportError:
-    pass
+    genai = None
 
-# ReportLab Imports
+try:
+    from groq import Groq
+except ImportError:
+    Groq = None
+
+# ReportLab İçe Aktarımları
 from reportlab.lib.pagesizes import A4
 from reportlab.lib import colors
 from reportlab.platypus import (
@@ -27,7 +32,7 @@ from reportlab.pdfbase import pdfmetrics
 from reportlab.pdfbase.ttfonts import TTFont
 
 # ==========================================
-# 1. PAGE CONFIGURATION & CUSTOM CSS
+# 1. SAYFA YAPILANDIRMASI VE ÖZEL CSS
 # ==========================================
 st.set_page_config(
     page_title="Soru Fabrikası (Murat KANDIRMAZ) - MEB 5. Sınıf",
@@ -98,12 +103,12 @@ st.markdown("""
 st.markdown("""
 <div class="header-bar">
     <div>🎓 MEB 5. Sınıf Soru Fabrikası <span style="font-size: 18px;">(Murat KANDIRMAZ)</span></div>
-    <div class="header-sub">Yazılı Öncesi Akıllı Sınav & Çalışma Hazırlık Robotu (Yapay Zeka Destekli)</div>
+    <div class="header-sub">Çoklu Gemini & Groq API Hibrit Soru Üretim Robotu</div>
 </div>
 """, unsafe_allow_html=True)
 
 # ==========================================
-# 2. MEB 5. SINIF TAM MÜFREDAT Kapsamı
+# 2. MEB 5. SINIF TAM MÜFREDAT YAPISI
 # ==========================================
 MEB_FULL_CURRICULUM = {
     "Fen Bilimleri": [
@@ -132,87 +137,149 @@ MEB_FULL_CURRICULUM = {
     ],
     "Sosyal Bilgiler": [
         "Birey ve Toplum",
-        "Kulturel Mirasımız",
+        "Kültürel Mirasımız",
         "İnsanlar, Yerler ve Çevreler",
         "Bilim, Teknoloji ve Toplum"
     ]
 }
 
 # ==========================================
-# 3. YAPAY ZEKA İLE DİNAMİK SORU ÜRETİCİ (GEMINI API)
+# 3. STREAMLIT SECRETS 'TOML' API OKUYUCU
 # ==========================================
-def generate_ai_questions(subject, unit, api_key):
-    if not api_key:
-        return get_fallback_questions(subject, unit)
+def extract_api_keys():
+    gemini_keys = []
+    groq_keys = []
     
     try:
-        genai.configure(api_key=api_key)
-        model = genai.GenerativeModel('gemini-3.6-flash')
-        
-        prompt = f"""
-        Sen uzman bir MEB 5. sınıf müfredat hazırlama öğretmenisin.
-        Ders: {subject}
-        Ünite/Konu: {unit}
-        
-        Lütfen bu konuyla ilgili tam olarak 5 adet Çoktan Seçmeli (MCQ) ve 5 adet Açık Uçlu (OPEN) olmak üzere toplam 10 adet özgün soru üret.
-        Sorular MEB kazanımlarına uygun, nitelikli ve dikkat ölçücü olmalı.
-        Görsel gerektiren sorular için uygun diagram_type belirle (Seçenekler: 'moon_phases', 'dynamometer', 'circle_radius', 'equilateral_triangle', 'ray_segment', 'coordinate_grid', 'triangle_perpendicular', 'sun_earth_moon', None).
-        
-        KESİNLİKLE aşağıdaki JSON formatında yanıt ver, başka hiçbir açıklama ekleme:
-        {{
-            "questions": [
-                {{
-                    "id": 1,
-                    "type": "MCQ",
-                    "question_text": "Soru metni...",
-                    "options": {{"A": "Seçenek A", "B": "Seçenek B", "C": "Seçenek C", "D": "Seçenek D"}},
-                    "correct_answer": "A",
-                    "solution_explanation": "Çözüm açıklaması...",
-                    "points": 10,
-                    "has_diagram": true,
-                    "diagram_type": "moon_phases"
-                }}
-            ]
-        }}
-        Not: Açık uçlu (OPEN) sorular için "options" boş sözlük {{}}, "correct_answer" ideal yanıt olmalıdır.
-        """
-        
-        response = model.generate_content(prompt)
-        text = response.text.strip()
-        if text.startswith("```json"):
-            text = text[7:-3].strip()
-        elif text.startswith("```"):
-            text = text[3:-3].strip()
-            
-        data = json.loads(text)
-        return data["questions"]
-    except Exception as e:
-        st.error(f"Yapay zeka soru üretirken hata oluştu: {e}. Varsayılan havuz kullanılıyor.")
-        return get_fallback_questions(subject, unit)
+        # Gemini Keys Arama
+        if "GEMINI_API_KEYS" in st.secrets:
+            keys = st.secrets["GEMINI_API_KEYS"]
+            if isinstance(keys, list):
+                gemini_keys.extend(keys)
+            elif isinstance(keys, str):
+                gemini_keys.append(keys)
+        if "GEMINI_API_KEY" in st.secrets:
+            gemini_keys.append(st.secrets["GEMINI_API_KEY"])
+
+        # Groq Keys Arama
+        if "GROQ_API_KEYS" in st.secrets:
+            keys = st.secrets["GROQ_API_KEYS"]
+            if isinstance(keys, list):
+                groq_keys.extend(keys)
+            elif isinstance(keys, str):
+                groq_keys.append(keys)
+        if "GROQ_API_KEY" in st.secrets:
+            groq_keys.append(st.secrets["GROQ_API_KEY"])
+
+    except Exception:
+        pass
+
+    # Çift kayıtları temizle
+    gemini_keys = list(dict.fromkeys(gemini_keys))
+    groq_keys = list(dict.fromkeys(groq_keys))
+    
+    return gemini_keys, groq_keys
+
+# ==========================================
+# 4. YÜK DENGELEMELİ & YEDEKLİ AI SORU ÜRETİCİ
+# ==========================================
+def generate_questions_with_ai(subject, unit):
+    gemini_keys, groq_keys = extract_api_keys()
+    
+    prompt = f"""
+    Sen MEB 5. sınıf müfredatına tam hakim uzman bir ilköğretim öğretmenisin.
+    Ders: {subject}
+    Ünite/Konu: {unit}
+
+    Lütfen bu ünite ile ilgili 5 adet Çoktan Seçmeli (MCQ) ve 5 adet Açık Uçlu (OPEN) olmak üzere toplam 10 özgün soru üret.
+    Sorular MEB kazanımlarına tam uygun, çeldiricileri mantıklı ve açıklayıcı olmalıdır.
+    Soru ile ilgili çizim/şema gerekiyorsa "has_diagram": true yap ve "diagram_type" alanını şu değerlerden biri seç:
+    ['moon_phases', 'dynamometer', 'circle_radius', 'equilateral_triangle', 'ray_segment', 'coordinate_grid', 'triangle_perpendicular', 'sun_earth_moon']
+    Eğer görsel gerekmiyorsa "has_diagram": false ve "diagram_type": null yaz.
+
+    ÇIKTI BİÇİMİ: Sadece ve sadece geçerli bir JSON objesi döndür.
+    JSON Şablonu:
+    {{
+        "questions": [
+            {{
+                "id": 1,
+                "type": "MCQ",
+                "question_text": "Soru metni...",
+                "options": {{"A": "A şıkkı", "B": "B şıkkı", "C": "C şıkkı", "D": "D şıkkı"}},
+                "correct_answer": "A",
+                "solution_explanation": "Detaylı açıklama...",
+                "points": 10,
+                "has_diagram": true,
+                "diagram_type": "moon_phases"
+            }}
+        ]
+    }}
+    Açık uçlu (OPEN) sorular için "options": {{}} ve "correct_answer": "İdeal öğrenci cevabı" olmalıdır.
+    """
+
+    # 1. AŞAMA: GEMINI API KEYS DENEME
+    if genai and gemini_keys:
+        for key in gemini_keys:
+            try:
+                genai.configure(api_key=key)
+                model = genai.GenerativeModel('gemini-1.5-flash')
+                response = model.generate_content(prompt)
+                text = response.text.strip()
+                if text.startswith("```json"): text = text[7:-3].strip()
+                elif text.startswith("```"): text = text[3:-3].strip()
+                
+                parsed = json.loads(text)
+                if "questions" in parsed and len(parsed["questions"]) > 0:
+                    return parsed["questions"], "Gemini API"
+            except Exception:
+                continue
+
+    # 2. AŞAMA: GROQ API KEYS DENEME (YEDEK SİSTEM)
+    if Groq and groq_keys:
+        for key in groq_keys:
+            try:
+                client = Groq(api_key=key)
+                completion = client.chat.completions.create(
+                    model="llama-3.3-70b-versatile",
+                    messages=[
+                        {"role": "system", "content": "Sen JSON çıktısı veren bir MEB soru üreticisisin."},
+                        {"role": "user", "content": prompt}
+                    ],
+                    response_format={"type": "json_object"}
+                )
+                text = completion.choices[0].message.content.strip()
+                parsed = json.loads(text)
+                if "questions" in parsed and len(parsed["questions"]) > 0:
+                    return parsed["questions"], "Groq API"
+            except Exception:
+                continue
+
+    # 3. AŞAMA: HİÇBİR API ÇALIŞMAZSA VARSAYILAN HAVUZ
+    return get_fallback_questions(subject, unit), "Yerel Statik Şablon"
 
 def get_fallback_questions(subject, unit):
     questions = []
     for i in range(1, 6):
         questions.append({
             "id": i, "type": "MCQ",
-            "question_text": f"5. Sınıf {subject} ({unit}) ünitesiyle ilgili örnek soru {i}?",
-            "options": {"A": "Doğru seçenek", "B": "Çeldirici 1", "C": "Çeldirici 2", "D": "Çeldirici 3"},
-            "correct_answer": "A", "solution_explanation": "Bu sorunun doğru yanıtı A seçeneğidir.",
+            "question_text": f"5. Sınıf {subject} ({unit}) ünitesiyle ilgili temel test sorusu {i}?",
+            "options": {"A": "Doğru yanıt seçeneği", "B": "Çeldirici A", "C": "Çeldirici B", "D": "Çeldirici C"},
+            "correct_answer": "A", "solution_explanation": "Bu soru MEB müfredat standartlarına göre hazırlanmıştır.",
             "points": 10, "has_diagram": True if i in [2, 3] else False, "diagram_type": "moon_phases" if i==2 else "dynamometer" if i==3 else None
         })
     for i in range(6, 11):
         questions.append({
             "id": i, "type": "OPEN",
-            "question_text": f"5. Sınıf {subject} ({unit}) ünitesiyle ilgili açık uçlu soru {i-5}?",
+            "question_text": f"5. Sınıf {subject} ({unit}) ünitesiyle ilgili açık uçlu değerlendirme sorusu {i-5}?",
             "options": {},
-            "correct_answer": "Örnek ideal öğrenci yanıtı ve anahtar kavramlar.",
-            "solution_explanation": "Detaylı öğretmen açıklaması.",
+            "correct_answer": "Örnek ideal öğretmen/öğrenci yanıtı.",
+            "solution_explanation": "Kazanım odaklı açıklama.",
             "points": 10, "has_diagram": False, "diagram_type": None
         })
     return questions
 
 # ==========================================
-# 4. YENİ NESİL GÖRSEL ÇİZİM MOTORU (MATPLOTLIB)
+# 5. GÖRSEL ÇİZİM MOTORU (MATPLOTLIB)
 # ==========================================
 def generate_question_image(diagram_type):
     fig, ax = plt.subplots(figsize=(3.2, 2.2), dpi=110)
@@ -325,7 +392,7 @@ def generate_question_image(diagram_type):
     return buf
 
 # ==========================================
-# 5. TÜRKÇE FONT & PDF OLUŞTURUCU
+# 6. TÜRKÇE FONT & REPORTLAB PDF DÜZENİ
 # ==========================================
 @st.cache_resource
 def setup_turkish_pdf_fonts():
@@ -466,7 +533,7 @@ def build_pdf_exam(exam_data, show_answers=False):
     return buffer
 
 # ==========================================
-# 6. STREAMLIT ARAYÜZ & STATE YÖNETİMİ
+# 7. STREAMLIT ARAYÜZ MİMARİSİ
 # ==========================================
 if 'exam_started' not in st.session_state:
     st.session_state.exam_started = False
@@ -481,20 +548,25 @@ if 'exam_completed' not in st.session_state:
 if 'current_q_index' not in st.session_state:
     st.session_state.current_q_index = 0
 
-st.sidebar.header("⚙️ Yapay Zeka & Sınav Ayarları")
-api_key_input = st.sidebar.text_input("🔑 Gemini API Anahtarı (Opsiyonel)", type="password", help="Boş bırakırsanız varsayılan MEB soru bankası kullanılır.")
+st.sidebar.header("⚙️ Müfredat & Sınav Ayarları")
 selected_subject = st.sidebar.selectbox("📖 Ders Seçiniz", list(MEB_FULL_CURRICULUM.keys()))
 selected_unit = st.sidebar.selectbox("📚 Ünite Seçiniz", MEB_FULL_CURRICULUM[selected_subject])
 
+# Secrets Durumunu Göster
+gemini_k, groq_k = extract_api_keys()
+st.sidebar.info(f"🔑 **Tanımlı Anahtarlar:**\n- Gemini: {len(gemini_k)} adet\n- Groq: {len(groq_k)} adet")
+
 st.sidebar.divider()
 
-if st.sidebar.button("🤖 AI ile Yeni Sınav Üret", use_container_width=True):
-    with st.spinner("Yapay zeka MEB müfredatına uygun soruları ve şemaları hazırlıyor..."):
-        questions = generate_ai_questions(selected_subject, selected_unit, api_key_input)
+if st.sidebar.button("🚀 AI ile Sınav Oluştur", use_container_width=True):
+    with st.spinner("Yapay zeka soru setini ve görselleri hazırlıyor..."):
+        questions, provider_used = generate_questions_with_ai(selected_subject, selected_unit)
+        
         exam_json = {
             "school_name": "Şehit Öğretmen 5. Sınıf Ortaokulu",
             "subject": selected_subject,
             "unit": selected_unit,
+            "provider": provider_used,
             "questions": questions
         }
         st.session_state.exam_data = exam_json
@@ -502,7 +574,7 @@ if st.sidebar.button("🤖 AI ile Yeni Sınav Üret", use_container_width=True):
         st.session_state.exam_completed = False
         st.session_state.user_answers = {}
         st.session_state.current_q_index = 0
-        st.success("✅ Yapay zeka sınavı başarıyla oluşturdu!")
+        st.success(f"✅ Soru seti {provider_used} kullanılarak başarıyla oluşturuldu!")
 
 if st.session_state.exam_data:
     exam = st.session_state.exam_data
@@ -518,7 +590,7 @@ if st.session_state.exam_data:
     st.divider()
 
     if not st.session_state.exam_started and not st.session_state.exam_completed:
-        st.warning("⏱️ Sınav hazır! Soruları tek tek çözmek ve süreyi başlatmak için aşağıdaki butona tıklayın.")
+        st.warning(f"⏱️ Sınav hazır! (Üretici: {exam.get('provider', 'AI')}) - Soruları tek tek çözmek ve süreyi başlatmak için butona basın.")
         if st.button("🚀 SINAVI BAŞLAT", type="primary", use_container_width=True):
             st.session_state.exam_started = True
             st.session_state.start_time = time.time()
@@ -653,4 +725,4 @@ if st.session_state.exam_data:
             st.write("---")
 
 else:
-    st.info("👈 Sınav oluşturmak için sol menüden dersinizi ve ünitenizi seçip **'AI ile Yeni Sınav Üret'** butonuna tıklayınız.")
+    st.info("👈 Sınav oluşturmak için sol menüden dersinizi ve ünitenizi seçip **'AI ile Sınav Oluştur'** butonuna tıklayınız.")
