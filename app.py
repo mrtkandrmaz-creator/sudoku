@@ -47,14 +47,6 @@ st.markdown("""
         box-shadow: 0 4px 10px rgba(0,0,0,0.06);
         color: #000;
     }
-    .option-item {
-        font-size: 16px;
-        margin-bottom: 10px;
-        padding: 8px 12px;
-        border-radius: 6px;
-        background-color: #f8f9fa;
-        border: 1px solid #e9ecef;
-    }
     .answer-box {
         background-color: #e8f5e9;
         border: 1px solid #2e7d32;
@@ -70,6 +62,14 @@ st.markdown("""
         padding: 25px;
         margin-bottom: 25px;
         color: #333;
+    }
+    .ai-feedback {
+        background-color: #e3f2fd;
+        border-left: 5px solid #1e88e5;
+        padding: 12px;
+        border-radius: 4px;
+        margin-top: 8px;
+        color: #0d47a1;
     }
 </style>
 """, unsafe_allow_html=True)
@@ -188,7 +188,7 @@ def generate_written_exam_with_ai(subject, exam_period, scope):
         for key in gemini_keys:
             try:
                 genai.configure(api_key=key.strip())
-                model = genai.GenerativeModel('gemini-3.6-flash')
+                model = genai.GenerativeModel('gemini-1.5-flash')
                 response = model.generate_content(
                     prompt,
                     generation_config={"response_mime_type": "application/json"}
@@ -230,7 +230,86 @@ def get_fallback_exam_questions(subject, exam_period):
     return questions
 
 # ==========================================
-# 5. STREAMLIT ARAYÜZÜ & STATE YÖNETİMİ
+# 5. YAPAY ZEKA ÖĞRETMEN DEĞERLENDİRME MOTORU
+# ==========================================
+def evaluate_open_questions_with_ai(open_eval_list):
+    groq_keys, gemini_keys = load_secrets_api_keys()
+
+    prompt = f"""
+    Sen adil ve rehberlik edici bir MEB 5. sınıf öğretmenisisin.
+    Aşağıdaki açık uçlu soruları, ideal cevapları ve öğrencilerin verdiği cevapları incele.
+    Her soru maksimum 10 puandır. Öğrencinin cevabını doğruluk, kilit kavramlar ve eksiksiz anlatım bakımından 0 ile 10 arasında puanla ve kısa bir öğretmen dönütü yaz.
+
+    Gelen Sorular ve Öğrenci Yanıtları:
+    {json.dumps(open_eval_list, ensure_ascii=False)}
+
+    SADECE VE SADECE GEÇERLİ JSON DÖNDÜR.
+    Format Şablonu:
+    {{
+        "evaluations": [
+            {{
+                "id": 6,
+                "score": 8,
+                "feedback": "Cevabın büyük oranda doğru ancak X kavramından bahsetmeyi unutmussun."
+            }}
+        ]
+    }}
+    """
+
+    # Groq Dene
+    if Groq and groq_keys:
+        for key in groq_keys:
+            try:
+                client = Groq(api_key=key.strip())
+                completion = client.chat.completions.create(
+                    model="llama-3.3-70b-versatile",
+                    messages=[
+                        {"role": "system", "content": "Sen JSON çıktısı veren bir MEB sınav değerlendirme öğretmenisisin."},
+                        {"role": "user", "content": prompt}
+                    ],
+                    response_format={"type": "json_object"}
+                )
+                text = completion.choices[0].message.content.strip()
+                parsed = json.loads(text)
+                if "evaluations" in parsed:
+                    return {item["id"]: item for item in parsed["evaluations"]}
+            except Exception:
+                continue
+
+    # Gemini Dene
+    if genai and gemini_keys:
+        for key in gemini_keys:
+            try:
+                genai.configure(api_key=key.strip())
+                model = genai.GenerativeModel('gemini-1.5-flash')
+                response = model.generate_content(
+                    prompt,
+                    generation_config={"response_mime_type": "application/json"}
+                )
+                text = response.text.strip()
+                if text.startswith("```json"): text = text[7:-3].strip()
+                elif text.startswith("```"): text = text[3:-3].strip()
+                
+                parsed = json.loads(text)
+                if "evaluations" in parsed:
+                    return {item["id"]: item for item in parsed["evaluations"]}
+            except Exception:
+                continue
+
+    # Yedek Değerlendirme (API Hata verirse)
+    fallback_eval = {}
+    for item in open_eval_list:
+        ans = item.get("user_answer", "").strip()
+        score = 10 if len(ans) > 15 else (5 if len(ans) > 0 else 0)
+        fallback_eval[item["id"]] = {
+            "id": item["id"],
+            "score": score,
+            "feedback": "Açıklamanız yerel kontrol mekanizması ile değerlendirildi."
+        }
+    return fallback_eval
+
+# ==========================================
+# 6. STREAMLIT ARAYÜZÜ & STATE YÖNETİMİ
 # ==========================================
 if 'exam_data' not in st.session_state:
     st.session_state.exam_data = None
@@ -244,6 +323,8 @@ if 'start_time' not in st.session_state:
     st.session_state.start_time = None
 if 'user_answers' not in st.session_state:
     st.session_state.user_answers = {}
+if 'ai_evaluations' not in st.session_state:
+    st.session_state.ai_evaluations = {}
 
 st.sidebar.header("⚙️ Sınav Takvimi & Müfredat")
 selected_subject = st.sidebar.selectbox("📖 Ders Seçiniz", list(MEB_EXAM_SCHEDULE.keys()))
@@ -273,6 +354,7 @@ if st.sidebar.button("📝 Dönem Sınav Kağıdı Hazırla", use_container_widt
         st.session_state.exam_completed = False
         st.session_state.current_question_index = 0
         st.session_state.user_answers = {}
+        st.session_state.ai_evaluations = {}
         st.success("✅ Sınav soruları hazırlandı! Başlatmak için butona tıklayınız.")
 
 # --- DURUM 1: SORULAR HAZIR ANCAK SINAV BAŞLAMADI ---
@@ -304,11 +386,9 @@ elif st.session_state.exam_started and not st.session_state.exam_completed:
     current_q = questions[curr_idx]
     q_id = current_q['id']
 
-    # Süre Hesaplama
     elapsed_time = int(time.time() - st.session_state.start_time)
     minutes, seconds = divmod(elapsed_time, 60)
 
-    # Üst Bilgi Alanı
     col_h1, col_h2 = st.columns([2, 1])
     with col_h1:
         st.markdown(f"### 📝 Soru {curr_idx + 1} / {total_q}")
@@ -318,7 +398,6 @@ elif st.session_state.exam_started and not st.session_state.exam_completed:
     st.progress((curr_idx + 1) / total_q)
     st.divider()
 
-    # Soru Kartı
     q_type_str = "Çoktan Seçmeli" if current_q['type'] == 'MCQ' else "Açık Uçlu / Klasik"
     st.markdown(f"""
     <div class="question-card">
@@ -331,7 +410,6 @@ elif st.session_state.exam_started and not st.session_state.exam_completed:
     </div>
     """, unsafe_allow_html=True)
 
-    # Öğrenci Yanıt Alanı
     saved_ans = st.session_state.user_answers.get(q_id, None)
 
     if current_q['type'] == 'MCQ':
@@ -355,7 +433,6 @@ elif st.session_state.exam_started and not st.session_state.exam_completed:
 
     st.markdown("<br/>", unsafe_allow_html=True)
 
-    # Navigasyon Butonları (Önceki / Sonraki)
     col_nav1, col_nav2, col_nav3 = st.columns([1, 2, 1])
     with col_nav1:
         if curr_idx > 0:
@@ -371,13 +448,26 @@ elif st.session_state.exam_started and not st.session_state.exam_completed:
 
     st.divider()
 
-    # İstediğiniz An Sınavı Bitir Butonu (Alt Kısımda)
     if st.button("🛑 SINAVI BİTİR VE KARNEYİ GÖR", type="secondary", use_container_width=True):
         st.session_state.exam_started = False
         st.session_state.exam_completed = True
+        
+        # Yapay Zeka Öğretmen Değerlendirmesini Başlat
+        with st.spinner("🤖 Yapay zeka öğretmen açık uçlu cevaplarınızı inceliyor ve 100 üzerinden notlandırıyor..."):
+            open_eval_list = []
+            for q in questions:
+                if q['type'] == 'OPEN':
+                    open_eval_list.append({
+                        "id": q['id'],
+                        "question_text": q['question_text'],
+                        "correct_answer": q['correct_answer'],
+                        "user_answer": st.session_state.user_answers.get(q['id'], "")
+                    })
+            st.session_state.ai_evaluations = evaluate_open_questions_with_ai(open_eval_list)
+            
         st.rerun()
 
-# --- DURUM 3: SINAV BİTTİ & KARNE / CEVAP ANAHTARI ---
+# --- DURUM 3: SINAV BİTTİ & KARNE (100 ÜZERİNDEN TAM DEĞERLENDİRME) ---
 elif st.session_state.exam_completed:
     st.balloons()
     exam = st.session_state.exam_data
@@ -387,6 +477,8 @@ elif st.session_state.exam_completed:
     mcq_wrong = 0
     mcq_empty = 0
     mcq_score = 0
+    
+    open_score = 0
 
     for q in questions:
         q_id = q['id']
@@ -399,23 +491,28 @@ elif st.session_state.exam_completed:
                 mcq_score += 10
             else:
                 mcq_wrong += 1
+        elif q['type'] == 'OPEN':
+            eval_data = st.session_state.ai_evaluations.get(q_id, {})
+            open_score += eval_data.get('score', 0)
+
+    total_100_score = mcq_score + open_score
 
     st.markdown(f"""
     <div class="report-card">
-        <h2 style="color: #33691E; text-align: center; margin-bottom: 5px;">📊 ÖĞRENCİ SINAV KARNESİ</h2>
-        <p style="text-align: center; color: #558B2F;">{exam['subject']} - {exam['period']}</p>
+        <h2 style="color: #1b5e20; text-align: center; margin-bottom: 5px;">📊 YAZILI SINAV SONUÇ KARNESİ</h2>
+        <h1 style="text-align: center; color: #1A237E; font-size: 48px; margin: 10px 0;">{total_100_score} / 100</h1>
+        <p style="text-align: center; color: #558B2F; font-weight: bold;">{exam['subject']} - {exam['period']}</p>
     </div>
     """, unsafe_allow_html=True)
 
     k1, k2, k3, k4 = st.columns(4)
-    k1.metric("Çoktan Seçmeli Puan", f"{mcq_score} / 50")
-    k2.metric("Doğru Cevap", f"{mcq_correct} Soru")
-    k3.metric("Yanlış Cevap", f"{mcq_wrong} Soru")
-    k4.metric("Boş Bırakılan", f"{mcq_empty} Soru")
+    k1.metric("100 Üzerinden Toplam Not", f"{total_100_score}")
+    k2.metric("Test Puanı (5 Soru)", f"{mcq_score} / 50")
+    k3.metric("Açık Uçlu AI Puanı (5 Soru)", f"{open_score} / 50")
+    k4.metric("Test Doğru / Yanlış", f"{mcq_correct} D / {mcq_wrong} Y")
 
-    st.info("ℹ️ **Not:** Açık uçlu / klasik sorular öğretmen değerlendirmesi gerektirdiği için bu puana dahil edilmemiştir.")
     st.divider()
-    st.subheader("📝 Detaylı Soru Çözümleri ve Cevap Anahtarı")
+    st.subheader("📝 Detaylı Soru İncelemesi ve Yapay Zeka Öğretmen Dönütleri")
 
     for q in questions:
         q_id = q['id']
@@ -423,14 +520,25 @@ elif st.session_state.exam_completed:
         correct_ans = q.get('correct_answer', '')
 
         st.markdown(f"**Soru {q_id}: {q['question_text']}**")
+        
         if q['type'] == 'MCQ':
             is_correct = (user_ans == correct_ans)
             if is_correct:
-                st.success(f"✅ **Doğru!** Cevabınız: **{user_ans}**")
+                st.success(f"✅ **Doğru! (+10 Puan)** Cevabınız: **{user_ans}**")
             else:
-                st.error(f"❌ **Yanlış!** Doğru Cevap: **{correct_ans}** | Sizin Cevabınız: **{user_ans}**")
+                st.error(f"❌ **Yanlış! (0 Puan)** Doğru Cevap: **{correct_ans}** | Sizin Cevabınız: **{user_ans}**")
         else:
-            st.warning(f"📝 **Sizin Yanıtınız:** {user_ans}\n\n**İdeal/Örnek Cevap:** {correct_ans}")
+            eval_info = st.session_state.ai_evaluations.get(q_id, {})
+            q_score = eval_info.get('score', 0)
+            feedback = eval_info.get('feedback', 'Değerlendirme yapıldı.')
+
+            st.warning(f"📝 **Sizin Yanıtınız:** {user_ans if user_ans else 'Boş Bırakıldı'}\n\n**İdeal/Örnek Cevap:** {correct_ans}")
+            st.markdown(f"""
+            <div class="ai-feedback">
+                <b>👨‍🏫 Yapay Zeka Öğretmen Puanı: {q_score} / 10</b><br>
+                <b>💬 Öğretmen Dönütü:</b> {feedback}
+            </div>
+            """, unsafe_allow_html=True)
 
         with st.expander("🔍 Detaylı Adım Adım Çözüm Açıklaması"):
             st.write(q.get('solution_explanation', 'Çözüm açıklaması bulunamadı.'))
@@ -440,6 +548,7 @@ elif st.session_state.exam_completed:
         st.session_state.exam_data = None
         st.session_state.exam_started = False
         st.session_state.exam_completed = False
+        st.session_state.ai_evaluations = {}
         st.rerun()
 
 else:
