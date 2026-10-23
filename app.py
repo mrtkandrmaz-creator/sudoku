@@ -3,6 +3,7 @@ import streamlit as st
 import random
 import json
 import os
+import time
 
 # API İstemci Kütüphaneleri
 try:
@@ -29,30 +30,46 @@ st.markdown("""
 <style>
     .exam-header {
         border: 2px solid #333;
-        padding: 20px;
+        padding: 15px 20px;
         border-radius: 8px;
         background-color: #fff;
         color: #000;
-        margin-bottom: 25px;
+        margin-bottom: 20px;
         text-align: center;
     }
-    .question-box {
+    .question-card {
         background-color: #ffffff;
         border: 1px solid #ccc;
-        border-left: 5px solid #1A237E;
-        border-radius: 6px;
-        padding: 20px;
+        border-left: 6px solid #1A237E;
+        border-radius: 8px;
+        padding: 25px;
         margin-bottom: 20px;
-        box-shadow: 0 2px 5px rgba(0,0,0,0.05);
+        box-shadow: 0 4px 10px rgba(0,0,0,0.06);
         color: #000;
+    }
+    .option-item {
+        font-size: 16px;
+        margin-bottom: 10px;
+        padding: 8px 12px;
+        border-radius: 6px;
+        background-color: #f8f9fa;
+        border: 1px solid #e9ecef;
     }
     .answer-box {
         background-color: #e8f5e9;
         border: 1px solid #2e7d32;
         padding: 15px;
         border-radius: 6px;
-        margin-top: 10px;
+        margin-top: 15px;
         color: #1b5e20;
+    }
+    .report-card {
+        background-color: #f9fbe7;
+        border: 2px solid #c0ca33;
+        border-radius: 12px;
+        padding: 25px;
+        margin-bottom: 25px;
+        color: #333;
     }
 </style>
 """, unsafe_allow_html=True)
@@ -127,7 +144,7 @@ def generate_written_exam_with_ai(subject, exam_period, scope):
                 "id": 1,
                 "type": "MCQ",
                 "question_text": "Soru metni...",
-                "options": {{"A": "A şıkkı", "B": "B şıkkı", "C": "C şıkkı", "D": "D şıkkı"}},
+                "options": {{"A": "A şıkkı metni", "B": "B şıkkı metni", "C": "C şıkkı metni", "D": "D şıkkı metni"}},
                 "correct_answer": "A",
                 "solution_explanation": "Çözüm açıklaması...",
                 "points": 10
@@ -147,7 +164,6 @@ def generate_written_exam_with_ai(subject, exam_period, scope):
 
     last_error = ""
 
-    # Groq Anahtarlarını Dene
     if Groq and groq_keys:
         for key in groq_keys:
             try:
@@ -168,7 +184,6 @@ def generate_written_exam_with_ai(subject, exam_period, scope):
                 last_error = str(e)
                 continue
 
-    # Gemini Anahtarlarını Dene
     if genai and gemini_keys:
         for key in gemini_keys:
             try:
@@ -189,7 +204,6 @@ def generate_written_exam_with_ai(subject, exam_period, scope):
                 last_error = str(e)
                 continue
 
-    # Yedek Statik Şablon
     st.error(f"⚠️ API anahtarları yanıt vermedi. Hata: {last_error}")
     return get_fallback_exam_questions(subject, exam_period), "Yerel Güvenli Şablon"
 
@@ -216,12 +230,20 @@ def get_fallback_exam_questions(subject, exam_period):
     return questions
 
 # ==========================================
-# 5. STREAMLIT ARAYÜZÜ (KLASİK YAZILI FORMATI)
+# 5. STREAMLIT ARAYÜZÜ & STATE YÖNETİMİ
 # ==========================================
 if 'exam_data' not in st.session_state:
     st.session_state.exam_data = None
-if 'show_answers' not in st.session_state:
-    st.session_state.show_answers = False
+if 'exam_started' not in st.session_state:
+    st.session_state.exam_started = False
+if 'exam_completed' not in st.session_state:
+    st.session_state.exam_completed = False
+if 'current_question_index' not in st.session_state:
+    st.session_state.current_question_index = 0
+if 'start_time' not in st.session_state:
+    st.session_state.start_time = None
+if 'user_answers' not in st.session_state:
+    st.session_state.user_answers = {}
 
 st.sidebar.header("⚙️ Sınav Takvimi & Müfredat")
 selected_subject = st.sidebar.selectbox("📖 Ders Seçiniz", list(MEB_EXAM_SCHEDULE.keys()))
@@ -235,8 +257,8 @@ st.sidebar.info(f"🔑 **Sistem Durumu:**\n- Groq Anahtar: {len(groq_k)} adet\n-
 
 st.sidebar.divider()
 
-if st.sidebar.button("📝 Dönem Sınav Kağıdı Oluştur", use_container_width=True):
-    with st.spinner("MEB sınav takvimine uygun yazılı kağıdı hazırlanıyor..."):
+if st.sidebar.button("📝 Dönem Sınav Kağıdı Hazırla", use_container_width=True):
+    with st.spinner("MEB sınav takvimine uygun sorular hazırlanıyor..."):
         questions, provider = generate_written_exam_with_ai(selected_subject, selected_period, unit_scope)
         st.session_state.exam_data = {
             "school_name": "ŞEHİT ÖĞRETMEN 5. SINIF ORTAOKULU",
@@ -247,73 +269,178 @@ if st.sidebar.button("📝 Dönem Sınav Kağıdı Oluştur", use_container_widt
             "provider": provider,
             "questions": questions
         }
-        st.session_state.show_answers = False
-        st.success("✅ Dönem sınav kağıdı başarıyla oluşturuldu!")
+        st.session_state.exam_started = False
+        st.session_state.exam_completed = False
+        st.session_state.current_question_index = 0
+        st.session_state.user_answers = {}
+        st.success("✅ Sınav soruları hazırlandı! Başlatmak için butona tıklayınız.")
 
-# Ana Ekran Yazılı Kağıdı Görünümü
-if st.session_state.exam_data:
+# --- DURUM 1: SORULAR HAZIR ANCAK SINAV BAŞLAMADI ---
+if st.session_state.exam_data and not st.session_state.exam_started and not st.session_state.exam_completed:
     exam = st.session_state.exam_data
-    
-    # Resmi Yazılı Başlığı
     st.markdown(f"""
     <div class="exam-header">
         <h3 style="margin:0; font-weight:bold;">{exam['school_name']}</h3>
-        <p style="margin:5px 0; font-size:14px;">{exam['academic_year']} 5. SINIF {exam['subject'].upper()} DERSİ</p>
-        <h4 style="margin:5px 0; color:#1A237E;">{exam['period'].upper()}</h4>
+        <p style="margin:4px 0; font-size:14px;">{exam['academic_year']} 5. SINIF {exam['subject'].upper()} DERSİ</p>
+        <h4 style="margin:4px 0; color:#1A237E;">{exam['period'].upper()}</h4>
         <p style="margin:2px 0; font-size:12px; color:#555;">(Kapsam: {exam['scope']})</p>
-        <hr style="border:0.5px solid #ccc; margin:10px 0;">
-        <table style="width:100%; font-size:14px; text-align:left; margin-top:10px;">
-            <tr>
-                <td><b>Adı Soyadı:</b> ....................................................</td>
-                <td><b>Sınıf/Şube:</b> 5 / .......</td>
-                <td><b>Numara:</b> .............</td>
-                <td><b>ALDIĞI PUAN:</b> .......</td>
-            </tr>
-        </table>
+        <hr style="border:0.5px solid #ccc; margin:15px 0;">
+        <p style="font-size:16px; color:#2e7d32; font-weight:bold;">🎉 Sınav soruları başarıyla oluşturuldu ve hazır!</p>
     </div>
     """, unsafe_allow_html=True)
 
-    # Cevap Anahtarı Aç/Kapat Butonu
-    col_b1, col_b2 = st.columns([1, 4])
-    with col_b1:
-        if st.button("🔑 Cevap Anahtarını Aç/Kapat"):
-            st.session_state.show_answers = not st.session_state.show_answers
-            st.rerun()
+    if st.button("🚀 SINAVI BAŞLAT", type="primary", use_container_width=True):
+        st.session_state.exam_started = True
+        st.session_state.start_time = time.time()
+        st.session_state.current_question_index = 0
+        st.rerun()
+
+# --- DURUM 2: SINAV DEVAM EDİYOR (HER SAYFADA TEK SORU) ---
+elif st.session_state.exam_started and not st.session_state.exam_completed:
+    exam = st.session_state.exam_data
+    questions = exam['questions']
+    total_q = len(questions)
+    curr_idx = st.session_state.current_question_index
+    current_q = questions[curr_idx]
+    q_id = current_q['id']
+
+    # Süre Hesaplama
+    elapsed_time = int(time.time() - st.session_state.start_time)
+    minutes, seconds = divmod(elapsed_time, 60)
+
+    # Üst Bilgi Alanı
+    col_h1, col_h2 = st.columns([2, 1])
+    with col_h1:
+        st.markdown(f"### 📝 Soru {curr_idx + 1} / {total_q}")
+    with col_h2:
+        st.markdown(f"**⏱️ Geçen Süre:** `{minutes:02d}:{seconds:02d}`")
+
+    st.progress((curr_idx + 1) / total_q)
+    st.divider()
+
+    # Soru Kartı
+    q_type_str = "Çoktan Seçmeli" if current_q['type'] == 'MCQ' else "Açık Uçlu / Klasik"
+    st.markdown(f"""
+    <div class="question-card">
+        <div style="font-size:13px; color:#555; margin-bottom:8px;">
+            <b>[{q_type_str}]</b> ({current_q.get('points', 10)} Puan)
+        </div>
+        <div style="font-size:18px; font-weight:600; color:#111; margin-bottom:15px;">
+            {current_q['question_text']}
+        </div>
+    </div>
+    """, unsafe_allow_html=True)
+
+    # Öğrenci Yanıt Alanı
+    saved_ans = st.session_state.user_answers.get(q_id, None)
+
+    if current_q['type'] == 'MCQ':
+        opts = current_q.get('options', {})
+        formatted_opts = [f"{k}) {v}" for k, v in opts.items()]
+        
+        default_index = None
+        if saved_ans:
+            for idx, opt_str in enumerate(formatted_opts):
+                if opt_str.startswith(saved_ans):
+                    default_index = idx
+                    break
+
+        selected = st.radio("Cevabınızı seçiniz:", formatted_opts, key=f"radio_q_{q_id}", index=default_index)
+        if selected:
+            st.session_state.user_answers[q_id] = selected[0]
+    else:
+        user_text = st.text_area("Cevabınızı buraya yazınız:", value=saved_ans if saved_ans else "", key=f"textarea_q_{q_id}")
+        if user_text:
+            st.session_state.user_answers[q_id] = user_text
+
+    st.markdown("<br/>", unsafe_allow_html=True)
+
+    # Navigasyon Butonları (Önceki / Sonraki)
+    col_nav1, col_nav2, col_nav3 = st.columns([1, 2, 1])
+    with col_nav1:
+        if curr_idx > 0:
+            if st.button("⬅️ Önceki Soru", use_container_width=True):
+                st.session_state.current_question_index -= 1
+                st.rerun()
+
+    with col_nav3:
+        if curr_idx < total_q - 1:
+            if st.button("Sonraki Soru ➡️", type="primary", use_container_width=True):
+                st.session_state.current_question_index += 1
+                st.rerun()
 
     st.divider()
 
-    # Soruları Listele (Klasik Yazılı Formatı)
-    for q in exam['questions']:
+    # İstediğiniz An Sınavı Bitir Butonu (Alt Kısımda)
+    if st.button("🛑 SINAVI BİTİR VE KARNEYİ GÖR", type="secondary", use_container_width=True):
+        st.session_state.exam_started = False
+        st.session_state.exam_completed = True
+        st.rerun()
+
+# --- DURUM 3: SINAV BİTTİ & KARNE / CEVAP ANAHTARI ---
+elif st.session_state.exam_completed:
+    st.balloons()
+    exam = st.session_state.exam_data
+    questions = exam['questions']
+
+    mcq_correct = 0
+    mcq_wrong = 0
+    mcq_empty = 0
+    mcq_score = 0
+
+    for q in questions:
         q_id = q['id']
-        q_type_str = "Çoktan Seçmeli" if q['type'] == 'MCQ' else "Açık Uçlu / Klasik"
-        
-        st.markdown(f"""
-        <div class="question-box">
-            <div style="font-size:12px; color:#555; margin-bottom:5px;"><b>[{q_type_str}]</b> ({q.get('points', 10)} Puan)</div>
-            <div style="font-size:16px; font-weight:600; color:#222;">Soru {q_id}: {q['question_text']}</div>
-        </div>
-        """, unsafe_allow_html=True)
-
+        user_ans = st.session_state.user_answers.get(q_id, None)
         if q['type'] == 'MCQ':
-            opts = q.get('options', {})
-            for key, val in opts.items():
-                st.markdown(f"&nbsp;&nbsp;&nbsp;&nbsp;<b>{key})</b> {val}")
+            if not user_ans:
+                mcq_empty += 1
+            elif user_ans == q.get('correct_answer'):
+                mcq_correct += 1
+                mcq_score += 10
+            else:
+                mcq_wrong += 1
+
+    st.markdown(f"""
+    <div class="report-card">
+        <h2 style="color: #33691E; text-align: center; margin-bottom: 5px;">📊 ÖĞRENCİ SINAV KARNESİ</h2>
+        <p style="text-align: center; color: #558B2F;">{exam['subject']} - {exam['period']}</p>
+    </div>
+    """, unsafe_allow_html=True)
+
+    k1, k2, k3, k4 = st.columns(4)
+    k1.metric("Çoktan Seçmeli Puan", f"{mcq_score} / 50")
+    k2.metric("Doğru Cevap", f"{mcq_correct} Soru")
+    k3.metric("Yanlış Cevap", f"{mcq_wrong} Soru")
+    k4.metric("Boş Bırakılan", f"{mcq_empty} Soru")
+
+    st.info("ℹ️ **Not:** Açık uçlu / klasik sorular öğretmen değerlendirmesi gerektirdiği için bu puana dahil edilmemiştir.")
+    st.divider()
+    st.subheader("📝 Detaylı Soru Çözümleri ve Cevap Anahtarı")
+
+    for q in questions:
+        q_id = q['id']
+        user_ans = st.session_state.user_answers.get(q_id, "Yanıt Verilmedi")
+        correct_ans = q.get('correct_answer', '')
+
+        st.markdown(f"**Soru {q_id}: {q['question_text']}**")
+        if q['type'] == 'MCQ':
+            is_correct = (user_ans == correct_ans)
+            if is_correct:
+                st.success(f"✅ **Doğru!** Cevabınız: **{user_ans}**")
+            else:
+                st.error(f"❌ **Yanlış!** Doğru Cevap: **{correct_ans}** | Sizin Cevabınız: **{user_ans}**")
         else:
-            st.markdown("""
-            <div style="border-bottom: 1px dashed #999; height: 35px; margin-top: 10px;"></div>
-            <div style="border-bottom: 1px dashed #999; height: 35px; margin-top: 10px;"></div>
-            """, unsafe_allow_html=True)
+            st.warning(f"📝 **Sizin Yanıtınız:** {user_ans}\n\n**İdeal/Örnek Cevap:** {correct_ans}")
 
-        # Cevap Anahtarı Açıksa Göster
-        if st.session_state.show_answers:
-            st.markdown(f"""
-            <div class="answer-box">
-                <b>Doğru Cevap / İdeal Yanıt:</b> {q.get('correct_answer', '')}<br>
-                <b>Açıklama / Çözüm:</b> {q.get('solution_explanation', '')}
-            </div>
-            """, unsafe_allow_html=True)
+        with st.expander("🔍 Detaylı Adım Adım Çözüm Açıklaması"):
+            st.write(q.get('solution_explanation', 'Çözüm açıklaması bulunamadı.'))
+        st.write("---")
 
-        st.write("")
+    if st.button("🔄 Yeni Sınav Hazırla", use_container_width=True):
+        st.session_state.exam_data = None
+        st.session_state.exam_started = False
+        st.session_state.exam_completed = False
+        st.rerun()
 
 else:
-    st.info("👈 Sınav kağıdı oluşturmak için sol menüden dersinizi ve **1. Dönem 1/2, 2. Dönem 1/2** yazılı dönemlerinden birini seçip **'Dönem Sınav Kağıdı Oluştur'** butonuna tıklayınız.")
+    st.info("👈 Sınav kağıdı oluşturmak için sol menüden dersinizi ve döneminizi seçip **'Dönem Sınav Kağıdı Hazırla'** butonuna tıklayınız.")
