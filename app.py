@@ -4,6 +4,7 @@ import random
 import json
 import os
 import time
+import io
 import matplotlib.pyplot as plt
 import numpy as np
 
@@ -22,7 +23,7 @@ except ImportError:
 # 1. SAYFA YAPILANDIRMASI VE ÖZEL CSS
 # ==========================================
 st.set_page_config(
-    page_title="MEB Sınav Takvimi & Görsel Soru Modülü - Murat KANDIRMAZ",
+    page_title="MEB Sınav Takvimi & İnteraktif Çizim Modülü - Murat KANDIRMAZ",
     page_icon="📝",
     layout="wide",
     initial_sidebar_state="expanded"
@@ -87,13 +88,13 @@ MEB_EXAM_SCHEDULE = {
         "2. Dönem 2. Yazılı (Mayıs/Haziran)": "Elektrik Devre Elemanları ve Genel Yıl Sonu Değerlendirmesi"
     },
     "Matematik": {
-        "1. Dönem 1. Yazılı (Ekim/Kasım)": "4. Tema: Geometrik Şekiller (Temel geometrik kavramlar: nokta, doğru, ışın, doğru parçası, açı ölçümü ve çeşitleri, çokgenler, çember ve daire) / 5. Tema: Geometrik Nicelikler (Uzunluk ölçme birimleri, dikdörtgenin çevre uzunluğu ve alanı, alan-çevre ilişkisi)",
+        "1. Dönem 1. Yazılı (Ekim/Kasım)": "4. Tema: Geometrik Şekiller (Temel geometrik kavramlar, açı ölçüleri, çokgenler, çember ve daire) / 5. Tema: Geometrik Nicelikler (Uzunluk ölçme, dikdörtgenin çevre ve alanı)",
         "1. Dönem 2. Yazılı (Aralık/Ocak)": "Doğal Sayılar ve İşlemler / Kesirler ve Ondalık Gösterim",
-        "2. Dönem 1. Yazılı (Mart/Nisan)": "Üçgen ve Dörtgenlerin Açı/Kenar Özellikleri / Veri Toplama ve Değerlendirme",
+        "2. Dönem 1. Yazılı (Mart/Nisan)": "Üçgen ve Dörtgenlerin Açı/Kenar Özellikleri / Veri Toplama",
         "2. Dönem 2. Yazılı (Mayıs/Haziran)": "Zaman Ölçme Birimleri, Sıvı Ölçme ve Genel Tekrar"
     },
     "Türkçe": {
-        "1. Dönem 1. Yazılı (Ekim/Kasım)": "Sözcükte ve Söz Öbeklerinde Anlam / Yazım Kuralları ve Noktalama İşaretleri",
+        "1. Dönem 1. Yazılı (Ekim/Kasım)": "Sözcükte ve Söz Öbeklerinde Anlam / Yazım Kuralları",
         "1. Dönem 2. Yazılı (Aralık/Ocak)": "Cümlede Anlam ve Paragraf Analizi",
         "2. Dönem 1. Yazılı (Mart/Nisan)": "Metin Türleri ve Söz Sanatları",
         "2. Dönem 2. Yazılı (Mayıs/Haziran)": "Okuduğunu Anlama ve Yıl Sonu Genel Değerlendirme"
@@ -102,7 +103,7 @@ MEB_EXAM_SCHEDULE = {
         "1. Dönem 1. Yazılı (Ekim/Kasım)": "Birey ve Toplum / Haklarım ve Sorumluluklarım",
         "1. Dönem 2. Yazılı (Aralık/Ocak)": "Kültürel Mirasımız ve Çevremizdeki Tarihi Eserler",
         "2. Dönem 1. Yazılı (Mart/Nisan)": "İnsanlar, Yerler ve Çevreler / Doğal Afetler",
-        "2. Dönem 2. Yazılı (Mayıs/Haziran)": "Bilim, Teknoloji ve Toplum / Üretim, Tüketim ve Verimlilik"
+        "2. Dönem 2. Yazılı (Mayıs/Haziran)": "Bilim, Teknoloji ve Toplum / Üretim, Tüketim"
     }
 }
 
@@ -124,12 +125,10 @@ def load_secrets_api_keys():
     return groq_list, gemini_list
 
 # ==========================================
-# 4. MATPLOTLIB DİNAMİK GÖRSEL ÇİZİM MOTORU
+# 4. DEĞER UYUMLU MATPLOTLIB GÖRSEL ÇİZİM MOTORU
 # ==========================================
-import io
-
-def generate_question_image(diagram_type):
-    fig, ax = plt.subplots(figsize=(3.5, 2.4), dpi=120)
+def generate_question_image(diagram_type, custom_val=""):
+    fig, ax = plt.subplots(figsize=(3.8, 2.6), dpi=130)
     
     if diagram_type == "sun_earth_moon":
         sun = plt.Circle((0.8, 2), 0.6, color='#FF8C00')
@@ -168,7 +167,8 @@ def generate_question_image(diagram_type):
         ax.plot([2, 2], [0.75, 1.0], color='black', linewidth=2)
         weight = plt.Rectangle((1.65, 0.2), 0.7, 0.55, color='#1E90FF')
         ax.add_patch(weight)
-        ax.text(2, 0.47, 'Yük (F)', color='white', fontsize=8, fontweight='bold', ha='center', va='center')
+        label_text = f"Yük: {custom_val}" if custom_val else "Ölçüm (N)"
+        ax.text(2, 0.47, label_text, color='white', fontsize=7.5, fontweight='bold', ha='center', va='center')
         ax.set_xlim(0.8, 3.2)
         ax.set_ylim(0, 4)
         ax.axis('off')
@@ -178,10 +178,7 @@ def generate_question_image(diagram_type):
         triangle = plt.Polygon([p1, p2, p3], fill=None, edgecolor='#1A237E', linewidth=2.5)
         ax.add_patch(triangle)
         ax.plot([0.5, 0.9, 0.9, 0.5], [0.5, 0.5, 0.9, 0.5], color='red', linewidth=1.5)
-        ax.text(0.2, 0.3, 'A', fontsize=9, fontweight='bold')
-        ax.text(3.6, 0.3, 'B', fontsize=9, fontweight='bold')
-        ax.text(0.2, 3.1, 'C', fontsize=9, fontweight='bold')
-        ax.text(1.8, 1.5, 'Dik Üçgen', fontsize=9, color='#1A237E', fontweight='bold')
+        ax.text(1.8, 1.4, f"Dik Üçgen\n{custom_val}", fontsize=8.5, color='#1A237E', fontweight='bold', ha='center')
         ax.set_xlim(0, 4)
         ax.set_ylim(0, 3.5)
         ax.axis('off')
@@ -190,10 +187,7 @@ def generate_question_image(diagram_type):
         p1, p2, p3 = [0.5, 0.5], [3.8, 0.8], [1.5, 3.0]
         triangle = plt.Polygon([p1, p2, p3], fill=None, edgecolor='#FF6B00', linewidth=2.5)
         ax.add_patch(triangle)
-        ax.text(0.3, 0.3, 'K', fontsize=9, fontweight='bold')
-        ax.text(3.9, 0.7, 'L', fontsize=9, fontweight='bold')
-        ax.text(1.3, 3.1, 'M', fontsize=9, fontweight='bold')
-        ax.text(1.8, 1.4, 'Çeşitkenar Üçgen', fontsize=9, color='#FF6B00', fontweight='bold')
+        ax.text(1.8, 1.4, f"Çeşitkenar\n{custom_val}", fontsize=8.5, color='#FF6B00', fontweight='bold', ha='center')
         ax.set_xlim(0, 4.5)
         ax.set_ylim(0, 3.5)
         ax.axis('off')
@@ -202,10 +196,7 @@ def generate_question_image(diagram_type):
         p1, p2, p3 = [0.8, 0.5], [3.2, 0.5], [2.0, 3.0]
         triangle = plt.Polygon([p1, p2, p3], fill=None, edgecolor='#2E7D32', linewidth=2.5)
         ax.add_patch(triangle)
-        ax.text(0.6, 0.3, 'A', fontsize=9, fontweight='bold')
-        ax.text(3.3, 0.3, 'B', fontsize=9, fontweight='bold')
-        ax.text(1.9, 3.1, 'C', fontsize=9, fontweight='bold')
-        ax.text(1.6, 1.5, 'İkizkenar Üçgen', fontsize=9, color='#2E7D32', fontweight='bold')
+        ax.text(2.0, 1.5, f"İkizkenar\n{custom_val}", fontsize=8.5, color='#2E7D32', fontweight='bold', ha='center')
         ax.set_xlim(0, 4)
         ax.set_ylim(0, 3.5)
         ax.axis('off')
@@ -214,7 +205,8 @@ def generate_question_image(diagram_type):
         ax.plot([0.5, 3.5], [2, 2], color='#1A237E', linewidth=2.5, marker='o')
         ax.text(0.5, 2.25, 'A', fontsize=10, fontweight='bold')
         ax.text(3.5, 2.25, 'B', fontsize=10, fontweight='bold')
-        ax.text(2, 1.4, '[AB] Doğru Parçası', fontsize=9, fontweight='bold', color='#333333', ha='center')
+        label_str = custom_val if custom_val else "[AB] Doğru Parçası"
+        ax.text(2, 1.4, label_str, fontsize=9, fontweight='bold', color='#333333', ha='center')
         ax.set_xlim(0, 4)
         ax.set_ylim(1, 3)
         ax.axis('off')
@@ -223,9 +215,10 @@ def generate_question_image(diagram_type):
         circle = plt.Circle((2, 2), 1.2, fill=False, edgecolor='#FF6B00', linewidth=2.5)
         ax.add_patch(circle)
         ax.plot([2, 3.2], [2, 2], color='#1E90FF', linewidth=2, marker='o')
-        ax.text(2.6, 2.15, 'r', color='#1E90FF', fontsize=10, fontweight='bold')
+        rad_label = f"r = {custom_val}" if custom_val else "r = 6 cm"
+        ax.text(2.6, 2.15, rad_label, color='#1E90FF', fontsize=9, fontweight='bold')
         ax.plot(2, 2, marker='o', color='black')
-        ax.text(1.85, 1.85, 'M (Merkez)', fontsize=8, fontweight='bold')
+        ax.text(1.85, 1.85, 'M', fontsize=8, fontweight='bold')
         ax.set_xlim(0, 4)
         ax.set_ylim(0, 4)
         ax.axis('off')
@@ -256,10 +249,11 @@ def generate_written_exam_with_ai(subject, exam_period, scope):
     Lütfen bu döneme ait tam olarak 5 adet Çoktan Seçmeli (MCQ) ve 5 adet Açık Uçlu / Klasik (OPEN) olmak üzere toplam 10 soru içeren bir yazılı sınav kağıdı hazırla.
     Sorular MEB kazanımlarına tam uygun, nitelikli ve yazılı sınav formatında olmalıdır.
     
-    ÖNEMLİ (Görsel Desteği): 
-    Görsel içeren sorular için "has_diagram": true yap ve "diagram_type" alanını şu uygun değerlerden biri seç:
+    ÖNEMLİ (Görsel ve Değer Uyumu): 
+    Görsel içeren sorular için "has_diagram": true yap, "diagram_type" alanını şu uygun değerlerden biri seç:
     ['sun_earth_moon', 'moon_phases', 'dynamometer', 'right_triangle', 'scalene_triangle', 'isosceles_triangle', 'ray_segment', 'circle_radius']
-    Görsel gerekmeyen sorular için "has_diagram": false ve "diagram_type": null yap.
+    Ayrıca soru metninde kullanılan sayısal değerleri (örn: "r = 5 cm" veya "30 N") "diagram_value" alanına string olarak mutlaka ekle (Görselin üzerine bu değer basılacaktır).
+    Görsel gerekmeyen sorular için "has_diagram": false, "diagram_type": null ve "diagram_value": null yap.
 
     SADECE VE SADECE GEÇERLİ JSON DÖNDÜR.
     Şablon:
@@ -268,24 +262,14 @@ def generate_written_exam_with_ai(subject, exam_period, scope):
             {{
                 "id": 1,
                 "type": "MCQ",
-                "question_text": "Soru metni...",
-                "options": {{"A": "A şıkkı metni", "B": "B şıkkı metni", "C": "C şıkkı metni", "D": "D şıkkı metni"}},
+                "question_text": "Yarıçapı 5 cm olan bir çemberin...",
+                "options": {{"A": "30 cm", "B": "25 cm", "C": "20 cm", "D": "15 cm"}},
                 "correct_answer": "A",
                 "solution_explanation": "Çözüm açıklaması...",
                 "points": 10,
                 "has_diagram": true,
-                "diagram_type": "right_triangle"
-            }},
-            {{
-                "id": 6,
-                "type": "OPEN",
-                "question_text": "Açık uçlu soru metni...",
-                "options": {{}},
-                "correct_answer": "İdeal öğretmen/öğrenci yanıtı...",
-                "solution_explanation": "Değerlendirme açıklaması...",
-                "points": 10,
-                "has_diagram": false,
-                "diagram_type": null
+                "diagram_type": "circle_radius",
+                "diagram_value": "5 cm"
             }}
         ]
     }}
@@ -339,6 +323,7 @@ def generate_written_exam_with_ai(subject, exam_period, scope):
 def get_fallback_exam_questions(subject, exam_period):
     questions = []
     diag_types = ["right_triangle", "scalene_triangle", "isosceles_triangle", "ray_segment", "circle_radius"] if "Matematik" in subject else ["sun_earth_moon", "moon_phases", "dynamometer"]
+    diag_vals = ["6 cm", "8 cm", "10 cm", "15 cm", "20 N"]
     
     for i in range(1, 6):
         questions.append({
@@ -349,7 +334,8 @@ def get_fallback_exam_questions(subject, exam_period):
             "solution_explanation": "Bu sorunun doğru yanıtı A seçeneğidir.",
             "points": 10,
             "has_diagram": True,
-            "diagram_type": diag_types[(i-1) % len(diag_types)]
+            "diagram_type": diag_types[(i-1) % len(diag_types)],
+            "diagram_value": diag_vals[(i-1) % len(diag_vals)]
         })
     for i in range(6, 11):
         questions.append({
@@ -360,7 +346,8 @@ def get_fallback_exam_questions(subject, exam_period):
             "solution_explanation": "Bu soruda öğrenciden temel kavramları açıklaması beklenmektedir.",
             "points": 10,
             "has_diagram": False,
-            "diagram_type": None
+            "diagram_type": None,
+            "diagram_value": None
         })
     return questions
 
@@ -457,6 +444,8 @@ if 'user_answers' not in st.session_state:
     st.session_state.user_answers = {}
 if 'ai_evaluations' not in st.session_state:
     st.session_state.ai_evaluations = {}
+if 'show_canvas' not in st.session_state:
+    st.session_state.show_canvas = False
 
 st.sidebar.header("⚙️ Sınav Takvimi & Müfredat")
 selected_subject = st.sidebar.selectbox("📖 Ders Seçiniz", list(MEB_EXAM_SCHEDULE.keys()))
@@ -471,7 +460,7 @@ st.sidebar.info(f"🔑 **Sistem Durumu:**\n- Groq Anahtar: {len(groq_k)} adet\n-
 st.sidebar.divider()
 
 if st.sidebar.button("📝 Dönem Sınav Kağıdı Hazırla", use_container_width=True):
-    with st.spinner("MEB sınav takvimine uygun sorular ve görseller hazırlanıyor..."):
+    with st.spinner("MEB sınav takvimine uygun değer uyumlu sorular hazırlanıyor..."):
         questions, provider = generate_written_exam_with_ai(selected_subject, selected_period, unit_scope)
         st.session_state.exam_data = {
             "school_name": "ŞEHİT ÖĞRETMEN 5. SINIF ORTAOKULU",
@@ -509,7 +498,7 @@ if st.session_state.exam_data and not st.session_state.exam_started and not st.s
         st.session_state.current_question_index = 0
         st.rerun()
 
-# --- DURUM 2: SINAV DEVAM EDİYOR (HER SAYFADA TEK SORU) ---
+# --- DURUM 2: SINAV DEVAM EDİYOR (HER SAYFADA TEK SORU & İNTERAKTİF KALEM) ---
 elif st.session_state.exam_started and not st.session_state.exam_completed:
     exam = st.session_state.exam_data
     questions = exam['questions']
@@ -542,11 +531,36 @@ elif st.session_state.exam_started and not st.session_state.exam_completed:
     </div>
     """, unsafe_allow_html=True)
 
-    # Görsel Çizim Entegrasyonu
+    # Değer Uyumlu Görsel Çizim Entegrasyonu
     if current_q.get('has_diagram') and current_q.get('diagram_type'):
-        img_buf = generate_question_image(current_q['diagram_type'])
+        d_val = current_q.get('diagram_value', '')
+        img_buf = generate_question_image(current_q['diagram_type'], d_val)
         if img_buf:
             st.image(img_buf, width=340)
+
+    # İnteraktif Kalem (Çizim Tahtası) Aç/Kapat Butonu
+    col_btn_c1, col_btn_c2 = st.columns([1, 4])
+    with col_btn_c1:
+        if st.button("✏️ Çizim Kalemini Aç/Kapat"):
+            st.session_state.show_canvas = not st.session_state.show_canvas
+            st.rerun()
+
+    if st.session_state.show_canvas:
+        st.info("💡 Not: Aşağıdaki interaktif alanda dilediğiniz gibi çizim yapabilir, işaretleme ekleyebilirsiniz.")
+        try:
+            from streamlit_drawable_canvas import st_canvas
+            st_canvas(
+                fill_color="rgba(255, 165, 0, 0.3)",
+                stroke_width=3,
+                stroke_color="#FF6B00",
+                background_color="#ffffff",
+                height=200,
+                width=500,
+                drawing_mode="freedraw",
+                key=f"canvas_q_{q_id}",
+            )
+        except ImportError:
+            st.warning("⚠️ 'streamlit_drawable_canvas' kütüphanesi yüklü değil. Terminale `pip install streamlit-drawable-canvas` yazarak aktif edebilirsiniz.")
 
     saved_ans = st.session_state.user_answers.get(q_id, None)
 
@@ -614,7 +628,6 @@ elif st.session_state.exam_completed:
     mcq_wrong = 0
     mcq_empty = 0
     mcq_score = 0
-    
     open_score = 0
 
     for q in questions:
@@ -659,7 +672,8 @@ elif st.session_state.exam_completed:
         st.markdown(f"**Soru {q_id}: {q['question_text']}**")
         
         if q.get('has_diagram') and q.get('diagram_type'):
-            img_buf = generate_question_image(q['diagram_type'])
+            d_val = q.get('diagram_value', '')
+            img_buf = generate_question_image(q['diagram_type'], d_val)
             if img_buf:
                 st.image(img_buf, width=300)
 
