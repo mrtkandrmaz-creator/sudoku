@@ -139,12 +139,10 @@ def generate_question_image(diagram_type, custom_val=""):
     ax.set_facecolor('#FFFFFF')
     
     if diagram_type == "sun_earth_moon":
-        # Modern Güneş - Dünya - Ay Yörünge Sistemi
         sun = plt.Circle((0.8, 2), 0.7, color='#FF6F00', ec='#E65100', lw=2)
         earth = plt.Circle((3.2, 2), 0.38, color='#0277BD', ec='#01579B', lw=1.5)
         moon = plt.Circle((4.3, 2), 0.14, color='#78909C', ec='#455A64', lw=1)
         
-        # Yörünge çizgisi
         theta = np.linspace(0, 2*np.pi, 100)
         ax.plot(3.2 + 1.1*np.cos(theta), 2 + 1.1*np.sin(theta), color='#B0BEC5', ls='--', lw=1)
         
@@ -171,7 +169,6 @@ def generate_question_image(diagram_type, custom_val=""):
         ax.axis('off')
 
     elif diagram_type == "dynamometer":
-        # Modern Dinamometre ve Yay Tasarımı
         ax.plot([2, 2], [3.6, 3.9], color='#37474F', linewidth=3.5, solid_capstyle='round')
         ax.plot([1.5, 2.5], [3.6, 3.6], color='#37474F', linewidth=4, solid_capstyle='round')
         
@@ -182,7 +179,6 @@ def generate_question_image(diagram_type, custom_val=""):
         rect = plt.Rectangle((1.3, 0.9), 1.4, 2.9, fill=True, facecolor='#ECEFF1', edgecolor='#90A4AE', linewidth=1.8, linestyle='--')
         ax.add_patch(rect)
         
-        # İç ölçek çizgileri
         for tick_y in np.arange(1.2, 3.5, 0.3):
             ax.plot([1.3, 1.5], [tick_y, tick_y], color='#78909C', lw=1)
             
@@ -200,7 +196,7 @@ def generate_question_image(diagram_type, custom_val=""):
         p1, p2, p3 = [0.6, 0.6], [3.6, 0.6], [0.6, 3.2]
         triangle = plt.Polygon([p1, p2, p3], fill=True, facecolor='#E8EAF6', edgecolor='#283593', linewidth=2.5)
         ax.add_patch(triangle)
-        ax.plot([0.6, 1.0, 1.0, 0.6], [0.6, 0.6, 1.0, 0.6], color='#C62828', linewidth=2) # Dik açı simgesi
+        ax.plot([0.6, 1.0, 1.0, 0.6], [0.6, 0.6, 1.0, 0.6], color='#C62828', linewidth=2)
         ax.text(0.4, 0.35, 'A', fontsize=10, fontweight='bold', color='#1A237E')
         ax.text(3.7, 0.35, 'B', fontsize=10, fontweight='bold', color='#1A237E')
         ax.text(0.4, 3.3, 'C', fontsize=10, fontweight='bold', color='#1A237E')
@@ -287,7 +283,7 @@ def generate_written_exam_with_ai(subject, exam_period, scope):
     ÖNEMLİ (Görsel ve Değer Uyumu): 
     Görsel içeren sorular için "has_diagram": true yap, "diagram_type" alanını şu uygun değerlerden biri seç:
     ['sun_earth_moon', 'moon_phases', 'dynamometer', 'right_triangle', 'scalene_triangle', 'isosceles_triangle', 'ray_segment', 'circle_radius']
-    Ayrıca soru metninde kullanılan sayısal değerleri (örn: "r = 5 cm" veya "30 N") "diagram_value" alanına string olarak mutlaka ekle (Görselin üzerine bu değer basılacaktır).
+    Ayrıca soru metninde kullanılan sayısal değerleri (örn: "r = 5 cm" veya "30 N") "diagram_value" alanına string olarak mutlaka ekle.
     Görsel gerekmeyen sorular için "has_diagram": false, "diagram_type": null ve "diagram_value": null yap.
 
     SADECE VE SADECE GEÇERLİ JSON DÖNDÜR.
@@ -479,8 +475,6 @@ if 'user_answers' not in st.session_state:
     st.session_state.user_answers = {}
 if 'ai_evaluations' not in st.session_state:
     st.session_state.ai_evaluations = {}
-if 'show_canvas' not in st.session_state:
-    st.session_state.show_canvas = False
 
 st.sidebar.header("⚙️ Sınav Takvimi & Müfredat")
 selected_subject = st.sidebar.selectbox("📖 Ders Seçiniz", list(MEB_EXAM_SCHEDULE.keys()))
@@ -498,8 +492,8 @@ if st.sidebar.button("📝 Dönem Sınav Kağıdı Hazırla", use_container_widt
     with st.spinner("MEB sınav takvimine uygun modern görsel sorular hazırlanıyor..."):
         questions, provider = generate_written_exam_with_ai(selected_subject, selected_period, unit_scope)
         st.session_state.exam_data = {
-            "school_name": "ŞEHİT ÖĞRETMEN 5. SINIF ORTAOKULU",[cite: 1]
-            "academic_year": "2026-2027 EĞİTİM-ÖĞRETİM YILI",[cite: 1]
+            "school_name": "ŞEHİT ÖĞRETMEN 5. SINIF ORTAOKULU",
+            "academic_year": "2026-2027 EĞİTİM-ÖĞRETİM YILI",
             "subject": selected_subject,
             "period": selected_period,
             "scope": unit_scope,
@@ -574,7 +568,6 @@ elif st.session_state.exam_started and not st.session_state.exam_completed:
         if img_buf and st_canvas:
             st.markdown("<b>🖼️ Soru Şeması / Çizim ve Not Alanı (Kalem ile Üzerine İşaretleme Yapabilirsiniz):</b>", unsafe_allow_html=True)
             
-            # Canvas aracı üzerinden görselin doğrudan üzerine çizim yapma imkanı
             st_canvas(
                 fill_color="rgba(255, 165, 0, 0.2)",
                 stroke_width=3,
