@@ -126,6 +126,8 @@ def load_secrets_api_keys():
 # ==========================================
 # 4. MATPLOTLIB DİNAMİK GÖRSEL ÇİZİM MOTORU
 # ==========================================
+import io
+
 def generate_question_image(diagram_type):
     fig, ax = plt.subplots(figsize=(3.5, 2.4), dpi=120)
     
@@ -175,7 +177,7 @@ def generate_question_image(diagram_type):
         p1, p2, p3 = [0.5, 0.5], [3.5, 0.5], [0.5, 3.0]
         triangle = plt.Polygon([p1, p2, p3], fill=None, edgecolor='#1A237E', linewidth=2.5)
         ax.add_patch(triangle)
-        ax.plot([0.5, 0.9, 0.9, 0.5], [0.5, 0.5, 0.9, 0.5], color='red', linewidth=1.5) # Dik açı işareti
+        ax.plot([0.5, 0.9, 0.9, 0.5], [0.5, 0.5, 0.9, 0.5], color='red', linewidth=1.5)
         ax.text(0.2, 0.3, 'A', fontsize=9, fontweight='bold')
         ax.text(3.6, 0.3, 'B', fontsize=9, fontweight='bold')
         ax.text(0.2, 3.1, 'C', fontsize=9, fontweight='bold')
@@ -472,8 +474,8 @@ if st.sidebar.button("📝 Dönem Sınav Kağıdı Hazırla", use_container_widt
     with st.spinner("MEB sınav takvimine uygun sorular ve görseller hazırlanıyor..."):
         questions, provider = generate_written_exam_with_ai(selected_subject, selected_period, unit_scope)
         st.session_state.exam_data = {
-            "school_name": "ŞEHİT ÖĞRETMEN 5. SINIF ORTAOKULU",[cite: 1]
-            "academic_year": "2026-2027 EĞİTİM-ÖĞRETİM YILI",[cite: 1]
+            "school_name": "ŞEHİT ÖĞRETMEN 5. SINIF ORTAOKULU",
+            "academic_year": "2026-2027 EĞİTİM-ÖĞRETİM YILI",
             "subject": selected_subject,
             "period": selected_period,
             "scope": unit_scope,
