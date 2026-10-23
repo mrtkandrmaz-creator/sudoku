@@ -239,8 +239,8 @@ if st.sidebar.button("📝 Dönem Sınav Kağıdı Oluştur", use_container_widt
     with st.spinner("MEB sınav takvimine uygun yazılı kağıdı hazırlanıyor..."):
         questions, provider = generate_written_exam_with_ai(selected_subject, selected_period, unit_scope)
         st.session_state.exam_data = {
-            "school_name": "ŞEHİT ÖĞRETMEN 5. SINIF ORTAOKULU",[cite: 1]
-            "academic_year": "2026-2027 EĞİTİM-ÖĞRETİM YILI",[cite: 1]
+            "school_name": "ŞEHİT ÖĞRETMEN 5. SINIF ORTAOKULU",
+            "academic_year": "2026-2027 EĞİTİM-ÖĞRETİM YILI",
             "subject": selected_subject,
             "period": selected_period,
             "scope": unit_scope,
