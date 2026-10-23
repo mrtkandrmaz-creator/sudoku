@@ -19,11 +19,17 @@ try:
 except ImportError:
     Groq = None
 
+# Çizim Kalemi Kütüphanesi
+try:
+    from streamlit_drawable_canvas import st_canvas
+except ImportError:
+    st_canvas = None
+
 # ==========================================
 # 1. SAYFA YAPILANDIRMASI VE ÖZEL CSS
 # ==========================================
 st.set_page_config(
-    page_title="MEB Sınav Takvimi & İnteraktif Çizim Modülü - Murat KANDIRMAZ",
+    page_title="MEB Sınav Takvimi & Modern Çizim Modülü - Murat KANDIRMAZ",
     page_icon="📝",
     layout="wide",
     initial_sidebar_state="expanded"
@@ -125,100 +131,129 @@ def load_secrets_api_keys():
     return groq_list, gemini_list
 
 # ==========================================
-# 4. DEĞER UYUMLU MATPLOTLIB GÖRSEL ÇİZİM MOTORU
+# 4. MODERN VE GERÇEKÇİ MATPLOTLIB GÖRSEL MOTORU
 # ==========================================
 def generate_question_image(diagram_type, custom_val=""):
-    fig, ax = plt.subplots(figsize=(3.8, 2.6), dpi=130)
+    fig, ax = plt.subplots(figsize=(4.2, 2.8), dpi=140)
+    fig.patch.set_facecolor('#FAFAFA')
+    ax.set_facecolor('#FFFFFF')
     
     if diagram_type == "sun_earth_moon":
-        sun = plt.Circle((0.8, 2), 0.6, color='#FF8C00')
-        earth = plt.Circle((3.2, 2), 0.35, color='#1E90FF')
-        moon = plt.Circle((4.3, 2), 0.12, color='#A9A9A9')
+        # Modern Güneş - Dünya - Ay Yörünge Sistemi
+        sun = plt.Circle((0.8, 2), 0.7, color='#FF6F00', ec='#E65100', lw=2)
+        earth = plt.Circle((3.2, 2), 0.38, color='#0277BD', ec='#01579B', lw=1.5)
+        moon = plt.Circle((4.3, 2), 0.14, color='#78909C', ec='#455A64', lw=1)
+        
+        # Yörünge çizgisi
+        theta = np.linspace(0, 2*np.pi, 100)
+        ax.plot(3.2 + 1.1*np.cos(theta), 2 + 1.1*np.sin(theta), color='#B0BEC5', ls='--', lw=1)
+        
         ax.add_patch(sun)
         ax.add_patch(earth)
         ax.add_patch(moon)
-        ax.text(0.8, 1.1, 'Güneş', ha='center', fontweight='bold', color='#FF8C00', fontsize=8)
-        ax.text(3.2, 1.3, 'Dünya', ha='center', fontweight='bold', color='#1E90FF', fontsize=8)
-        ax.text(4.3, 1.6, 'Ay', ha='center', fontweight='bold', color='#A9A9A9', fontsize=8)
-        ax.set_xlim(0, 5)
+        ax.text(0.8, 1.1, 'Güneş (Yıldız)', ha='center', fontweight='bold', color='#E65100', fontsize=8.5)
+        ax.text(3.2, 1.3, 'Dünya', ha='center', fontweight='bold', color='#0277BD', fontsize=8.5)
+        ax.text(4.3, 1.6, 'Ay', ha='center', fontweight='bold', color='#455A64', fontsize=8)
+        ax.set_xlim(0, 5.2)
         ax.set_ylim(0.5, 3.5)
         ax.axis('off')
 
     elif diagram_type == "moon_phases":
-        circle = plt.Circle((2, 2), 1.2, color='#333333', fill=True)
+        circle = plt.Circle((2, 2), 1.3, color='#263238', fill=True)
         ax.add_patch(circle)
         theta = np.linspace(-np.pi/2, np.pi/2, 100)
-        x = 2 + 1.2 * np.cos(theta)
-        y = 2 + 1.2 * np.sin(theta)
-        ax.fill_betweenx(y, 2, x, color='#FFD700', alpha=0.9)
-        ax.text(2, 0.4, "Ay Evresi Modeli", ha='center', fontsize=9, fontweight='bold', color='#333333')
+        x = 2 + 1.3 * np.cos(theta)
+        y = 2 + 1.3 * np.sin(theta)
+        ax.fill_betweenx(y, 2, x, color='#FFC107', alpha=0.95)
+        ax.text(2, 0.3, "Ay'ın Aydınlanma Evresi", ha='center', fontsize=9, fontweight='bold', color='#37474F')
         ax.set_xlim(0, 4)
         ax.set_ylim(0, 4)
         ax.axis('off')
 
     elif diagram_type == "dynamometer":
-        ax.plot([2, 2], [3.5, 3.8], color='black', linewidth=3)
-        ax.plot([1.6, 2.4], [3.5, 3.5], color='black', linewidth=3)
-        y_vals = np.linspace(1.8, 3.5, 15)
-        x_vals = 2 + 0.18 * np.sin(np.linspace(0, 4*np.pi, 15))
-        ax.plot(x_vals, y_vals, color='#FF6B00', linewidth=2.5)
-        rect = plt.Rectangle((1.4, 1.0), 1.2, 2.7, fill=False, edgecolor='gray', linewidth=1.5, linestyle='--')
+        # Modern Dinamometre ve Yay Tasarımı
+        ax.plot([2, 2], [3.6, 3.9], color='#37474F', linewidth=3.5, solid_capstyle='round')
+        ax.plot([1.5, 2.5], [3.6, 3.6], color='#37474F', linewidth=4, solid_capstyle='round')
+        
+        y_vals = np.linspace(1.7, 3.6, 18)
+        x_vals = 2 + 0.22 * np.sin(np.linspace(0, 6*np.pi, 18))
+        ax.plot(x_vals, y_vals, color='#EF6C00', linewidth=3)
+        
+        rect = plt.Rectangle((1.3, 0.9), 1.4, 2.9, fill=True, facecolor='#ECEFF1', edgecolor='#90A4AE', linewidth=1.8, linestyle='--')
         ax.add_patch(rect)
-        ax.plot([2, 2], [0.75, 1.0], color='black', linewidth=2)
-        weight = plt.Rectangle((1.65, 0.2), 0.7, 0.55, color='#1E90FF')
+        
+        # İç ölçek çizgileri
+        for tick_y in np.arange(1.2, 3.5, 0.3):
+            ax.plot([1.3, 1.5], [tick_y, tick_y], color='#78909C', lw=1)
+            
+        ax.plot([2, 2], [0.6, 0.9], color='#37474F', linewidth=2.5)
+        weight = plt.Rectangle((1.55, 0.1), 0.9, 0.5, color='#0288D1', ec='#01579B', lw=1.5, rx=0.1)
         ax.add_patch(weight)
-        label_text = f"Yük: {custom_val}" if custom_val else "Ölçüm (N)"
-        ax.text(2, 0.47, label_text, color='white', fontsize=7.5, fontweight='bold', ha='center', va='center')
+        
+        load_text = f"Ölçüm: {custom_val}" if custom_val else "Kuvvet (N)"
+        ax.text(2, 0.35, load_text, color='white', fontsize=8, fontweight='bold', ha='center', va='center')
         ax.set_xlim(0.8, 3.2)
-        ax.set_ylim(0, 4)
+        ax.set_ylim(0, 4.2)
         ax.axis('off')
 
     elif diagram_type == "right_triangle":
-        p1, p2, p3 = [0.5, 0.5], [3.5, 0.5], [0.5, 3.0]
-        triangle = plt.Polygon([p1, p2, p3], fill=None, edgecolor='#1A237E', linewidth=2.5)
+        p1, p2, p3 = [0.6, 0.6], [3.6, 0.6], [0.6, 3.2]
+        triangle = plt.Polygon([p1, p2, p3], fill=True, facecolor='#E8EAF6', edgecolor='#283593', linewidth=2.5)
         ax.add_patch(triangle)
-        ax.plot([0.5, 0.9, 0.9, 0.5], [0.5, 0.5, 0.9, 0.5], color='red', linewidth=1.5)
-        ax.text(1.8, 1.4, f"Dik Üçgen\n{custom_val}", fontsize=8.5, color='#1A237E', fontweight='bold', ha='center')
-        ax.set_xlim(0, 4)
-        ax.set_ylim(0, 3.5)
+        ax.plot([0.6, 1.0, 1.0, 0.6], [0.6, 0.6, 1.0, 0.6], color='#C62828', linewidth=2) # Dik açı simgesi
+        ax.text(0.4, 0.35, 'A', fontsize=10, fontweight='bold', color='#1A237E')
+        ax.text(3.7, 0.35, 'B', fontsize=10, fontweight='bold', color='#1A237E')
+        ax.text(0.4, 3.3, 'C', fontsize=10, fontweight='bold', color='#1A237E')
+        label_str = f"Dik Üçgen ({custom_val})" if custom_val else "Dik Üçgen"
+        ax.text(1.8, 1.6, label_str, fontsize=9.5, color='#283593', fontweight='bold', ha='center')
+        ax.set_xlim(0, 4.2)
+        ax.set_ylim(0, 3.8)
         ax.axis('off')
 
     elif diagram_type == "scalene_triangle":
-        p1, p2, p3 = [0.5, 0.5], [3.8, 0.8], [1.5, 3.0]
-        triangle = plt.Polygon([p1, p2, p3], fill=None, edgecolor='#FF6B00', linewidth=2.5)
+        p1, p2, p3 = [0.5, 0.5], [3.8, 0.7], [1.4, 3.2]
+        triangle = plt.Polygon([p1, p2, p3], fill=True, facecolor='#FBE9E7', edgecolor='#D84315', linewidth=2.5)
         ax.add_patch(triangle)
-        ax.text(1.8, 1.4, f"Çeşitkenar\n{custom_val}", fontsize=8.5, color='#FF6B00', fontweight='bold', ha='center')
+        ax.text(0.3, 0.3, 'K', fontsize=10, fontweight='bold', color='#BF360C')
+        ax.text(3.9, 0.5, 'L', fontsize=10, fontweight='bold', color='#BF360C')
+        ax.text(1.2, 3.3, 'M', fontsize=10, fontweight='bold', color='#BF360C')
+        label_str = f"Çeşitkenar ({custom_val})" if custom_val else "Çeşitkenar Üçgen"
+        ax.text(1.9, 1.5, label_str, fontsize=9.5, color='#D84315', fontweight='bold', ha='center')
         ax.set_xlim(0, 4.5)
-        ax.set_ylim(0, 3.5)
+        ax.set_ylim(0, 3.8)
         ax.axis('off')
 
     elif diagram_type == "isosceles_triangle":
-        p1, p2, p3 = [0.8, 0.5], [3.2, 0.5], [2.0, 3.0]
-        triangle = plt.Polygon([p1, p2, p3], fill=None, edgecolor='#2E7D32', linewidth=2.5)
+        p1, p2, p3 = [0.8, 0.5], [3.4, 0.5], [2.1, 3.2]
+        triangle = plt.Polygon([p1, p2, p3], fill=True, facecolor='#E8F5E9', edgecolor='#2E7D32', linewidth=2.5)
         ax.add_patch(triangle)
-        ax.text(2.0, 1.5, f"İkizkenar\n{custom_val}", fontsize=8.5, color='#2E7D32', fontweight='bold', ha='center')
-        ax.set_xlim(0, 4)
-        ax.set_ylim(0, 3.5)
+        ax.text(0.6, 0.3, 'A', fontsize=10, fontweight='bold', color='#1B5E20')
+        ax.text(3.5, 0.3, 'B', fontsize=10, fontweight='bold', color='#1B5E20')
+        ax.text(2.0, 3.3, 'C', fontsize=10, fontweight='bold', color='#1B5E20')
+        label_str = f"İkizkenar ({custom_val})" if custom_val else "İkizkenar Üçgen"
+        ax.text(2.1, 1.6, label_str, fontsize=9.5, color='#2E7D32', fontweight='bold', ha='center')
+        ax.set_xlim(0, 4.2)
+        ax.set_ylim(0, 3.8)
         ax.axis('off')
 
     elif diagram_type == "ray_segment":
-        ax.plot([0.5, 3.5], [2, 2], color='#1A237E', linewidth=2.5, marker='o')
-        ax.text(0.5, 2.25, 'A', fontsize=10, fontweight='bold')
-        ax.text(3.5, 2.25, 'B', fontsize=10, fontweight='bold')
+        ax.plot([0.6, 3.6], [2, 2], color='#0277BD', linewidth=3, marker='o', markersize=6)
+        ax.text(0.6, 2.3, 'A', fontsize=10, fontweight='bold', color='#01579B')
+        ax.text(3.6, 2.3, 'B', fontsize=10, fontweight='bold', color='#01579B')
         label_str = custom_val if custom_val else "[AB] Doğru Parçası"
-        ax.text(2, 1.4, label_str, fontsize=9, fontweight='bold', color='#333333', ha='center')
-        ax.set_xlim(0, 4)
+        ax.text(2.1, 1.4, label_str, fontsize=9.5, fontweight='bold', color='#37474F', ha='center')
+        ax.set_xlim(0, 4.2)
         ax.set_ylim(1, 3)
         ax.axis('off')
 
     elif diagram_type == "circle_radius":
-        circle = plt.Circle((2, 2), 1.2, fill=False, edgecolor='#FF6B00', linewidth=2.5)
+        circle = plt.Circle((2, 2), 1.3, fill=True, facecolor='#FFF3E0', edgecolor='#EF6C00', linewidth=2.5)
         ax.add_patch(circle)
-        ax.plot([2, 3.2], [2, 2], color='#1E90FF', linewidth=2, marker='o')
+        ax.plot([2, 3.3], [2, 2], color='#0288D1', linewidth=2.2, marker='o', markersize=5)
         rad_label = f"r = {custom_val}" if custom_val else "r = 6 cm"
-        ax.text(2.6, 2.15, rad_label, color='#1E90FF', fontsize=9, fontweight='bold')
-        ax.plot(2, 2, marker='o', color='black')
-        ax.text(1.85, 1.85, 'M', fontsize=8, fontweight='bold')
+        ax.text(2.65, 2.2, rad_label, color='#0288D1', fontsize=9.5, fontweight='bold')
+        ax.plot(2, 2, marker='o', color='#37474F', markersize=6)
+        ax.text(1.85, 1.75, 'M (Merkez)', fontsize=8.5, fontweight='bold', color='#37474F')
         ax.set_xlim(0, 4)
         ax.set_ylim(0, 4)
         ax.axis('off')
@@ -229,7 +264,7 @@ def generate_question_image(diagram_type, custom_val=""):
         
     plt.tight_layout()
     buf = io.BytesIO()
-    plt.savefig(buf, format='png', bbox_inches='tight', transparent=True)
+    plt.savefig(buf, format='png', bbox_inches='tight', facecolor=fig.get_facecolor(), edgecolor='none')
     buf.seek(0)
     plt.close(fig)
     return buf
@@ -460,11 +495,11 @@ st.sidebar.info(f"🔑 **Sistem Durumu:**\n- Groq Anahtar: {len(groq_k)} adet\n-
 st.sidebar.divider()
 
 if st.sidebar.button("📝 Dönem Sınav Kağıdı Hazırla", use_container_width=True):
-    with st.spinner("MEB sınav takvimine uygun değer uyumlu sorular hazırlanıyor..."):
+    with st.spinner("MEB sınav takvimine uygun modern görsel sorular hazırlanıyor..."):
         questions, provider = generate_written_exam_with_ai(selected_subject, selected_period, unit_scope)
         st.session_state.exam_data = {
-            "school_name": "ŞEHİT ÖĞRETMEN 5. SINIF ORTAOKULU",
-            "academic_year": "2026-2027 EĞİTİM-ÖĞRETİM YILI",
+            "school_name": "ŞEHİT ÖĞRETMEN 5. SINIF ORTAOKULU",[cite: 1]
+            "academic_year": "2026-2027 EĞİTİM-ÖĞRETİM YILI",[cite: 1]
             "subject": selected_subject,
             "period": selected_period,
             "scope": unit_scope,
@@ -476,7 +511,7 @@ if st.sidebar.button("📝 Dönem Sınav Kağıdı Hazırla", use_container_widt
         st.session_state.current_question_index = 0
         st.session_state.user_answers = {}
         st.session_state.ai_evaluations = {}
-        st.success("✅ Sınav soruları ve görsel şemaları hazırlandı! Başlatmak için butona tıklayınız.")
+        st.success("✅ Sınav soruları ve modern şemalar hazırlandı! Başlatmak için butona tıklayınız.")
 
 # --- DURUM 1: SORULAR HAZIR ANCAK SINAV BAŞLAMADI ---
 if st.session_state.exam_data and not st.session_state.exam_started and not st.session_state.exam_completed:
@@ -488,7 +523,7 @@ if st.session_state.exam_data and not st.session_state.exam_started and not st.s
         <h4 style="margin:4px 0; color:#1A237E;">{exam['period'].upper()}</h4>
         <p style="margin:2px 0; font-size:12px; color:#555;">(Kapsam: {exam['scope']})</p>
         <hr style="border:0.5px solid #ccc; margin:15px 0;">
-        <p style="font-size:16px; color:#2e7d32; font-weight:bold;">🎉 Sınav soruları ve görselleri hazır!</p>
+        <p style="font-size:16px; color:#2e7d32; font-weight:bold;">🎉 Sınav soruları ve modern görselleri hazır!</p>
     </div>
     """, unsafe_allow_html=True)
 
@@ -498,7 +533,7 @@ if st.session_state.exam_data and not st.session_state.exam_started and not st.s
         st.session_state.current_question_index = 0
         st.rerun()
 
-# --- DURUM 2: SINAV DEVAM EDİYOR (HER SAYFADA TEK SORU & İNTERAKTİF KALEM) ---
+# --- DURUM 2: SINAV DEVAM EDİYOR (HER SAYFADA TEK SORU & ÜZERİNDE İŞARETLEMELİ KALEM) ---
 elif st.session_state.exam_started and not st.session_state.exam_completed:
     exam = st.session_state.exam_data
     questions = exam['questions']
@@ -531,36 +566,28 @@ elif st.session_state.exam_started and not st.session_state.exam_completed:
     </div>
     """, unsafe_allow_html=True)
 
-    # Değer Uyumlu Görsel Çizim Entegrasyonu
+    # Değer ve Görsel Entegrasyonu ile Modern Şema Üstünde Çizim Kalemi
     if current_q.get('has_diagram') and current_q.get('diagram_type'):
         d_val = current_q.get('diagram_value', '')
         img_buf = generate_question_image(current_q['diagram_type'], d_val)
-        if img_buf:
-            st.image(img_buf, width=340)
-
-    # İnteraktif Kalem (Çizim Tahtası) Aç/Kapat Butonu
-    col_btn_c1, col_btn_c2 = st.columns([1, 4])
-    with col_btn_c1:
-        if st.button("✏️ Çizim Kalemini Aç/Kapat"):
-            st.session_state.show_canvas = not st.session_state.show_canvas
-            st.rerun()
-
-    if st.session_state.show_canvas:
-        st.info("💡 Not: Aşağıdaki interaktif alanda dilediğiniz gibi çizim yapabilir, işaretleme ekleyebilirsiniz.")
-        try:
-            from streamlit_drawable_canvas import st_canvas
+        
+        if img_buf and st_canvas:
+            st.markdown("<b>🖼️ Soru Şeması / Çizim ve Not Alanı (Kalem ile Üzerine İşaretleme Yapabilirsiniz):</b>", unsafe_allow_html=True)
+            
+            # Canvas aracı üzerinden görselin doğrudan üzerine çizim yapma imkanı
             st_canvas(
-                fill_color="rgba(255, 165, 0, 0.3)",
+                fill_color="rgba(255, 165, 0, 0.2)",
                 stroke_width=3,
-                stroke_color="#FF6B00",
-                background_color="#ffffff",
-                height=200,
-                width=500,
+                stroke_color="#D32F2F",
+                background_image=img_buf,
+                update_streamlit=True,
+                height=280,
+                width=420,
                 drawing_mode="freedraw",
                 key=f"canvas_q_{q_id}",
             )
-        except ImportError:
-            st.warning("⚠️ 'streamlit_drawable_canvas' kütüphanesi yüklü değil. Terminale `pip install streamlit-drawable-canvas` yazarak aktif edebilirsiniz.")
+        elif img_buf:
+            st.image(img_buf, width=380)
 
     saved_ans = st.session_state.user_answers.get(q_id, None)
 
@@ -675,7 +702,7 @@ elif st.session_state.exam_completed:
             d_val = q.get('diagram_value', '')
             img_buf = generate_question_image(q['diagram_type'], d_val)
             if img_buf:
-                st.image(img_buf, width=300)
+                st.image(img_buf, width=320)
 
         if q['type'] == 'MCQ':
             is_correct = (user_ans == correct_ans)
