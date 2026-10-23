@@ -173,7 +173,7 @@ def generate_written_exam_with_ai(subject, exam_period, scope):
         for key in gemini_keys:
             try:
                 genai.configure(api_key=key.strip())
-                model = genai.GenerativeModel('gemini-1.5-flash')
+                model = genai.GenerativeModel('gemini-3.6-flash')
                 response = model.generate_content(
                     prompt,
                     generation_config={"response_mime_type": "application/json"}
