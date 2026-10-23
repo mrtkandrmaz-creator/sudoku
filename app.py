@@ -4,6 +4,8 @@ import random
 import json
 import os
 import time
+import matplotlib.pyplot as plt
+import numpy as np
 
 # API İstemci Kütüphaneleri
 try:
@@ -20,7 +22,7 @@ except ImportError:
 # 1. SAYFA YAPILANDIRMASI VE ÖZEL CSS
 # ==========================================
 st.set_page_config(
-    page_title="MEB Sınav Takvimi & Yazılı Modülü - Murat KANDIRMAZ",
+    page_title="MEB Sınav Takvimi & Görsel Soru Modülü - Murat KANDIRMAZ",
     page_icon="📝",
     layout="wide",
     initial_sidebar_state="expanded"
@@ -75,7 +77,7 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 # ==========================================
-# 2. MEB 5. SINIF DÖNEM VE SINAV TAKVİMİ (GÜNCELLENMİŞ MÜFREDAT)
+# 2. MEB 5. SINIF DÖNEM VE SINAV TAKVİMİ
 # ==========================================
 MEB_EXAM_SCHEDULE = {
     "Fen Bilimleri": {
@@ -122,7 +124,123 @@ def load_secrets_api_keys():
     return groq_list, gemini_list
 
 # ==========================================
-# 4. YÜK DENGELEMELİ AI YAZILI SORU ÜRETİCİ
+# 4. MATPLOTLIB DİNAMİK GÖRSEL ÇİZİM MOTORU
+# ==========================================
+def generate_question_image(diagram_type):
+    fig, ax = plt.subplots(figsize=(3.5, 2.4), dpi=120)
+    
+    if diagram_type == "sun_earth_moon":
+        sun = plt.Circle((0.8, 2), 0.6, color='#FF8C00')
+        earth = plt.Circle((3.2, 2), 0.35, color='#1E90FF')
+        moon = plt.Circle((4.3, 2), 0.12, color='#A9A9A9')
+        ax.add_patch(sun)
+        ax.add_patch(earth)
+        ax.add_patch(moon)
+        ax.text(0.8, 1.1, 'Güneş', ha='center', fontweight='bold', color='#FF8C00', fontsize=8)
+        ax.text(3.2, 1.3, 'Dünya', ha='center', fontweight='bold', color='#1E90FF', fontsize=8)
+        ax.text(4.3, 1.6, 'Ay', ha='center', fontweight='bold', color='#A9A9A9', fontsize=8)
+        ax.set_xlim(0, 5)
+        ax.set_ylim(0.5, 3.5)
+        ax.axis('off')
+
+    elif diagram_type == "moon_phases":
+        circle = plt.Circle((2, 2), 1.2, color='#333333', fill=True)
+        ax.add_patch(circle)
+        theta = np.linspace(-np.pi/2, np.pi/2, 100)
+        x = 2 + 1.2 * np.cos(theta)
+        y = 2 + 1.2 * np.sin(theta)
+        ax.fill_betweenx(y, 2, x, color='#FFD700', alpha=0.9)
+        ax.text(2, 0.4, "Ay Evresi Modeli", ha='center', fontsize=9, fontweight='bold', color='#333333')
+        ax.set_xlim(0, 4)
+        ax.set_ylim(0, 4)
+        ax.axis('off')
+
+    elif diagram_type == "dynamometer":
+        ax.plot([2, 2], [3.5, 3.8], color='black', linewidth=3)
+        ax.plot([1.6, 2.4], [3.5, 3.5], color='black', linewidth=3)
+        y_vals = np.linspace(1.8, 3.5, 15)
+        x_vals = 2 + 0.18 * np.sin(np.linspace(0, 4*np.pi, 15))
+        ax.plot(x_vals, y_vals, color='#FF6B00', linewidth=2.5)
+        rect = plt.Rectangle((1.4, 1.0), 1.2, 2.7, fill=False, edgecolor='gray', linewidth=1.5, linestyle='--')
+        ax.add_patch(rect)
+        ax.plot([2, 2], [0.75, 1.0], color='black', linewidth=2)
+        weight = plt.Rectangle((1.65, 0.2), 0.7, 0.55, color='#1E90FF')
+        ax.add_patch(weight)
+        ax.text(2, 0.47, 'Yük (F)', color='white', fontsize=8, fontweight='bold', ha='center', va='center')
+        ax.set_xlim(0.8, 3.2)
+        ax.set_ylim(0, 4)
+        ax.axis('off')
+
+    elif diagram_type == "right_triangle":
+        p1, p2, p3 = [0.5, 0.5], [3.5, 0.5], [0.5, 3.0]
+        triangle = plt.Polygon([p1, p2, p3], fill=None, edgecolor='#1A237E', linewidth=2.5)
+        ax.add_patch(triangle)
+        ax.plot([0.5, 0.9, 0.9, 0.5], [0.5, 0.5, 0.9, 0.5], color='red', linewidth=1.5) # Dik açı işareti
+        ax.text(0.2, 0.3, 'A', fontsize=9, fontweight='bold')
+        ax.text(3.6, 0.3, 'B', fontsize=9, fontweight='bold')
+        ax.text(0.2, 3.1, 'C', fontsize=9, fontweight='bold')
+        ax.text(1.8, 1.5, 'Dik Üçgen', fontsize=9, color='#1A237E', fontweight='bold')
+        ax.set_xlim(0, 4)
+        ax.set_ylim(0, 3.5)
+        ax.axis('off')
+
+    elif diagram_type == "scalene_triangle":
+        p1, p2, p3 = [0.5, 0.5], [3.8, 0.8], [1.5, 3.0]
+        triangle = plt.Polygon([p1, p2, p3], fill=None, edgecolor='#FF6B00', linewidth=2.5)
+        ax.add_patch(triangle)
+        ax.text(0.3, 0.3, 'K', fontsize=9, fontweight='bold')
+        ax.text(3.9, 0.7, 'L', fontsize=9, fontweight='bold')
+        ax.text(1.3, 3.1, 'M', fontsize=9, fontweight='bold')
+        ax.text(1.8, 1.4, 'Çeşitkenar Üçgen', fontsize=9, color='#FF6B00', fontweight='bold')
+        ax.set_xlim(0, 4.5)
+        ax.set_ylim(0, 3.5)
+        ax.axis('off')
+
+    elif diagram_type == "isosceles_triangle":
+        p1, p2, p3 = [0.8, 0.5], [3.2, 0.5], [2.0, 3.0]
+        triangle = plt.Polygon([p1, p2, p3], fill=None, edgecolor='#2E7D32', linewidth=2.5)
+        ax.add_patch(triangle)
+        ax.text(0.6, 0.3, 'A', fontsize=9, fontweight='bold')
+        ax.text(3.3, 0.3, 'B', fontsize=9, fontweight='bold')
+        ax.text(1.9, 3.1, 'C', fontsize=9, fontweight='bold')
+        ax.text(1.6, 1.5, 'İkizkenar Üçgen', fontsize=9, color='#2E7D32', fontweight='bold')
+        ax.set_xlim(0, 4)
+        ax.set_ylim(0, 3.5)
+        ax.axis('off')
+
+    elif diagram_type == "ray_segment":
+        ax.plot([0.5, 3.5], [2, 2], color='#1A237E', linewidth=2.5, marker='o')
+        ax.text(0.5, 2.25, 'A', fontsize=10, fontweight='bold')
+        ax.text(3.5, 2.25, 'B', fontsize=10, fontweight='bold')
+        ax.text(2, 1.4, '[AB] Doğru Parçası', fontsize=9, fontweight='bold', color='#333333', ha='center')
+        ax.set_xlim(0, 4)
+        ax.set_ylim(1, 3)
+        ax.axis('off')
+
+    elif diagram_type == "circle_radius":
+        circle = plt.Circle((2, 2), 1.2, fill=False, edgecolor='#FF6B00', linewidth=2.5)
+        ax.add_patch(circle)
+        ax.plot([2, 3.2], [2, 2], color='#1E90FF', linewidth=2, marker='o')
+        ax.text(2.6, 2.15, 'r', color='#1E90FF', fontsize=10, fontweight='bold')
+        ax.plot(2, 2, marker='o', color='black')
+        ax.text(1.85, 1.85, 'M (Merkez)', fontsize=8, fontweight='bold')
+        ax.set_xlim(0, 4)
+        ax.set_ylim(0, 4)
+        ax.axis('off')
+
+    else:
+        plt.close(fig)
+        return None
+        
+    plt.tight_layout()
+    buf = io.BytesIO()
+    plt.savefig(buf, format='png', bbox_inches='tight', transparent=True)
+    buf.seek(0)
+    plt.close(fig)
+    return buf
+
+# ==========================================
+# 5. YÜK DENGELEMELİ AI YAZILI SORU ÜRETİCİ
 # ==========================================
 def generate_written_exam_with_ai(subject, exam_period, scope):
     groq_keys, gemini_keys = load_secrets_api_keys()
@@ -135,6 +253,11 @@ def generate_written_exam_with_ai(subject, exam_period, scope):
 
     Lütfen bu döneme ait tam olarak 5 adet Çoktan Seçmeli (MCQ) ve 5 adet Açık Uçlu / Klasik (OPEN) olmak üzere toplam 10 soru içeren bir yazılı sınav kağıdı hazırla.
     Sorular MEB kazanımlarına tam uygun, nitelikli ve yazılı sınav formatında olmalıdır.
+    
+    ÖNEMLİ (Görsel Desteği): 
+    Görsel içeren sorular için "has_diagram": true yap ve "diagram_type" alanını şu uygun değerlerden biri seç:
+    ['sun_earth_moon', 'moon_phases', 'dynamometer', 'right_triangle', 'scalene_triangle', 'isosceles_triangle', 'ray_segment', 'circle_radius']
+    Görsel gerekmeyen sorular için "has_diagram": false ve "diagram_type": null yap.
 
     SADECE VE SADECE GEÇERLİ JSON DÖNDÜR.
     Şablon:
@@ -147,7 +270,9 @@ def generate_written_exam_with_ai(subject, exam_period, scope):
                 "options": {{"A": "A şıkkı metni", "B": "B şıkkı metni", "C": "C şıkkı metni", "D": "D şıkkı metni"}},
                 "correct_answer": "A",
                 "solution_explanation": "Çözüm açıklaması...",
-                "points": 10
+                "points": 10,
+                "has_diagram": true,
+                "diagram_type": "right_triangle"
             }},
             {{
                 "id": 6,
@@ -156,7 +281,9 @@ def generate_written_exam_with_ai(subject, exam_period, scope):
                 "options": {{}},
                 "correct_answer": "İdeal öğretmen/öğrenci yanıtı...",
                 "solution_explanation": "Değerlendirme açıklaması...",
-                "points": 10
+                "points": 10,
+                "has_diagram": false,
+                "diagram_type": null
             }}
         ]
     }}
@@ -209,14 +336,18 @@ def generate_written_exam_with_ai(subject, exam_period, scope):
 
 def get_fallback_exam_questions(subject, exam_period):
     questions = []
+    diag_types = ["right_triangle", "scalene_triangle", "isosceles_triangle", "ray_segment", "circle_radius"] if "Matematik" in subject else ["sun_earth_moon", "moon_phases", "dynamometer"]
+    
     for i in range(1, 6):
         questions.append({
             "id": i, "type": "MCQ",
-            "question_text": f"5. Sınıf {subject} ({exam_period}) dönemi MEB kazanımına uygun test sorusu {i}?",
+            "question_text": f"5. Sınıf {subject} ({exam_period}) dönemi görsel destekli örnek test sorusu {i}?",
             "options": {"A": "Doğru seçenek", "B": "Çeldirici 1", "C": "Çeldirici 2", "D": "Çeldirici 3"},
             "correct_answer": "A",
             "solution_explanation": "Bu sorunun doğru yanıtı A seçeneğidir.",
-            "points": 10
+            "points": 10,
+            "has_diagram": True,
+            "diagram_type": diag_types[(i-1) % len(diag_types)]
         })
     for i in range(6, 11):
         questions.append({
@@ -225,12 +356,14 @@ def get_fallback_exam_questions(subject, exam_period):
             "options": {},
             "correct_answer": "Örnek ideal öğrenci yanıtı ve anahtar kelimeler.",
             "solution_explanation": "Bu soruda öğrenciden temel kavramları açıklaması beklenmektedir.",
-            "points": 10
+            "points": 10,
+            "has_diagram": False,
+            "diagram_type": None
         })
     return questions
 
 # ==========================================
-# 5. YAPAY ZEKA ÖĞRETMEN DEĞERLENDİRME MOTORU
+# 6. YAPAY ZEKA ÖĞRETMEN DEĞERLENDİRME MOTORU
 # ==========================================
 def evaluate_open_questions_with_ai(open_eval_list):
     groq_keys, gemini_keys = load_secrets_api_keys()
@@ -306,7 +439,7 @@ def evaluate_open_questions_with_ai(open_eval_list):
     return fallback_eval
 
 # ==========================================
-# 6. STREAMLIT ARAYÜZÜ & STATE YÖNETİMİ
+# 7. STREAMLIT ARAYÜZÜ & STATE YÖNETİMİ
 # ==========================================
 if 'exam_data' not in st.session_state:
     st.session_state.exam_data = None
@@ -336,11 +469,11 @@ st.sidebar.info(f"🔑 **Sistem Durumu:**\n- Groq Anahtar: {len(groq_k)} adet\n-
 st.sidebar.divider()
 
 if st.sidebar.button("📝 Dönem Sınav Kağıdı Hazırla", use_container_width=True):
-    with st.spinner("MEB sınav takvimine uygun sorular hazırlanıyor..."):
+    with st.spinner("MEB sınav takvimine uygun sorular ve görseller hazırlanıyor..."):
         questions, provider = generate_written_exam_with_ai(selected_subject, selected_period, unit_scope)
         st.session_state.exam_data = {
-            "school_name": "ŞEHİT ÖĞRETMEN 5. SINIF ORTAOKULU",
-            "academic_year": "2026-2027 EĞİTİM-ÖĞRETİM YILI",
+            "school_name": "ŞEHİT ÖĞRETMEN 5. SINIF ORTAOKULU",[cite: 1]
+            "academic_year": "2026-2027 EĞİTİM-ÖĞRETİM YILI",[cite: 1]
             "subject": selected_subject,
             "period": selected_period,
             "scope": unit_scope,
@@ -352,7 +485,7 @@ if st.sidebar.button("📝 Dönem Sınav Kağıdı Hazırla", use_container_widt
         st.session_state.current_question_index = 0
         st.session_state.user_answers = {}
         st.session_state.ai_evaluations = {}
-        st.success("✅ Sınav soruları hazırlandı! Başlatmak için butona tıklayınız.")
+        st.success("✅ Sınav soruları ve görsel şemaları hazırlandı! Başlatmak için butona tıklayınız.")
 
 # --- DURUM 1: SORULAR HAZIR ANCAK SINAV BAŞLAMADI ---
 if st.session_state.exam_data and not st.session_state.exam_started and not st.session_state.exam_completed:
@@ -364,7 +497,7 @@ if st.session_state.exam_data and not st.session_state.exam_started and not st.s
         <h4 style="margin:4px 0; color:#1A237E;">{exam['period'].upper()}</h4>
         <p style="margin:2px 0; font-size:12px; color:#555;">(Kapsam: {exam['scope']})</p>
         <hr style="border:0.5px solid #ccc; margin:15px 0;">
-        <p style="font-size:16px; color:#2e7d32; font-weight:bold;">🎉 Sınav soruları başarıyla oluşturuldu ve hazır!</p>
+        <p style="font-size:16px; color:#2e7d32; font-weight:bold;">🎉 Sınav soruları ve görselleri hazır!</p>
     </div>
     """, unsafe_allow_html=True)
 
@@ -406,6 +539,12 @@ elif st.session_state.exam_started and not st.session_state.exam_completed:
         </div>
     </div>
     """, unsafe_allow_html=True)
+
+    # Görsel Çizim Entegrasyonu
+    if current_q.get('has_diagram') and current_q.get('diagram_type'):
+        img_buf = generate_question_image(current_q['diagram_type'])
+        if img_buf:
+            st.image(img_buf, width=340)
 
     saved_ans = st.session_state.user_answers.get(q_id, None)
 
@@ -517,6 +656,11 @@ elif st.session_state.exam_completed:
 
         st.markdown(f"**Soru {q_id}: {q['question_text']}**")
         
+        if q.get('has_diagram') and q.get('diagram_type'):
+            img_buf = generate_question_image(q['diagram_type'])
+            if img_buf:
+                st.image(img_buf, width=300)
+
         if q['type'] == 'MCQ':
             is_correct = (user_ans == correct_ans)
             if is_correct:
