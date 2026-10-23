@@ -75,32 +75,32 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 # ==========================================
-# 2. MEB 5. SINIF DÖNEM VE SINAV TAKVİMİ
+# 2. MEB 5. SINIF DÖNEM VE SINAV TAKVİMİ (GÜNCELLENMİŞ MÜFREDAT)
 # ==========================================
 MEB_EXAM_SCHEDULE = {
     "Fen Bilimleri": {
-        "1. Dönem 1. Yazılı (Ekim/Kasım)": "Güneş, Dünya ve Ay / Canlılar Dünyası",
-        "1. Dönem 2. Yazılı (Aralık/Ocak)": "Kuvvetin Ölçülmesi ve Madde ve Değişim",
-        "2. Dönem 1. Yazılı (Mart/Nisan)": "Işığın Yayılması / İnsan ve Çevre",
-        "2. Dönem 2. Yazılı (Mayıs/Haziran)": "Elektrik Devre Elemanları ve Genel Tekrar"
+        "1. Dönem 1. Yazılı (Ekim/Kasım)": "Gökyüzündeki Komşularımız ve Biz (Güneş, Dünya ve Ay'ın hareketleri, Ay'ın evreleri ve Ay modelleri) / Kuvveti Tanıyalım (Kuvvetin ölçülmesi ve dinamometreler, kütle-ağırlık ilişkisi, sürtünme kuvveti)",
+        "1. Dönem 2. Yazılı (Aralık/Ocak)": "Madde ve Değişim / Işığın Yayılması",
+        "2. Dönem 1. Yazılı (Mart/Nisan)": "Işığın Yansıması ve Madde ile Etkileşimi / İnsan ve Çevre",
+        "2. Dönem 2. Yazılı (Mayıs/Haziran)": "Elektrik Devre Elemanları ve Genel Yıl Sonu Değerlendirmesi"
     },
     "Matematik": {
-        "1. Dönem 1. Yazılı (Ekim/Kasım)": "Doğal Sayılar ve İşlemler",
-        "1. Dönem 2. Yazılı (Aralık/Ocak)": "Kesirler ve Ondalık Gösterim",
-        "2. Dönem 1. Yazılı (Mart/Nisan)": "Temel Geometrik Kavramlar, Üçgen ve Dörtgenler",
-        "2. Dönem 2. Yazılı (Mayıs/Haziran)": "Veri Toplama ve Uzunluk/Zaman Ölçme"
+        "1. Dönem 1. Yazılı (Ekim/Kasım)": "4. Tema: Geometrik Şekiller (Temel geometrik kavramlar: nokta, doğru, ışın, doğru parçası, açı ölçümü ve çeşitleri, çokgenler, çember ve daire) / 5. Tema: Geometrik Nicelikler (Uzunluk ölçme birimleri, dikdörtgenin çevre uzunluğu ve alanı, alan-çevre ilişkisi)",
+        "1. Dönem 2. Yazılı (Aralık/Ocak)": "Doğal Sayılar ve İşlemler / Kesirler ve Ondalık Gösterim",
+        "2. Dönem 1. Yazılı (Mart/Nisan)": "Üçgen ve Dörtgenlerin Açı/Kenar Özellikleri / Veri Toplama ve Değerlendirme",
+        "2. Dönem 2. Yazılı (Mayıs/Haziran)": "Zaman Ölçme Birimleri, Sıvı Ölçme ve Genel Tekrar"
     },
     "Türkçe": {
-        "1. Dönem 1. Yazılı (Ekim/Kasım)": "Sözcükte Anlam ve Yazım Kuralları",
-        "1. Dönem 2. Yazılı (Aralık/Ocak)": "Cümlede Anlam ve Metin Analizi",
-        "2. Dönem 1. Yazılı (Mart/Nisan)": "Paragraf Yorumu ve Noktalama İşaretleri",
-        "2. Dönem 2. Yazılı (Mayıs/Haziran)": "Söz Sanatları ve Genel Dil Bilgisi"
+        "1. Dönem 1. Yazılı (Ekim/Kasım)": "Sözcükte ve Söz Öbeklerinde Anlam / Yazım Kuralları ve Noktalama İşaretleri",
+        "1. Dönem 2. Yazılı (Aralık/Ocak)": "Cümlede Anlam ve Paragraf Analizi",
+        "2. Dönem 1. Yazılı (Mart/Nisan)": "Metin Türleri ve Söz Sanatları",
+        "2. Dönem 2. Yazılı (Mayıs/Haziran)": "Okuduğunu Anlama ve Yıl Sonu Genel Değerlendirme"
     },
     "Sosyal Bilgiler": {
-        "1. Dönem 1. Yazılı (Ekim/Kasım)": "Birey ve Toplum",
-        "1. Dönem 2. Yazılı (Aralık/Ocak)": "Kültürel Mirasımız",
-        "2. Dönem 1. Yazılı (Mart/Nisan)": "İnsanlar, Yerler ve Çevreler",
-        "2. Dönem 2. Yazılı (Mayıs/Haziran)": "Bilim, Teknoloji ve Toplum"
+        "1. Dönem 1. Yazılı (Ekim/Kasım)": "Birey ve Toplum / Haklarım ve Sorumluluklarım",
+        "1. Dönem 2. Yazılı (Aralık/Ocak)": "Kültürel Mirasımız ve Çevremizdeki Tarihi Eserler",
+        "2. Dönem 1. Yazılı (Mart/Nisan)": "İnsanlar, Yerler ve Çevreler / Doğal Afetler",
+        "2. Dönem 2. Yazılı (Mayıs/Haziran)": "Bilim, Teknoloji ve Toplum / Üretim, Tüketim ve Verimlilik"
     }
 }
 
@@ -250,13 +250,12 @@ def evaluate_open_questions_with_ai(open_eval_list):
             {{
                 "id": 6,
                 "score": 8,
-                "feedback": "Cevabın büyük oranda doğru ancak X kavramından bahsetmeyi unutmussun."
+                "feedback": "Cevabın büyük oranda doğru ancak eksik kavramlar var."
             }}
         ]
     }}
     """
 
-    # Groq Dene
     if Groq and groq_keys:
         for key in groq_keys:
             try:
@@ -276,7 +275,6 @@ def evaluate_open_questions_with_ai(open_eval_list):
             except Exception:
                 continue
 
-    # Gemini Dene
     if genai and gemini_keys:
         for key in gemini_keys:
             try:
@@ -296,7 +294,6 @@ def evaluate_open_questions_with_ai(open_eval_list):
             except Exception:
                 continue
 
-    # Yedek Değerlendirme (API Hata verirse)
     fallback_eval = {}
     for item in open_eval_list:
         ans = item.get("user_answer", "").strip()
@@ -452,7 +449,6 @@ elif st.session_state.exam_started and not st.session_state.exam_completed:
         st.session_state.exam_started = False
         st.session_state.exam_completed = True
         
-        # Yapay Zeka Öğretmen Değerlendirmesini Başlat
         with st.spinner("🤖 Yapay zeka öğretmen açık uçlu cevaplarınızı inceliyor ve 100 üzerinden notlandırıyor..."):
             open_eval_list = []
             for q in questions:
