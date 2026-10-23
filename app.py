@@ -19,7 +19,7 @@ except ImportError:
 # 1. SAYFA YAPILANDIRMASI VE ÖZEL CSS
 # ==========================================
 st.set_page_config(
-    page_title="MEB Yazılı Sınav Modülü - Murat KANDIRMAZ",
+    page_title="MEB Sınav Takvimi & Yazılı Modülü - Murat KANDIRMAZ",
     page_icon="📝",
     layout="wide",
     initial_sidebar_state="expanded"
@@ -58,39 +58,33 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 # ==========================================
-# 2. MEB 5. SINIF TAM MÜFREDAT LİSTESİ
+# 2. MEB 5. SINIF DÖNEM VE SINAV TAKVİMİ
 # ==========================================
-MEB_FULL_CURRICULUM = {
-    "Fen Bilimleri": [
-        "1. Ünite: Güneş, Dünya ve Ay",
-        "2. Ünite: Canlılar Dünyası",
-        "3. Ünite: Kuvvetin Ölçülmesi ve Sürtünme",
-        "4. Ünite: Madde ve Değişim",
-        "5. Ünite: Işığın Yayılması",
-        "6. Ünite: İnsan ve Çevre",
-        "7. Ünite: Elektrik Devre Elemanları"
-    ],
-    "Matematik": [
-        "1. Ünite: Doğal Sayılar ve Doğal Sayılarla İşlemler",
-        "2. Ünite: Kesirler",
-        "3. Ünite: Ondalık Gösterim",
-        "4. Ünite: Temel Geometrik Kavramlar ve Çizimler",
-        "5. Ünite: Üçgen ve Dörtgenler",
-        "6. Ünite: Veri Toplama ve Değerlendirme",
-        "7. Ünite: Uzunluk ve Zaman Ölçme"
-    ],
-    "Türkçe": [
-        "Sözcükte ve Söz Öbeklerinde Anlam",
-        "Cümlede Anlam ve Yorum",
-        "Paragraf Analizi ve Anlatım Biçimleri",
-        "Yazım Kuralları ve Noktalama İşaretleri"
-    ],
-    "Sosyal Bilgiler": [
-        "Birey ve Toplum",
-        "Kültürel Mirasımız",
-        "İnsanlar, Yerler ve Çevreler",
-        "Bilim, Teknoloji ve Toplum"
-    ]
+MEB_EXAM_SCHEDULE = {
+    "Fen Bilimleri": {
+        "1. Dönem 1. Yazılı (Ekim/Kasım)": "Güneş, Dünya ve Ay / Canlılar Dünyası",
+        "1. Dönem 2. Yazılı (Aralık/Ocak)": "Kuvvetin Ölçülmesi ve Madde ve Değişim",
+        "2. Dönem 1. Yazılı (Mart/Nisan)": "Işığın Yayılması / İnsan ve Çevre",
+        "2. Dönem 2. Yazılı (Mayıs/Haziran)": "Elektrik Devre Elemanları ve Genel Tekrar"
+    },
+    "Matematik": {
+        "1. Dönem 1. Yazılı (Ekim/Kasım)": "Doğal Sayılar ve İşlemler",
+        "1. Dönem 2. Yazılı (Aralık/Ocak)": "Kesirler ve Ondalık Gösterim",
+        "2. Dönem 1. Yazılı (Mart/Nisan)": "Temel Geometrik Kavramlar, Üçgen ve Dörtgenler",
+        "2. Dönem 2. Yazılı (Mayıs/Haziran)": "Veri Toplama ve Uzunluk/Zaman Ölçme"
+    },
+    "Türkçe": {
+        "1. Dönem 1. Yazılı (Ekim/Kasım)": "Sözcükte Anlam ve Yazım Kuralları",
+        "1. Dönem 2. Yazılı (Aralık/Ocak)": "Cümlede Anlam ve Metin Analizi",
+        "2. Dönem 1. Yazılı (Mart/Nisan)": "Paragraf Yorumu ve Noktalama İşaretleri",
+        "2. Dönem 2. Yazılı (Mayıs/Haziran)": "Söz Sanatları ve Genel Dil Bilgisi"
+    },
+    "Sosyal Bilgiler": {
+        "1. Dönem 1. Yazılı (Ekim/Kasım)": "Birey ve Toplum",
+        "1. Dönem 2. Yazılı (Aralık/Ocak)": "Kültürel Mirasımız",
+        "2. Dönem 1. Yazılı (Mart/Nisan)": "İnsanlar, Yerler ve Çevreler",
+        "2. Dönem 2. Yazılı (Mayıs/Haziran)": "Bilim, Teknoloji ve Toplum"
+    }
 }
 
 # ==========================================
@@ -113,15 +107,16 @@ def load_secrets_api_keys():
 # ==========================================
 # 4. YÜK DENGELEMELİ AI YAZILI SORU ÜRETİCİ
 # ==========================================
-def generate_written_exam_with_ai(subject, unit):
+def generate_written_exam_with_ai(subject, exam_period, scope):
     groq_keys, gemini_keys = load_secrets_api_keys()
 
     prompt = f"""
-    Sen MEB 5. sınıf müfredatına tam uygun klasik yazılı sınavı hazırlayan uzman bir ilköğretim öğretmenisin.
+    Sen MEB 5. sınıf müfredatına ve resmi sınav takvimine tam uygun klasik yazılı sınavı hazırlayan uzman bir ilköğretim öğretmenisin.
     Ders: {subject}
-    Ünite/Konu: {unit}
+    Sınav Dönemi: {exam_period}
+    Kapsanan Konular/Üniteler: {scope}
 
-    Lütfen bu üniteye ait tam olarak 5 adet Çoktan Seçmeli (MCQ) ve 5 adet Açık Uçlu / Klasik (OPEN) olmak üzere toplam 10 soru içeren bir yazılı sınav kağıdı hazırla.
+    Lütfen bu döneme ait tam olarak 5 adet Çoktan Seçmeli (MCQ) ve 5 adet Açık Uçlu / Klasik (OPEN) olmak üzere toplam 10 soru içeren bir yazılı sınav kağıdı hazırla.
     Sorular MEB kazanımlarına tam uygun, nitelikli ve yazılı sınav formatında olmalıdır.
 
     SADECE VE SADECE GEÇERLİ JSON DÖNDÜR.
@@ -194,16 +189,16 @@ def generate_written_exam_with_ai(subject, unit):
                 last_error = str(e)
                 continue
 
-    # Yedek Statik Şablon (API yanıt vermezse)
+    # Yedek Statik Şablon
     st.error(f"⚠️ API anahtarları yanıt vermedi. Hata: {last_error}")
-    return get_fallback_exam_questions(subject, unit), "Yerel Güvenli Şablon"
+    return get_fallback_exam_questions(subject, exam_period), "Yerel Güvenli Şablon"
 
-def get_fallback_exam_questions(subject, unit):
+def get_fallback_exam_questions(subject, exam_period):
     questions = []
     for i in range(1, 6):
         questions.append({
             "id": i, "type": "MCQ",
-            "question_text": f"5. Sınıf {subject} ({unit}) ünitesiyle ilgili MEB kazanımına uygun test sorusu {i}?",
+            "question_text": f"5. Sınıf {subject} ({exam_period}) dönemi MEB kazanımına uygun test sorusu {i}?",
             "options": {"A": "Doğru seçenek", "B": "Çeldirici 1", "C": "Çeldirici 2", "D": "Çeldirici 3"},
             "correct_answer": "A",
             "solution_explanation": "Bu sorunun doğru yanıtı A seçeneğidir.",
@@ -212,7 +207,7 @@ def get_fallback_exam_questions(subject, unit):
     for i in range(6, 11):
         questions.append({
             "id": i, "type": "OPEN",
-            "question_text": f"5. Sınıf {subject} ({unit}) ünitesiyle ilgili klasik açık uçlu soru {i-5}?",
+            "question_text": f"5. Sınıf {subject} ({exam_period}) dönemi klasik açık uçlu soru {i-5}?",
             "options": {},
             "correct_answer": "Örnek ideal öğrenci yanıtı ve anahtar kelimeler.",
             "solution_explanation": "Bu soruda öğrenciden temel kavramları açıklaması beklenmektedir.",
@@ -228,39 +223,44 @@ if 'exam_data' not in st.session_state:
 if 'show_answers' not in st.session_state:
     st.session_state.show_answers = False
 
-st.sidebar.header("⚙️ Sınav ve Müfredat Ayarları")
-selected_subject = st.sidebar.selectbox("📖 Ders Seçiniz", list(MEB_FULL_CURRICULUM.keys()))
-selected_unit = st.sidebar.selectbox("📚 Ünite Seçiniz", MEB_FULL_CURRICULUM[selected_subject])
+st.sidebar.header("⚙️ Sınav Takvimi & Müfredat")
+selected_subject = st.sidebar.selectbox("📖 Ders Seçiniz", list(MEB_EXAM_SCHEDULE.keys()))
+selected_period = st.sidebar.selectbox("📅 Sınav Dönemi Seçiniz", list(MEB_EXAM_SCHEDULE[selected_subject].keys()))
+
+unit_scope = MEB_EXAM_SCHEDULE[selected_subject][selected_period]
+st.sidebar.info(f"📌 **Dönem Kapsamı:**\n{unit_scope}")
 
 groq_k, gemini_k = load_secrets_api_keys()
 st.sidebar.info(f"🔑 **Sistem Durumu:**\n- Groq Anahtar: {len(groq_k)} adet\n- Gemini Anahtar: {len(gemini_k)} adet")
 
 st.sidebar.divider()
 
-if st.sidebar.button("📝 Klasik Yazılı Sınavı Oluştur", use_container_width=True):
-    with st.spinner("MEB formatına uygun yazılı kağıdı hazırlanıyor..."):
-        questions, provider = generate_written_exam_with_ai(selected_subject, selected_unit)
+if st.sidebar.button("📝 Dönem Sınav Kağıdı Oluştur", use_container_width=True):
+    with st.spinner("MEB sınav takvimine uygun yazılı kağıdı hazırlanıyor..."):
+        questions, provider = generate_written_exam_with_ai(selected_subject, selected_period, unit_scope)
         st.session_state.exam_data = {
-            "school_name": "ŞEHİT ÖĞRETMEN 5. SINIF ORTAOKULU",
-            "academic_year": "2026-2027 EĞİTİM-ÖĞRETİM YILI",
+            "school_name": "ŞEHİT ÖĞRETMEN 5. SINIF ORTAOKULU",[cite: 1]
+            "academic_year": "2026-2027 EĞİTİM-ÖĞRETİM YILI",[cite: 1]
             "subject": selected_subject,
-            "unit": selected_unit,
+            "period": selected_period,
+            "scope": unit_scope,
             "provider": provider,
             "questions": questions
         }
         st.session_state.show_answers = False
-        st.success("✅ Yazılı sınav kağıdı başarıyla oluşturuldu!")
+        st.success("✅ Dönem sınav kağıdı başarıyla oluşturuldu!")
 
 # Ana Ekran Yazılı Kağıdı Görünümü
 if st.session_state.exam_data:
     exam = st.session_state.exam_data
     
-    # Resmi Yazılı Başlığı (PDF Yok, Doğrudan Ekranda Kağıt Formatı)
+    # Resmi Yazılı Başlığı
     st.markdown(f"""
     <div class="exam-header">
         <h3 style="margin:0; font-weight:bold;">{exam['school_name']}</h3>
         <p style="margin:5px 0; font-size:14px;">{exam['academic_year']} 5. SINIF {exam['subject'].upper()} DERSİ</p>
-        <h4 style="margin:5px 0; color:#1A237E;">{exam['unit'].upper()} DEĞERLENDİRME SINAVI</h4>
+        <h4 style="margin:5px 0; color:#1A237E;">{exam['period'].upper()}</h4>
+        <p style="margin:2px 0; font-size:12px; color:#555;">(Kapsam: {exam['scope']})</p>
         <hr style="border:0.5px solid #ccc; margin:10px 0;">
         <table style="width:100%; font-size:14px; text-align:left; margin-top:10px;">
             <tr>
@@ -273,7 +273,7 @@ if st.session_state.exam_data:
     </div>
     """, unsafe_allow_html=True)
 
-    # Cevap Anahtarı Göster / Gizle Butonu
+    # Cevap Anahtarı Aç/Kapat Butonu
     col_b1, col_b2 = st.columns([1, 4])
     with col_b1:
         if st.button("🔑 Cevap Anahtarını Aç/Kapat"):
@@ -282,7 +282,7 @@ if st.session_state.exam_data:
 
     st.divider()
 
-    # Soruları Listele (Klasik Yazılı Formatı - Tüm Sorular Alt Alta)
+    # Soruları Listele (Klasik Yazılı Formatı)
     for q in exam['questions']:
         q_id = q['id']
         q_type_str = "Çoktan Seçmeli" if q['type'] == 'MCQ' else "Açık Uçlu / Klasik"
@@ -316,4 +316,4 @@ if st.session_state.exam_data:
         st.write("")
 
 else:
-    st.info("👈 Sınav kağıdı oluşturmak için sol menüden dersinizi ve ünitenizi seçip **'Klasik Yazılı Sınavı Oluştur'** butonuna tıklayınız.")
+    st.info("👈 Sınav kağıdı oluşturmak için sol menüden dersinizi ve **1. Dönem 1/2, 2. Dönem 1/2** yazılı dönemlerinden birini seçip **'Dönem Sınav Kağıdı Oluştur'** butonuna tıklayınız.")
