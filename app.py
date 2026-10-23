@@ -7,6 +7,7 @@ import time
 import io
 import matplotlib.pyplot as plt
 import numpy as np
+from PIL import Image  # <-- Hatayı çözen eksiksiz Image içe aktarımı
 
 # API İstemci Kütüphaneleri
 try:
@@ -132,7 +133,6 @@ def generate_question_image(diagram_type, custom_val=""):
     fig.patch.set_facecolor('#FFFFFF')
     ax.set_facecolor('#F8F9FA')
     
-    # Modern çerçeve
     for spine in ax.spines.values():
         spine.set_edgecolor('#DEE2E6')
         spine.set_linewidth(1.5)
@@ -327,7 +327,7 @@ def generate_written_exam_with_ai(subject, exam_period, scope):
                 completion = client.chat.completions.create(
                     model="llama-3.3-70b-versatile",
                     messages=[
-                        {"role": "system", "content": "Sen JSON formatında çıktı veren bir MEB yazılı sınav hazırlama robotusun."},
+                        {"role": "system", "content": "Sen JSON çıktısı veren bir MEB yazılı sınav hazırlama robotusun."},
                         {"role": "user", "content": prompt}
                     ],
                     response_format={"type": "json_object"}
@@ -676,7 +676,7 @@ elif st.session_state.exam_completed:
     k1.metric("100 Üzerinden Toplam Not", f"{total_100_score}")
     k2.metric("Test Puanı (5 Soru)", f"{mcq_score} / 50")
     k3.metric("Açık Uçlu AI Puanı (5 Soru)", f"{open_score} / 50")
-    k4.metric("Test Doğru / Yanlış", f"{mc_correct} D / {mc_wrong} Y")
+    k4.metric("Test Doğru / Yanlış", f"{mcq_correct} D / {mcq_wrong} Y")
 
     st.divider()
     st.subheader("📝 Detaylı Soru İncelemesi ve Yapay Zeka Öğretmen Dönütleri")
