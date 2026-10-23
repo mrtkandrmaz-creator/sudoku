@@ -7,6 +7,7 @@ import time
 import io
 import matplotlib.pyplot as plt
 import numpy as np
+from PIL import Image
 
 # API İstemci Kütüphaneleri
 try:
@@ -263,7 +264,10 @@ def generate_question_image(diagram_type, custom_val=""):
     plt.savefig(buf, format='png', bbox_inches='tight', facecolor=fig.get_facecolor(), edgecolor='none')
     buf.seek(0)
     plt.close(fig)
-    return buf
+    
+    # PIL Image nesnesine dönüştürerek st_canvas uyumluluğu sağla
+    pil_img = Image.open(buf)
+    return pil_img
 
 # ==========================================
 # 5. YÜK DENGELEMELİ AI YAZILI SORU ÜRETİCİ
@@ -563,24 +567,24 @@ elif st.session_state.exam_started and not st.session_state.exam_completed:
     # Değer ve Görsel Entegrasyonu ile Modern Şema Üstünde Çizim Kalemi
     if current_q.get('has_diagram') and current_q.get('diagram_type'):
         d_val = current_q.get('diagram_value', '')
-        img_buf = generate_question_image(current_q['diagram_type'], d_val)
+        pil_img = generate_question_image(current_q['diagram_type'], d_val)
         
-        if img_buf and st_canvas:
+        if pil_img and st_canvas:
             st.markdown("<b>🖼️ Soru Şeması / Çizim ve Not Alanı (Kalem ile Üzerine İşaretleme Yapabilirsiniz):</b>", unsafe_allow_html=True)
             
             st_canvas(
                 fill_color="rgba(255, 165, 0, 0.2)",
                 stroke_width=3,
                 stroke_color="#D32F2F",
-                background_image=img_buf,
+                background_image=pil_img,
                 update_streamlit=True,
                 height=280,
                 width=420,
                 drawing_mode="freedraw",
                 key=f"canvas_q_{q_id}",
             )
-        elif img_buf:
-            st.image(img_buf, width=380)
+        elif pil_img:
+            st.image(pil_img, width=380)
 
     saved_ans = st.session_state.user_answers.get(q_id, None)
 
@@ -693,9 +697,9 @@ elif st.session_state.exam_completed:
         
         if q.get('has_diagram') and q.get('diagram_type'):
             d_val = q.get('diagram_value', '')
-            img_buf = generate_question_image(q['diagram_type'], d_val)
-            if img_buf:
-                st.image(img_buf, width=320)
+            pil_img = generate_question_image(q['diagram_type'], d_val)
+            if pil_img:
+                st.image(pil_img, width=320)
 
         if q['type'] == 'MCQ':
             is_correct = (user_ans == correct_ans)
