@@ -11,7 +11,7 @@ st.set_page_config(
     layout="wide",
 )
 
-# --- 1. TOML [api_keys] FORMATINI DOĞRUDAN OKUYAN KUSURSUZ MOTOR ---
+# --- 1. KOŞULSUZ VE ESNEK TOML / SECRETS API TARAMA MOTORU ---
 
 
 def get_all_api_keys():
@@ -42,7 +42,7 @@ def get_all_api_keys():
                   if k.strip() not in gemini_keys:
                     gemini_keys.append(k.strip())
 
-      # 2. Genel esnek tarama (Her ihtimale karşı)
+      # 2. Genel esnek tarama
       def recursive_search(data):
         if isinstance(data, dict):
           for k, v in data.items():
