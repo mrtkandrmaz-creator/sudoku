@@ -208,13 +208,12 @@ if "coach_messages" not in st.session_state:
       {
           "role": "assistant",
           "content": (
-              "Merhaba! Ben senin yapay zeka koçun **AdenMind**. Aladdin'in"
-              " lambası gibi tıkla, dilediğin soruyu küçük pencereden sor! 🦊✨"
+              "Merhaba! Ben senin yapay zeka koçun **AdenMind**. Sağ alttaki"
+              " baloncuktan bana dilediğin zaman soru sorabilirsin! 🦊✨"
           ),
       }
   ]
 
-# Doğru Yanlış Oyunu için session state'ler
 if "dy_score" not in st.session_state:
   st.session_state["dy_score"] = 0
 if "dy_current_q" not in st.session_state:
@@ -253,7 +252,7 @@ else:  # Yeşil-Mavi
   c_bubble_ai = "#f0fdf4"
   c_text_color = "#0369a1"
 
-# --- 5. MODERN STİLLER VE KAYAN (FLOATING) AVATAR CSS ---
+# --- 5. STİLLER VE ARAYÜZ ---
 st.markdown(
     f"""
     <style>
@@ -331,7 +330,7 @@ with st.sidebar:
     st.session_state["game_started"] = False
     st.rerun()
 
-# --- 7. SAĞ ALT KÖŞE: ADENMİND SİHİRLİ LAMBA / AVATAR WIDGET ---
+# --- 7. SAĞ ALT KÖŞE: ADENMİND CANLI ASİSTAN BALONCUĞU ---
 st.markdown("<br><br><br>", unsafe_allow_html=True)
 
 with st.container():
@@ -345,9 +344,9 @@ with st.container():
     )
 
     coach_btn_text = (
-        "❌ AdenMind'ı Kapat"
+        "❌ Asistanı Kapat"
         if st.session_state["coach_open"]
-        else "🦊 AdenMind'a Danış (Sihirli Lamba) 💬"
+        else "🦊 AdenMind Canlı Asistan 💬"
     )
     if st.button(coach_btn_text, key="floating_lamp_btn"):
       st.session_state["coach_open"] = not st.session_state["coach_open"]
@@ -355,7 +354,6 @@ with st.container():
 
     st.markdown("</div>", unsafe_allow_html=True)
 
-# Küçük pencere şeklinde açılan asistan sohbet ekranı
 if st.session_state["coach_open"]:
   st.markdown(
       f"""
@@ -376,9 +374,9 @@ if st.session_state["coach_open"]:
         <div style="display: flex; align-items: center; justify-content: space-between; border-bottom: 2px solid #eee; padding-bottom: 8px; margin-bottom: 10px;">
             <div style="display: flex; align-items: center; gap: 8px;">
                 <span style="font-size: 28px;">🦊</span>
-                <b style="color: {c_text_color}; font-size: 16px;">AdenMind (Koç)</b>
+                <b style="color: {c_text_color}; font-size: 16px;">AdenMind (Canlı Asistan)</b>
             </div>
-            <span style="font-size: 12px; color: #666;">Canlı Asistan</span>
+            <span style="font-size: 12px; color: #666;">Çevrimiçi</span>
         </div>
         """,
       unsafe_allow_html=True,
@@ -408,7 +406,7 @@ if st.session_state["coach_open"]:
 
   with st.form("floating_coach_form", clear_on_submit=True):
     lamp_input = st.text_input(
-        "Soru sor (Örn: Dik üçgen, Güneş-Ay...)", key="lamp_query"
+        "Asistana soru sor (Örn: Kesirler, Noktalama...)", key="lamp_query"
     )
     lamp_submitted = st.form_submit_button("Sor 🚀", use_container_width=True)
     if lamp_submitted and lamp_input:
@@ -420,9 +418,9 @@ if st.session_state["coach_open"]:
       prompt = (
           f"Sen 5. sınıf MEB müfredatı odaklı, sevimli ve bilgili akıllı koçsun."
           f" Adın AdenMind. Öğrencinin dersi: {curr_s}, ünite: {curr_u}."
-          f" Öğrencinin sorusu: {lamp_input}. Açıklayıcı ve kısa yanıt ver."
+          f" Öğrencinin sorusu: {lamp_input}. Kısa ve açıklayıcı rehberlik yap."
       )
-      with st.spinner("AdenMind lamba ışığında düşünüyor..."):
+      with st.spinner("AdenMind düşünüyor..."):
         response = ai_generate_content(prompt)
         if response:
           st.session_state["coach_messages"].append(
@@ -432,7 +430,7 @@ if st.session_state["coach_open"]:
           st.session_state["coach_messages"].append(
               {
                   "role": "assistant",
-                  "content": "Bağlantı hatası oluştu, tekrar dene!",
+                  "content": "Yanıt oluşturulamadı, tekrar dene!",
               }
           )
       st.rerun()
@@ -509,7 +507,7 @@ elif (
         st.session_state["game_started"] = False
         st.rerun()
 
-# --- AŞAMA 3: OYUN VE SORU MODELLERİ ---
+# --- AŞAMA 3: OYUN, ETKİNLİK VE SORU MODELLERİ ---
 elif (
     st.session_state["selected_subject"] is not None
     and st.session_state["selected_unit"] is not None
@@ -533,7 +531,9 @@ elif (
     st.session_state["game_started"] = False
     st.rerun()
 
-  st.markdown("### 🎮 Lütfen Bir Oyun / Soru Modülü Kartına Tıklayın")
+  st.markdown(
+      "### 🎮 Oyun, Soru Kartları ve Eğitsel Etkinlik Modüllerini Seçin"
+  )
 
   games = [
       {
@@ -552,14 +552,34 @@ elif (
           "renk": "linear-gradient(135deg, #38ef7d, #11998e)",
       },
       {
-          "id": "kelime",
-          "isim": "🔤 Kelime Avı (Harf Seçmeli Bulmaca)",
+          "id": "bosluk",
+          "isim": "📝 Boşluk Doldurma Yarışması",
           "renk": "linear-gradient(135deg, #f2994a, #f2c94c)",
+      },
+      {
+          "id": "kartlar",
+          "isim": "🃏 Soru Kartları (Flashcards)",
+          "renk": "linear-gradient(135deg, #834d9b, #d04ed6)",
+      },
+      {
+          "id": "oynayarak",
+          "isim": "🎯 Oynayarak Öğren",
+          "renk": "linear-gradient(135deg, #0284c7, #0369a1)",
+      },
+      {
+          "id": "etkinlik",
+          "isim": "📚 Etkinliklerle Öğren",
+          "renk": "linear-gradient(135deg, #10b981, #047857)",
+      },
+      {
+          "id": "kelime",
+          "isim": "🔤 Kelime Avı Bulmacası",
+          "renk": "linear-gradient(135deg, #f59e0b, #d97706)",
       },
       {
           "id": "acik",
           "isim": "✍️ Klasik Yazılı Simülatörü",
-          "renk": "linear-gradient(135deg, #834d9b, #d04ed6)",
+          "renk": "linear-gradient(135deg, #6366f1, #4338ca)",
       },
   ]
 
@@ -583,7 +603,7 @@ elif (
         st.session_state["game_started"] = False
         st.rerun()
 
-# --- AŞAMA 4: OYUN VE SORU MODELLERİNİN ÇALIŞTIRILMASI ---
+# --- AŞAMA 4: OYUN VE MODÜLLERİN ÇALIŞTIRILMASI ---
 else:
   curr_subj = st.session_state["selected_subject"]
   curr_unit = st.session_state["selected_unit"]
@@ -599,7 +619,6 @@ else:
   # 1. BALON PATLATMACA
   if curr_game == "balon":
     st.subheader(f"🎈 {curr_subj} — Klasik Balon Patlatmaca Oyunu")
-
     if (
         "balloon_5_questions" not in st.session_state
         or st.session_state.get("b_unit_key") != (curr_subj, curr_unit)
@@ -609,18 +628,14 @@ else:
       st.session_state["game_started"] = False
 
     if st.button("🚀 Balon Sorularını Üret", key="gen_5_balloons"):
-      with st.spinner(
-          f"Yapay zeka {curr_subj} için görsel ve kavramsal 5 balon sorusu"
-          " hazırlıyor..."
-      ):
+      with st.spinner("Yapay zeka 5 balon sorusu hazırlıyor..."):
         prompt = f"""
-                5. Sınıf MEB müfredatı, Ders: {curr_subj}, Ünite: {curr_unit}.
-                Bu ünite için balon patlatmaca oyunu kapsamında TAM 5 ADET çoktan seçmeli (4 şıklı: A, B, C, D) soru üret.
-                Matematik için dik üçgen, eşkenar üçgen, açı hesaplama; Fen için Dünya, Güneş, Ay ilişkileri gibi görsel senaryolara yer ver.
-                Kesinlikle şu JSON formatında bir liste olarak ver:
+                5. Sınıf MEB, Ders: {curr_subj}, Ünite: {curr_unit}.
+                TAM 5 ADET çoktan seçmeli (4 şıklı: A, B, C, D) soru üret.
+                JSON formatında liste olarak ver:
                 [
                   {{
-                    "soru": "Soru metni ve görsel/şema tanımı",
+                    "soru": "Soru metni",
                     "secenekler": ["A) ...", "B) ...", "C) ...", "D) ..."],
                     "dogru_cevap": "A",
                     "aciklama": "Açıklama"
@@ -630,21 +645,19 @@ else:
         res = ai_generate_content(prompt)
         if res:
           try:
-            clean_res = re.sub(r"```json|```", "", res).strip()
-            st.session_state["balloon_5_questions"] = json.loads(clean_res)
+            st.session_state["balloon_5_questions"] = json.loads(
+                re.sub(r"```json|```", "", res).strip()
+            )
             st.session_state["game_started"] = False
             st.rerun()
           except Exception as e:
-            st.error(f"Soru çözümleme hatası: {e}")
+            st.error(f"Hata: {e}")
 
     if st.session_state["balloon_5_questions"]:
       if not st.session_state["game_started"]:
-        st.success(
-            "✅ Görsel ve Kazanım Odaklı Sorular Hazır! Oyunu tam ekran"
-            " başlatmak için aşağıdaki butona tıklayın."
-        )
+        st.success("✅ Sorular Hazır! Oyunu başlatmak için tıklayın.")
         if st.button(
-            "✨ OYUNU BAŞLAT VE TAM EKRANA GEÇ 🎮",
+            "✨ OYUNU BAŞLAT 🎮",
             key="start_balloon_fullscreen",
             use_container_width=True,
         ):
@@ -658,321 +671,75 @@ else:
             """
             <!DOCTYPE html>
             <html lang="tr">
-            <head>
-                <meta charset="UTF-8">
-                <style>
-                    body {
-                        background: linear-gradient(135deg, #0f172a, #1e293b);
-                        color: white;
-                        font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-                        text-align: center;
-                        margin: 0;
-                        padding: 10px;
-                        overflow: hidden;
-                    }
-                    #game-container {
-                        position: relative;
-                        width: 100%;
-                        height: 540px;
-                        background: radial-gradient(circle, #1e293b 0%, #0f172a 100%);
-                        border-radius: 16px;
-                        overflow: hidden;
-                        box-shadow: 0 10px 30px rgba(0,0,0,0.6);
-                        border: 3px solid #6366f1;
-                    }
-                    .header-bar {
-                        display: flex;
-                        justify-content: space-between;
-                        padding: 14px 24px;
-                        background: rgba(0,0,0,0.5);
-                        font-size: 19px;
-                        font-weight: bold;
-                    }
-                    .question-box {
-                        font-size: 20px;
-                        font-weight: bold;
-                        padding: 14px 20px;
-                        background: rgba(255, 255, 255, 0.08);
-                        margin: 10px;
-                        border-radius: 12px;
-                        border-left: 6px solid #6366f1;
-                        text-align: left;
-                    }
-                    .balloon {
-                        position: absolute;
-                        width: 105px;
-                        height: 125px;
-                        border-radius: 50% 50% 50% 50% / 40% 40% 60% 60%;
-                        display: flex;
-                        align-items: center;
-                        justify-content: center;
-                        color: white;
-                        font-weight: bold;
-                        font-size: 14px;
-                        text-align: center;
-                        cursor: pointer;
-                        box-shadow: inset -12px -12px 25px rgba(0,0,0,0.35), 0 6px 18px rgba(0,0,0,0.35);
-                        animation: floatUp 8s linear infinite;
-                        padding: 10px;
-                        user-select: none;
-                    }
-                    .balloon::after {
-                        content: "";
-                        position: absolute;
-                        bottom: -14px;
-                        left: 50px;
-                        width: 2px;
-                        height: 16px;
-                        background: #cbd5e1;
-                    }
-                    @keyframes floatUp {
-                        0% { bottom: -140px; transform: scale(1); }
-                        50% { transform: scale(1.06); }
-                        100% { bottom: 520px; transform: scale(1); }
-                    }
-                    .feedback-overlay {
-                        position: absolute;
-                        top: 0; left: 0; width: 100%; height: 100%;
-                        background: rgba(15, 23, 42, 0.9);
-                        display: flex;
-                        flex-direction: column;
-                        align-items: center;
-                        justify-content: center;
-                        font-size: 28px;
-                        z-index: 10;
-                        display: none;
-                    }
-                </style>
-            </head>
+            <head><meta charset="UTF-8"><style>
+                body { background: #0f172a; color: white; font-family: sans-serif; text-align: center; margin: 0; padding: 10px; }
+                #game-container { position: relative; width: 100%; height: 520px; background: #1e293b; border-radius: 16px; overflow: hidden; border: 3px solid #6366f1; }
+                .header-bar { display: flex; justify-content: space-between; padding: 12px 20px; background: rgba(0,0,0,0.5); font-weight: bold; }
+                .question-box { font-size: 18px; font-weight: bold; padding: 12px; background: rgba(255,255,255,0.08); margin: 10px; border-radius: 10px; text-align: left; }
+                .balloon { position: absolute; width: 100px; height: 120px; border-radius: 50%; display: flex; align-items: center; justify-content: center; color: white; font-weight: bold; font-size: 13px; text-align: center; cursor: pointer; animation: floatUp 7s linear infinite; padding: 8px; }
+                @keyframes floatUp { 0% { bottom: -130px; } 100% { bottom: 500px; } }
+            </style></head>
             <body>
-                <div class="header-bar">
-                    <span id="q-counter">Soru: 1 / 5</span>
-                    <span id="timer" style="color: #f43f5e;">Süre: 50 sn</span>
-                    <span id="score" style="color: #10b981;">Puan: 0</span>
-                </div>
-                
+                <div class="header-bar"><span id="q-counter">Soru: 1 / 5</span><span id="timer" style="color: #f43f5e;">Süre: 45 sn</span><span id="score" style="color: #10b981;">Puan: 0</span></div>
                 <div id="game-container">
-                    <div class="question-box" id="question-text">Soru yükleniyor...</div>
-                    <div id="balloons-area" style="position:relative; width:100%; height:320px;"></div>
-                    
-                    <div class="feedback-overlay" id="overlay">
-                        <div id="feedback-icon" style="font-size: 65px; margin-bottom: 12px;">🎉</div>
-                        <div id="feedback-msg" style="font-size: 24px; padding: 0 20px;">Tebrikler!</div>
-                    </div>
+                    <div class="question-box" id="question-text">Yükleniyor...</div>
+                    <div id="balloons-area" style="position:relative; width:100%; height:300px;"></div>
                 </div>
-
                 <script>
-                    function goFullScreen() {
-                        let elem = document.documentElement;
-                        if (elem.requestFullscreen) {
-                            elem.requestFullscreen().catch(() => {});
-                        } else if (elem.webkitRequestFullscreen) {
-                            elem.webkitRequestFullscreen();
-                        } else if (elem.msRequestFullscreen) {
-                            elem.msRequestFullscreen();
-                        }
-                    }
-                    goFullScreen();
-
-                    function exitFullScreen() {
-                        if (document.exitFullscreen) {
-                            document.exitFullscreen().catch(() => {});
-                        } else if (document.webkitExitFullscreen) {
-                            document.webkitExitFullscreen();
-                        } else if (document.msExitFullscreen) {
-                            document.msExitFullscreen();
-                        }
-                    }
-
                     const questions = """
             + questions_json
             + """;
-                    let currentIdx = 0;
-                    let score = 0;
-                    let timeLeft = 50;
-                    let timerInterval = null;
-                    let gameActive = true;
-
-                    const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-
-                    function playSuccessSound() {
-                        if (audioCtx.state === 'suspended') audioCtx.resume();
-                        let osc = audioCtx.createOscillator();
-                        let gain = audioCtx.createGain();
-                        osc.type = 'sine';
-                        osc.frequency.setValueAtTime(450, audioCtx.currentTime);
-                        osc.frequency.exponentialRampToValueAtTime(850, audioCtx.currentTime + 0.3);
-                        gain.gain.setValueAtTime(0.4, audioCtx.currentTime);
-                        gain.gain.linearRampToValueAtTime(0.01, audioCtx.currentTime + 0.3);
-                        osc.connect(gain);
-                        gain.connect(audioCtx.destination);
-                        osc.start();
-                        osc.stop(audioCtx.currentTime + 0.3);
-                    }
-
-                    function playWrongSound() {
-                        if (audioCtx.state === 'suspended') audioCtx.resume();
-                        let osc = audioCtx.createOscillator();
-                        let gain = audioCtx.createGain();
-                        osc.type = 'sawtooth';
-                        osc.frequency.setValueAtTime(140, audioCtx.currentTime);
-                        osc.frequency.setValueAtTime(90, audioCtx.currentTime + 0.15);
-                        gain.gain.setValueAtTime(0.4, audioCtx.currentTime);
-                        gain.gain.linearRampToValueAtTime(0.01, audioCtx.currentTime + 0.3);
-                        osc.connect(gain);
-                        gain.connect(audioCtx.destination);
-                        osc.start();
-                        osc.stop(audioCtx.currentTime + 0.3);
-                    }
-
-                    function loadQuestion() {
-                        if (currentIdx >= questions.length || currentIdx >= 5) {
-                            endGame();
+                    let currentIdx = 0, score = 0, timeLeft = 45, timerInterval = null, active = true;
+                    function loadQ() {
+                        if(currentIdx >= questions.length) {
+                            document.getElementById('game-container').innerHTML = `<h2 style="padding:100px;">🏆 Oyun Tamamlandı! Puan: ${score}</h2>`;
                             return;
                         }
-                        gameActive = true;
-                        timeLeft = 50;
-                        document.getElementById('timer').innerText = "Süre: " + timeLeft + " sn";
+                        active = true; timeLeft = 45;
                         document.getElementById('q-counter').innerText = "Soru: " + (currentIdx + 1) + " / 5";
-                        
                         let q = questions[currentIdx];
                         document.getElementById('question-text').innerText = q.soru;
-                        
-                        let area = document.getElementById('balloons-area');
-                        area.innerHTML = '';
-
-                        let colors = ['linear-gradient(135deg, #ff416c, #ff4b2b)', 'linear-gradient(135deg, #2193b0, #6dd5ed)', 'linear-gradient(135deg, #11998e, #38ef7d)', 'linear-gradient(135deg, #f2994a, #f2c94c)'];
-                        
+                        let area = document.getElementById('balloons-area'); area.innerHTML = '';
+                        let cols = ['#ff416c', '#2193b0', '#11998e', '#f2994a'];
                         q.secenekler.forEach((opt, idx) => {
                             let b = document.createElement('div');
                             b.className = 'balloon';
-                            b.style.background = colors[idx % colors.length];
-                            b.style.left = (10 + idx * 22) + '%';
-                            b.style.animationDuration = (6 + Math.random() * 4) + 's';
-                            b.style.animationDelay = (idx * 0.35) + 's';
+                            b.style.background = cols[idx % cols.length];
+                            b.style.left = (12 + idx * 21) + '%';
+                            b.style.animationDelay = (idx * 0.3) + 's';
                             b.innerText = opt;
-                            
                             b.onclick = () => {
-                                if (!gameActive) return;
-                                gameActive = false;
-                                clearInterval(timerInterval);
-                                
-                                let chosenLetter = opt.charAt(0).toUpperCase();
-                                let correctLetter = q.dogru_cevap.charAt(0).toUpperCase();
-                                
-                                let overlay = document.getElementById('overlay');
-                                let icon = document.getElementById('feedback-icon');
-                                let msg = document.getElementById('feedback-msg');
-                                overlay.style.display = 'flex';
-
-                                if (chosenLetter === correctLetter) {
-                                    playSuccessSound();
-                                    score += 20;
-                                    document.getElementById('score').innerText = "Puan: " + score;
-                                    icon.innerText = "🎈💥 🎉";
-                                    msg.innerHTML = "Tebrikler! Doğru Balon!<br><span style='font-size:16px; color:#10b981;'>" + q.aciklama + "</span>";
-                                } else {
-                                    playWrongSound();
-                                    icon.innerText = "❌ ⚠️";
-                                    msg.innerHTML = "Yanlış Balon!<br>Doğru Cevap: <b>" + q.dogru_cevap + "</b><br><span style='font-size:16px; color:#f43f5e;'>" + q.aciklama + "</span>";
+                                if(!active) return; active = false; clearInterval(timerInterval);
+                                if(opt.charAt(0).toUpperCase() === q.dogru_cevap.charAt(0).toUpperCase()) {
+                                    score += 20; document.getElementById('score').innerText = "Puan: " + score;
                                 }
-
-                                setTimeout(() => {
-                                    overlay.style.display = 'none';
-                                    currentIdx++;
-                                    loadQuestion();
-                                }, 3500);
+                                currentIdx++; loadQ();
                             };
-                            
                             area.appendChild(b);
                         });
-
-                        if(timerInterval) clearInterval(timerInterval);
-                        timerInterval = setInterval(() => {
-                            timeLeft--;
-                            document.getElementById('timer').innerText = "Süre: " + timeLeft + " sn";
-                            if (timeLeft <= 0) {
-                                clearInterval(timerInterval);
-                                if(gameActive) {
-                                    gameActive = false;
-                                    playWrongSound();
-                                    let overlay = document.getElementById('overlay');
-                                    document.getElementById('feedback-icon').innerText = "⏰ ⚠️";
-                                    document.getElementById('feedback-msg').innerText = "Süre Bitti!";
-                                    overlay.style.display = 'flex';
-                                    setTimeout(() => {
-                                        overlay.style.display = 'none';
-                                        currentIdx++;
-                                        loadQuestion();
-                                    }, 2500);
-                                }
-                            }
-                        }, 1000);
                     }
-
-                    function endGame() {
-                        exitFullScreen();
-                        let area = document.getElementById('game-container');
-                        area.innerHTML = `
-                            <div style="padding: 70px; font-size: 28px;">
-                                🏆 <b>Oyun Tamamlandı!</b><br><br>
-                                Toplam Puanınız: <span style="color: #10b981; font-size: 42px;">${score} / 100</span>
-                            </div>
-                        `;
-                    }
-
-                    loadQuestion();
+                    loadQ();
                 </script>
-            </body>
-            </html>
+            </body></html>
             """
         )
-        st.components.v1.html(html_balloon_game, height=580)
-        st.markdown("<br>", unsafe_allow_html=True)
-
-        b_col1, b_col2 = st.columns(2)
-        with b_col1:
-          if st.button(
-              "🔄 Tekrar Oyna",
-              key="replay_balloon",
-              use_container_width=True,
-          ):
-            st.session_state["game_started"] = False
-            st.rerun()
-        with b_col2:
-          if st.button(
-              "🏠 Ana Ekrana Dön",
-              key="back_home_balloon",
-              use_container_width=True,
-          ):
-            st.session_state["selected_subject"] = None
-            st.session_state["selected_unit"] = None
-            st.session_state["selected_game"] = None
-            st.session_state["game_started"] = False
-            st.rerun()
+        st.components.v1.html(html_balloon_game, height=560)
 
   # 2. 5 SORULUK MEB KAZANIM OYUNU
   elif curr_game == "sinav10":
     st.subheader(f"🧠 {curr_subj} — 5 Soruluk MEB Kazanım Yarışması")
-
     if (
         "quiz_5_data" not in st.session_state
         or st.session_state.get("q_unit_key") != (curr_subj, curr_unit)
     ):
       st.session_state["quiz_5_data"] = None
       st.session_state["q_unit_key"] = (curr_subj, curr_unit)
-      st.session_state["game_started"] = False
 
     if st.button("🚀 Kazanım Sorularını Üret", key="gen_5_quiz"):
-      with st.spinner(
-          f"Yapay zeka {curr_subj} için görsel/kavramsal 5 kazanım sorusu"
-          " üretiliyor..."
-      ):
+      with st.spinner("Sorular üretiliyor..."):
         prompt = f"""
-                5. Sınıf MEB müfredatı, Ders: {curr_subj}, Ünite: {curr_unit}.
-                Bu ünite için TAM 5 ADET çoktan seçmeli (4 şıklı) kazanım sorusu üret.
-                Matematik için dik üçgen, eşkenar üçgen, açı; Fen için Dünya-Güneş-Ay evreleri gibi senaryolar ekle.
-                JSON formatında liste olarak ver:
+                5. Sınıf MEB, Ders: {curr_subj}, Ünite: {curr_unit}.
+                TAM 5 ADET çoktan seçmeli (4 şıklı) soru üret. JSON liste formatında ver:
                 [
                   {{"soru": "...", "secenekler": ["A)...", "B)...", "C)...", "D)..."], "dogru_cevap": "A", "aciklama": "..."}}
                 ]
@@ -983,227 +750,39 @@ else:
             st.session_state["quiz_5_data"] = json.loads(
                 re.sub(r"```json|```", "", res).strip()
             )
-            st.session_state["game_started"] = False
             st.rerun()
           except Exception:
-            st.error("Biçim hatası.")
+            pass
 
     if st.session_state["quiz_5_data"]:
-      if not st.session_state["game_started"]:
-        st.success(
-            "✅ Yarışma Soruları Hazır! Tam ekranda başlatmak için aşağıdaki"
-            " butona tıklayın."
-        )
-        if st.button(
-            "✨ YARIŞMAYI BAŞLAT VE TAM EKRANA GEÇ 🧠",
-            key="start_quiz_fullscreen",
-            use_container_width=True,
-        ):
-          st.session_state["game_started"] = True
-          st.rerun()
-      else:
-        q_json = json.dumps(
-            st.session_state["quiz_5_data"], ensure_ascii=False
-        )
-        html_quiz_game = (
-            """
-            <!DOCTYPE html>
-            <html lang="tr">
-            <head>
-                <meta charset="UTF-8">
-                <style>
-                    body {
-                        background: linear-gradient(135deg, #0f172a, #1e293b);
-                        color: white;
-                        font-family: 'Segoe UI', Tahoma, sans-serif;
-                        text-align: center;
-                        margin: 0;
-                        padding: 10px;
-                    }
-                    .quiz-card {
-                        background: rgba(255, 255, 255, 0.05);
-                        border: 2px solid #38bdf8;
-                        border-radius: 16px;
-                        padding: 24px;
-                        max-width: 750px;
-                        margin: 0 auto;
-                        box-shadow: 0 10px 30px rgba(0,0,0,0.5);
-                    }
-                    .opt-btn {
-                        display: block;
-                        width: 100%;
-                        padding: 14px;
-                        margin: 12px 0;
-                        background: linear-gradient(135deg, #0284c7, #0369a1);
-                        color: white;
-                        border: none;
-                        border-radius: 10px;
-                        font-size: 18px;
-                        font-weight: bold;
-                        cursor: pointer;
-                        transition: 0.2s;
-                        text-align: left;
-                    }
-                    .opt-btn:hover { background: linear-gradient(135deg, #0369a1, #075985); transform: scale(1.01); }
-                </style>
-            </head>
-            <body>
-                <div class="quiz-card">
-                    <div style="display: flex; justify-content: space-between; font-weight: bold; margin-bottom: 18px; font-size: 18px;">
-                        <span id="q-num">Soru: 1 / 5</span>
-                        <span id="q-timer" style="color: #f43f5e;">Süre: 60 sn</span>
-                        <span id="q-score" style="color: #10b981;">Puan: 0</span>
-                    </div>
-                    <div id="q-text" style="font-size: 20px; font-weight: bold; margin-bottom: 20px; text-align: left;">Yükleniyor...</div>
-                    <div id="options-area"></div>
-                    <div id="q-feedback" style="margin-top: 18px; font-size: 18px; font-weight: bold;"></div>
-                </div>
+      qdata = st.session_state["quiz_5_data"]
+      with st.form("quiz_form"):
+        ans_dict = {}
+        for idx, q in enumerate(qdata):
+          st.markdown(f"**Soru {idx+1}:** {q['soru']}")
+          ans_dict[idx] = st.radio(
+              f"Şıklar ({idx+1}):", q["secenekler"], index=None, key=f"q_{idx}"
+          )
+          st.markdown("---")
+        if st.form_submit_button("Sınavı Puanlat"):
+          score = 0
+          for idx, q in enumerate(qdata):
+            user_a = ans_dict[idx]
+            if user_a and user_a.charAt(0).toUpperCase() == q[
+                "dogru_cevap"
+            ].upper():
+              score += 20
+              st.success(f"Soru {idx+1} Doğru! — {q['aciklama']}")
+            else:
+              st.error(
+                  f"Soru {idx+1} Yanlış. Doğru: {q['dogru_cevap']} —"
+                  f" {q['aciklama']}"
+              )
+          st.info(f"🏆 Toplam Puanınız: {score} / 100")
 
-                <script>
-                    function goFullScreen() {
-                        let elem = document.documentElement;
-                        if (elem.requestFullscreen) {
-                            elem.requestFullscreen().catch(() => {});
-                        } else if (elem.webkitRequestFullscreen) {
-                            elem.webkitRequestFullscreen();
-                        } else if (elem.msRequestFullscreen) {
-                            elem.msRequestFullscreen();
-                        }
-                    }
-                    goFullScreen();
-
-                    function exitFullScreen() {
-                        if (document.exitFullscreen) {
-                            document.exitFullscreen().catch(() => {});
-                        } else if (document.webkitExitFullscreen) {
-                            document.webkitExitFullscreen();
-                        } else if (document.msExitFullscreen) {
-                            document.msExitFullscreen();
-                        }
-                    }
-
-                    const quizData = """
-            + q_json
-            + """;
-                    let qIdx = 0;
-                    let totalScore = 0;
-                    let timeRemaining = 60;
-                    let qTimer = null;
-                    let active = true;
-
-                    const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-                    function playSound(type) {
-                        if (audioCtx.state === 'suspended') audioCtx.resume();
-                        let osc = audioCtx.createOscillator();
-                        let gain = audioCtx.createGain();
-                        osc.type = type === 'win' ? 'sine' : 'sawtooth';
-                        osc.frequency.setValueAtTime(type === 'win' ? 500 : 150, audioCtx.currentTime);
-                        gain.gain.setValueAtTime(0.3, audioCtx.currentTime);
-                        gain.gain.linearRampToValueAtTime(0.01, audioCtx.currentTime + 0.25);
-                        osc.connect(gain);
-                        gain.connect(audioCtx.destination);
-                        osc.start();
-                        osc.stop(audioCtx.currentTime + 0.25);
-                    }
-
-                    function loadQ() {
-                        if (qIdx >= quizData.length || qIdx >= 5) {
-                            exitFullScreen();
-                            document.querySelector('.quiz-card').innerHTML = `
-                                <h2>🏆 Yarışma Tamamlandı!</h2>
-                                <p style="font-size: 24px;">Toplam Puanınız: <span style="color: #10b981; font-size: 40px;">${totalScore} / 100</span></p>
-                            `;
-                            return;
-                        }
-                        active = true;
-                        timeRemaining = 60;
-                        document.getElementById('q-num').innerText = "Soru: " + (qIdx + 1) + " / 5";
-                        document.getElementById('q-timer').innerText = "Süre: 60 sn";
-                        document.getElementById('q-feedback').innerText = "";
-
-                        let q = quizData[qIdx];
-                        document.getElementById('q-text').innerText = q.soru;
-                        let area = document.getElementById('options-area');
-                        area.innerHTML = '';
-
-                        q.secenekler.forEach(opt => {
-                            let btn = document.createElement('button');
-                            btn.className = 'opt-btn';
-                            btn.innerText = opt;
-                            btn.onclick = () => checkAnswer(opt, q);
-                            area.appendChild(btn);
-                        });
-
-                        if(qTimer) clearInterval(qTimer);
-                        qTimer = setInterval(() => {
-                            timeRemaining--;
-                            document.getElementById('q-timer').innerText = "Süre: " + timeRemaining + " sn";
-                            if(timeRemaining <= 0) {
-                                clearInterval(qTimer);
-                                if(active) {
-                                    active = false;
-                                    playSound('lose');
-                                    document.getElementById('q-feedback').innerHTML = "<span style='color:#f43f5e;'>⏰ Süre Bitti! Doğru: " + q.dogru_cevap + "</span>";
-                                    setTimeout(() => { qIdx++; loadQ(); }, 3000);
-                                }
-                            }
-                        }, 1000);
-                    }
-
-                    function checkAnswer(chosen, q) {
-                        if(!active) return;
-                        active = false;
-                        clearInterval(qTimer);
-
-                        let chosenLetter = chosen.charAt(0).toUpperCase();
-                        let correctLetter = q.dogru_cevap.charAt(0).toUpperCase();
-                        let fb = document.getElementById('q-feedback');
-
-                        if(chosenLetter === correctLetter) {
-                            playSound('win');
-                            totalScore += 20;
-                            document.getElementById('q-score').innerText = "Puan: " + totalScore;
-                            fb.innerHTML = "<span style='color:#10b981;'>🎉 Doğru! " + q.aciklama + "</span>";
-                        } else {
-                            playSound('lose');
-                            fb.innerHTML = "<span style='color:#f43f5e;'>❌ Yanlış! Doğru Cevap: " + q.dogru_cevap + "<br>" + q.aciklama + "</span>";
-                        }
-
-                        setTimeout(() => { qIdx++; loadQ(); }, 3500);
-                    }
-
-                    loadQ();
-                </script>
-            </body>
-            </html>
-            """
-        )
-        st.components.v1.html(html_quiz_game, height=500)
-        st.markdown("<br>", unsafe_allow_html=True)
-
-        q_col1, q_col2 = st.columns(2)
-        with q_col1:
-          if st.button(
-              "🔄 Tekrar Oyna", key="replay_quiz", use_container_width=True
-          ):
-            st.session_state["game_started"] = False
-            st.rerun()
-        with q_col2:
-          if st.button(
-              "🏠 Ana Ekrana Dön",
-              key="back_home_quiz",
-              use_container_width=True,
-          ):
-            st.session_state["selected_subject"] = None
-            st.session_state["selected_unit"] = None
-            st.session_state["selected_game"] = None
-            st.session_state["game_started"] = False
-            st.rerun()
-
-  # 3. DOĞRU / YANLIŞ MEYDAN OKUMASI (Her ekrana tek soru, altta Doğru ve Yanlış butonları)
+  # 3. DOĞRU / YANLIŞ MEYDAN OKUMASI
   elif curr_game == "dogruyanlis":
     st.subheader(f"✅ {curr_subj} — Doğru / Yanlış Meydan Okuması")
-
     if (
         "dy_questions" not in st.session_state
         or st.session_state.get("dy_unit_key") != (curr_subj, curr_unit)
@@ -1214,16 +793,14 @@ else:
       st.session_state["dy_current_q"] = 0
       st.session_state["dy_feedback"] = ""
 
-    if st.button("🚀 Yeni Doğru/Yanlış Yarışmasını Başlat", key="gen_dy"):
-      with st.spinner("Yapay zeka önermeleri hazırlıyor..."):
+    if st.button("🚀 Yeni D/Y Yarışmasını Başlat", key="gen_dy"):
+      with st.spinner("Önermeler hazırlanıyor..."):
         prompt = f"""
-                5. Sınıf MEB müfredatı, Ders: {curr_subj}, Ünite: {curr_unit}.
-                Bu ünite için TAM 5 ADET Doğru veya Yanlış önermesi üret.
-                JSON formatında liste olarak ver:
+                5. Sınıf MEB, Ders: {curr_subj}, Ünite: {curr_unit}.
+                TAM 5 ADET Doğru veya Yanlış önermesi üret. JSON formatında liste ver:
                 [
-                  {{"ifade": "Önerme metni", "cevap": "D", "aciklama": "Açıklama"}}
+                  {{"ifade": "...", "cevap": "D", "aciklama": "..."}}
                 ]
-                (Not: cevap alanı sadece "D" veya "Y" olsun.)
                 """
         res = ai_generate_content(prompt)
         if res:
@@ -1236,7 +813,7 @@ else:
             st.session_state["dy_feedback"] = ""
             st.rerun()
           except Exception:
-            st.error("Biçim hatası.")
+            pass
 
     if st.session_state["dy_questions"]:
       questions = st.session_state["dy_questions"]
@@ -1244,7 +821,6 @@ else:
 
       if q_idx < len(questions):
         q_item = questions[q_idx]
-
         st.markdown(
             f"""
             <div style="background: rgba(255,255,255,0.06); padding: 24px; border-radius: 16px; border: 2px solid {c_border}; margin-bottom: 20px;">
@@ -1266,65 +842,193 @@ else:
           col_d, col_y = st.columns(2)
           with col_d:
             if st.button("✅ DOĞRU (D)", use_container_width=True):
-              correct_ans = q_item["cevap"].upper()
-              if correct_ans == "D":
+              if q_item["cevap"].upper() == "D":
                 st.session_state["dy_score"] += 20
                 st.session_state["dy_feedback"] = (
-                    f"🎉 **Tebrikler, Doğru Bildin!**<br><span"
+                    f"🎉 **Doğru!**<br><span"
                     f" style='color:#10b981;'>{q_item['aciklama']}</span>"
                 )
               else:
                 st.session_state["dy_feedback"] = (
-                    f"❌ **Yanlış Cevap!** Doğru cevap **Yanlış (Y)**"
-                    f" olacaktı.<br><span"
+                    f"❌ **Yanlış!** Doğru cevap Yanlış (Y) idi.<br><span"
                     f" style='color:#f43f5e;'>{q_item['aciklama']}</span>"
                 )
               st.rerun()
           with col_y:
             if st.button("❌ YANLIŞ (Y)", use_container_width=True):
-              correct_ans = q_item["cevap"].upper()
-              if correct_ans == "Y":
+              if q_item["cevap"].upper() == "Y":
                 st.session_state["dy_score"] += 20
                 st.session_state["dy_feedback"] = (
-                    f"🎉 **Tebrikler, Doğru Bildin!**<br><span"
+                    f"🎉 **Doğru!**<br><span"
                     f" style='color:#10b981;'>{q_item['aciklama']}</span>"
                 )
               else:
                 st.session_state["dy_feedback"] = (
-                    f"❌ **Yanlış Cevap!** Doğru cevap **Doğru (D)**"
-                    f" olacaktı.<br><span"
+                    f"❌ **Yanlış!** Doğru cevap Doğru (D) idi.<br><span"
                     f" style='color:#f43f5e;'>{q_item['aciklama']}</span>"
                 )
               st.rerun()
       else:
         st.markdown(
+            f"<h2>🏆 Yarışma Tamamlandı! Puan: {st.session_state['dy_score']} /"
+            " 100</h2>",
+            unsafe_allow_html=True,
+        )
+        if st.button("🔄 Tekrar Oyna", use_container_width=True):
+          st.session_state["dy_questions"] = None
+          st.rerun()
+
+  # 4. BOŞLUK DOLDURMA YARIŞMASI
+  elif curr_game == "bosluk":
+    st.subheader(f"📝 {curr_subj} — Boşluk Doldurma Yarışması")
+    if (
+        "fill_blanks" not in st.session_state
+        or st.session_state.get("f_unit_key") != (curr_subj, curr_unit)
+    ):
+      st.session_state["fill_blanks"] = None
+      st.session_state["f_unit_key"] = (curr_subj, curr_unit)
+
+    if st.button("✨ Boşluk Doldurma Sorularını Üret", key="gen_fill"):
+      with st.spinner("Sorular hazırlanıyor..."):
+        prompt = f"""
+                5. Sınıf MEB, Ders: {curr_subj}, Ünite: {curr_unit}.
+                Cümle içinde boşluk bırakılmış 5 adet soru üret. JSON liste formatında ver:
+                [
+                  {{"cumle": "Güneş kendi ekseni etrafında ... döner.", "dogru_kelime": "saat yönünün tersine", "secenekler": ["saat yönünün tersine", "saat yönünde", "kuzeye", "güneye"]}}
+                ]
+                """
+        res = ai_generate_content(prompt)
+        if res:
+          try:
+            st.session_state["fill_blanks"] = json.loads(
+                re.sub(r"```json|```", "", res).strip()
+            )
+            st.rerun()
+          except Exception:
+            pass
+
+    if st.session_state["fill_blanks"]:
+      fdata = st.session_state["fill_blanks"]
+      with st.form("fill_form"):
+        f_ans = {}
+        for idx, fq in enumerate(fdata):
+          st.markdown(f"**Soru {idx+1}:** {fq['cumle']}")
+          f_ans[idx] = st.selectbox(
+              f"Boşluğa gelecek kelimeyi seç ({idx+1}):",
+              fq["secenekler"],
+              index=None,
+              key=f"f_{idx}",
+          )
+          st.markdown("---")
+        if st.form_submit_button("Cevapları Kontrol Et"):
+          fscore = 0
+          for idx, fq in enumerate(fdata):
+            if f_ans[idx] == fq["dogru_kelime"]:
+              fscore += 20
+              st.success(f"Soru {idx+1} Doğru!")
+            else:
+              st.error(
+                  f"Soru {idx+1} Yanlış! Doğru kelime: **{fq['dogru_kelime']}**"
+              )
+          st.info(f"🏆 Toplam Puanınız: {fscore} / 100")
+
+  # 5. SORU KARTLARI (FLASHCARDS)
+  elif curr_game == "kartlar":
+    st.subheader(f"🃏 {curr_subj} — Soru Kartları (Flashcards)")
+    if (
+        "flashcards" not in st.session_state
+        or st.session_state.get("fc_unit_key") != (curr_subj, curr_unit)
+    ):
+      st.session_state["flashcards"] = None
+      st.session_state["fc_unit_key"] = (curr_subj, curr_unit)
+      st.session_state["fc_idx"] = 0
+
+    if st.button("✨ Soru Kartlarını Dağıt", key="gen_fc"):
+      with st.spinner("Kartlar hazırlanıyor..."):
+        prompt = f"""
+                5. Sınıf MEB, Ders: {curr_subj}, Ünite: {curr_unit}.
+                Önemli kavram ve soruları içeren 5 adet flashcard üret. JSON liste formatında ver:
+                [
+                  {{"on_yuz": "Kavram/Soru", "arka_yuz": "Açıklama/Cevap"}}
+                ]
+                """
+        res = ai_generate_content(prompt)
+        if res:
+          try:
+            st.session_state["flashcards"] = json.loads(
+                re.sub(r"```json|```", "", res).strip()
+            )
+            st.session_state["fc_idx"] = 0
+            st.rerun()
+          except Exception:
+            pass
+
+    if st.session_state["flashcards"]:
+      cards = st.session_state["flashcards"]
+      f_idx = st.session_state["fc_idx"]
+      if f_idx < len(cards):
+        card = cards[f_idx]
+        st.markdown(
             f"""
-            <div style="background: rgba(255,255,255,0.06); padding: 40px; border-radius: 16px; text-align: center;">
-                <h2>🏆 Doğru / Yanlış Meydan Okuması Tamamlandı!</h2>
-                <p style="font-size: 26px;">Toplam Puanınız: <span style="color: #10b981; font-size: 40px;">{st.session_state['dy_score']} / 100</span></p>
+            <div style="background: {c_bg_gradient}; padding: 40px; border-radius: 20px; color: white; text-align: center; box-shadow: 0 10px 30px rgba(0,0,0,0.3); margin-bottom: 20px;">
+                <div style="font-size: 14px; opacity: 0.8; margin-bottom: 10px;">Kart {f_idx+1} / {len(cards)}</div>
+                <div style="font-size: 24px; font-weight: bold; margin-bottom: 20px;">❓ {card['on_yuz']}</div>
+                <hr style="border-color: rgba(255,255,255,0.3);">
+                <div style="font-size: 20px; margin-top: 20px;">💡 <b>Cevap / Açıklama:</b> {card['arka_yuz']}</div>
             </div>
             """,
             unsafe_allow_html=True,
         )
-        st.markdown("<br>", unsafe_allow_html=True)
-        if st.button("🔄 Tekrar Oyna", use_container_width=True):
-          st.session_state["dy_questions"] = None
-          st.session_state["dy_score"] = 0
-          st.session_state["dy_current_q"] = 0
-          st.session_state["dy_feedback"] = ""
+        col_prev, col_next = st.columns(2)
+        with col_prev:
+          if f_idx > 0 and st.button(
+              "⬅️ Önceki Kart", use_container_width=True
+          ):
+            st.session_state["fc_idx"] -= 1
+            st.rerun()
+        with col_next:
+          if f_idx < len(cards) - 1 and st.button(
+              "Sonraki Kart ➡️", use_container_width=True
+          ):
+            st.session_state["fc_idx"] += 1
+            st.rerun()
+      else:
+        st.success("Tüm kartları gözden geçirdiniz!")
+        if st.button("🔄 Başa Dön", use_container_width=True):
+          st.session_state["fc_idx"] = 0
           st.rerun()
 
-      st.markdown("<br>", unsafe_allow_html=True)
-      if st.button("🏠 Ana Ekrana Dön", key="back_home_dy"):
-        st.session_state["selected_subject"] = None
-        st.session_state["selected_unit"] = None
-        st.session_state["selected_game"] = None
-        st.rerun()
+  # 6. OYNAYARAK ÖĞREN
+  elif curr_game == "oynayarak":
+    st.subheader(f"🎯 {curr_subj} — Oynayarak Öğren Atölyesi")
+    st.info(
+        "Bu modül, konuları oyunlaştırılmış senaryolar, interaktif bulmacalar"
+        " ve mini görevlerle pekiştirmenizi sağlar."
+    )
+    if st.button("🚀 Oynayarak Öğren Görevini Başlat"):
+      with st.spinner("Görev yükleniyor..."):
+        prompt = f"5. Sınıf {curr_subj} {curr_unit} için eğlenceli ve interaktif bir oynayarak öğren görev senaryosu ve ipuçları üret."
+        res = ai_generate_content(prompt)
+        if res:
+          st.markdown(res)
 
-  # 4. KELİME AVI (KUTUCUKLU HARF SEÇMELİ BULMACA)
+  # 7. ETKİNLİKLERLE ÖĞREN
+  elif curr_game == "etkinlik":
+    st.subheader(f"📚 {curr_subj} — Etkinliklerle Öğren Merkezi")
+    st.info(
+        "MEB müfredatına uyumlu günlük etkinlikler, deneyler ve pratik uygulama"
+        " adımları."
+    )
+    if st.button("🚀 Etkinlik Önerisi Getir"):
+      with st.spinner("Etkinlik hazırlanıyor..."):
+        prompt = f"5. Sınıf {curr_subj} {curr_unit} için evde veya sınıfta yapılabilecek 3 adet yaratıcı öğrenme etkinliği öner."
+        res = ai_generate_content(prompt)
+        if res:
+          st.markdown(res)
+
+  # 8. KELİME AVI
   elif curr_game == "kelime":
-    st.subheader(f"🔤 {curr_subj} — Kelime Avı (Harf Seçmeli Bulmaca)")
-
+    st.subheader(f"🔤 {curr_subj} — Kelime Avı Bulmacası")
     if (
         "puz_items" not in st.session_state
         or st.session_state.get("p_unit_key") != (curr_subj, curr_unit)
@@ -1336,12 +1040,12 @@ else:
       st.session_state["user_guess"] = []
 
     if st.button("🔍 Kelime Avını Başlat", key="gen_puz"):
-      with st.spinner("Yapay zeka bulmaca kelimelerini hazırlıyor..."):
+      with st.spinner("Bulmaca kelimeleri hazırlanıyor..."):
         prompt = f"""
-                5. Sınıf {curr_subj} {curr_unit} için TAM 5 ADET önemli anahtar kelime (en fazla 10 harfli Türkçe) ve tanım ipucu üret.
-                JSON formatında liste olarak ver:
+                5. Sınıf {curr_subj} {curr_unit} için 5 adet anahtar kelime ve tanım ipucu üret.
+                JSON liste formatında ver:
                 [
-                  {{"kelime": "TERİM", "ipucu": "Tanımı"}}
+                  {{"kelime": "TERİM", "ipucu": "..."}}
                 ]
                 """
         res = ai_generate_content(prompt)
@@ -1360,103 +1064,43 @@ else:
     if st.session_state["puz_items"]:
       items = st.session_state["puz_items"]
       p_idx = st.session_state["puz_idx"]
-
       if p_idx < len(items):
-        current_item = items[p_idx]
-        target_word = current_item["kelime"].upper()
-
-        st.markdown(f"### 🎯 Bulmaca {p_idx+1} / {len(items)}")
-        st.info(f"💡 **İpucu / Tanım:** {current_item['ipucu']}")
+        cur_item = items[p_idx]
+        t_word = cur_item["kelime"].upper()
+        st.info(f"💡 İpucu: {cur_item['ipucu']}")
 
         if f"pool_{p_idx}" not in st.session_state:
-          alphabet = "ABCÇDEFGĞHIİJKLMNOÖPRSŞTUÜVYZ"
-          pool = list(target_word)
-          while len(pool) < max(8, len(target_word) + 3):
-            pool.append(random.choice(alphabet))
+          pool = list(t_word)
+          while len(pool) < len(t_word) + 3:
+            pool.append(random.choice("ABCÇDEFGĞHIİJKLMNOÖPRSŞTUÜVYZ"))
           random.shuffle(pool)
           st.session_state[f"pool_{p_idx}"] = pool
 
-        letter_pool = st.session_state[f"pool_{p_idx}"]
+        user_g = st.session_state["user_guess"]
+        st.write("Oluşturulan:", "".join(user_g))
 
-        st.markdown("#### Kelime Kutucukları:")
-        user_guess = st.session_state["user_guess"]
-
-        boxes_html = '<div style="display: flex; gap: 8px; justify-content: center; margin-bottom: 20px;">'
-        for b_i in range(len(target_word)):
-          char_in_box = user_guess[b_i] if b_i < len(user_guess) else ""
-          boxes_html += (
-              '<div style="width: 48px; height: 52px; border: 3px solid #6366f1;'
-              " border-radius: 10px; display: flex; align-items: center;"
-              " justify-content: center; font-size: 24px; font-weight: bold;"
-              ' background: #1e1b4b; color: #38bdf8; box-shadow: 0 4px 12px'
-              f' rgba(0,0,0,0.3);">{char_in_box}</div>'
-          )
-        boxes_html += "</div>"
-        st.markdown(boxes_html, unsafe_allow_html=True)
-
-        st.markdown(
-            "#### 🔠 Harf Havuzu (Seçmek İçin Harflere Tıklayın):"
-        )
-
-        pool_cols = st.columns(len(letter_pool))
-        for l_i, l_char in enumerate(letter_pool):
-          with pool_cols[l_i]:
-            if st.button(
-                l_char, key=f"l_btn_{p_idx}_{l_i}_{l_char}", use_container_width=True
-            ):
-              if len(st.session_state["user_guess"]) < len(target_word):
+        cols = st.columns(len(st.session_state[f"pool_{p_idx}"]))
+        for l_i, l_char in enumerate(st.session_state[f"pool_{p_idx}"]):
+          with cols[l_i]:
+            if st.button(l_char, key=f"hb_{p_idx}_{l_i}_{l_char}"):
+              if len(st.session_state["user_guess"]) < len(t_word):
                 st.session_state["user_guess"].append(l_char)
                 st.rerun()
 
-        st.markdown("<br>", unsafe_allow_html=True)
-        col_a, col_b = st.columns(2)
-        with col_a:
-          if st.button("⬅️ Son Harfi Sil", key=f"del_{p_idx}", use_container_width=True):
-            if st.session_state["user_guess"]:
-              st.session_state["user_guess"].pop()
-              st.rerun()
-        with col_b:
-          if st.button("🔄 Tümünü Temizle", key=f"reset_{p_idx}", use_container_width=True):
-            st.session_state["user_guess"] = []
-            st.rerun()
-
-        st.markdown("---")
-        if st.button("✨ Tahmini Kontrol Et", key=f"check_{p_idx}", use_container_width=True):
-          formed_word = "".join(st.session_state["user_guess"])
-          if formed_word == target_word:
-            st.success(f"🎉 Tebrikler! Doğru Kelime: {target_word}")
-            st.session_state["puz_score"] += 20
+        if st.button("Kontrol Et"):
+          if "".join(st.session_state["user_guess"]) == t_word:
+            st.success("🎉 Doğru!")
             st.session_state["puz_idx"] += 1
             st.session_state["user_guess"] = []
-            st.balloons()
             st.rerun()
           else:
-            st.error(
-                f"❌ Yanlış tahmin! (Oluşturduğunuz: {formed_word}). Tekrar"
-                " deneyin."
-            )
+            st.error("Tekrar dene.")
       else:
-        st.markdown("## 🏆 Kelime Avı Tamamlandı!")
-        st.markdown(
-            f"Toplam Puanınız: **{st.session_state['puz_score']} / 100**"
-        )
-        st.markdown("<br>", unsafe_allow_html=True)
-        if st.button("🔄 Tekrar Oyna", key="replay_puz", use_container_width=True):
-          st.session_state["puz_items"] = None
-          st.session_state["user_guess"] = []
-          st.rerun()
+        st.success("Tüm kelimeler tamamlandı!")
 
-      st.markdown("<br>", unsafe_allow_html=True)
-      if st.button("🏠 Ana Ekrana Dön", key="back_home_puz", use_container_width=True):
-        st.session_state["selected_subject"] = None
-        st.session_state["selected_unit"] = None
-        st.session_state["selected_game"] = None
-        st.rerun()
-
-  # 5. KLASİK YAZILI SİMÜLATÖRÜ
+  # 9. KLASİK YAZILI SİMÜLATÖRÜ
   elif curr_game == "acik":
-    st.subheader(f"✍️ {curr_subj} — 5 Soruluk Klasik Yazılı Sınavı")
-
+    st.subheader(f"✍️ {curr_subj} — Klasik Yazılı Simülatörü")
     if (
         "classic_exam" not in st.session_state
         or st.session_state.get("c_unit_key") != (curr_subj, curr_unit)
@@ -1464,11 +1108,11 @@ else:
       st.session_state["classic_exam"] = None
       st.session_state["c_unit_key"] = (curr_subj, curr_unit)
 
-    if st.button("✨ Yazılı Sınavını Başlat (5 Soru)", key="gen_classic"):
-      with st.spinner("Yapay zeka yazılı sorularını hazırlıyor..."):
+    if st.button("✨ Yazılı Sınavını Başlat", key="gen_classic"):
+      with st.spinner("Sorular hazırlanıyor..."):
         prompt = f"""
                 5. Sınıf MEB, Ders: {curr_subj}, Ünite: {curr_unit}.
-                TAM 5 ADET açık uçlu yazılı sorusu ve ideal cevap anahtarlarını JSON liste formatında ver:
+                TAM 5 ADET açık uçlu yazılı sorusu ve ideal cevapları JSON liste formatında ver:
                 [
                   {{"soru": "...", "beklenen_cevap": "..."}}
                 ]
@@ -1485,31 +1129,18 @@ else:
 
     if st.session_state["classic_exam"]:
       exam_list = st.session_state["classic_exam"]
-      with st.form("classic_exam_form"):
-        user_answers = {}
+      with st.form("classic_form"):
+        u_ans = {}
         for idx, cq in enumerate(exam_list):
           st.markdown(f"**Soru {idx+1}:** {cq['soru']}")
-          user_answers[idx] = st.text_area(
-              f"Cevabınız ({idx+1}):", key=f"ans_{idx}"
-          )
+          u_ans[idx] = st.text_area(f"Cevabınız ({idx+1}):", key=f"ans_{idx}")
           st.markdown("---")
-
-        if st.form_submit_button("Yazılı Kağıdını Yapay Zekaya Puanlat"):
+        if st.form_submit_button("Yazılı Kağıdını Puanlat"):
           for idx, cq in enumerate(exam_list):
-            ans = user_answers.get(idx, "")
+            ans = u_ans.get(idx, "")
             if ans.strip():
-              with st.spinner(f"Soru {idx+1} inceleniyor..."):
-                eval_res = ai_generate_content(
-                    f"Sen 5. sınıf öğretmenisin. Soru: {cq['soru']}, İdeal Cevap:"
-                    f" {cq['beklenen_cevap']}, Öğrencinin Cevabı: {ans}."
-                    " Bu cevaba 0 ile 20 arası puan ver ve kısa açıklama yap."
-                )
-                st.info(f"**Soru {idx+1} Değerlendirmesi:**\n\n{eval_res}")
-            else:
-              st.warning(f"Soru {idx+1} boş bırakıldı (0 Puan).")
-      st.markdown("<br>", unsafe_allow_html=True)
-      if st.button("🏠 Ana Ekrana Dön", key="back_home_classic"):
-        st.session_state["selected_subject"] = None
-        st.session_state["selected_unit"] = None
-        st.session_state["selected_game"] = None
-        st.rerun()
+              eval_res = ai_generate_content(
+                  f"Soru: {cq['soru']}, İdeal: {cq['beklenen_cevap']}, Öğrenci:"
+                  f" {ans}. 0-20 arası puan ve kısa açıklama ver."
+              )
+              st.info(f"Soru {idx+1} Değerlendirmesi:\n\n{eval_res}")
