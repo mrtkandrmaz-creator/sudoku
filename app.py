@@ -130,7 +130,7 @@ def ai_generate_content(prompt_text):
       try:
         genai.configure(api_key=g_key)
         for model_name in [
-            "gemini-2.5-flash",
+            "gemini-3.6-flash",
             "gemini-1.5-flash",
             "gemini-1.5-pro",
         ]:
