@@ -6,43 +6,58 @@ import streamlit as st
 
 # Sayfa Yapılandırması
 st.set_page_config(
-    page_title="MEB 5. Sınıf İnteraktif Öğrenme Merkezi",
+    page_title="MEB 5. Sınıf Akıllı Eğitsel Oyun Merkezi",
     page_icon="🎒",
     layout="wide",
 )
 
-# --- 1. AKILLI API VE YEDEK SORU MOTORU (ASLA HATA VERMEZ) ---
+# --- 1. ESNEK VE KUSURSUZ TOML / SECRETS API TARAMA MOTORU ---
 
 
 def get_all_api_keys():
-  """Secrets, environment veya manuel anahtarları toplar."""
+  """Streamlit secrets veya ortam değişkenlerindeki toml formatından
+
+  bağımsız olarak tüm anahtarları otomatik ve esnek toplar.
+  """
   gemini_keys = []
   groq_keys = []
 
+  # 1. Streamlit Secrets (TOML) Tarama
   try:
     if hasattr(st, "secrets") and st.secrets:
-      for key, val in st.secrets.items():
-        key_upper = str(key).upper()
-        if val and isinstance(val, str) and len(val.strip()) > 5:
-          if "GEMINI" in key_upper or "GOOGLE" in key_upper:
-            if val.strip() not in gemini_keys:
-              gemini_keys.append(val.strip())
-          elif "GROQ" in key_upper:
-            if val.strip() not in groq_keys:
-              groq_keys.append(val.strip())
+      # Eğer secrets sözlük yapısındaysa düz veya iç içe tüm değerleri tara
+      def recursive_search(sec_obj):
+        if isinstance(sec_obj, dict):
+          for k, v in sec_obj.items():
+            if isinstance(v, dict):
+              recursive_search(v)
+            elif isinstance(v, str) and len(v.strip()) > 5:
+              k_upper = str(k).upper()
+              if "GEMINI" in k_upper or "GOOGLE" in k_upper or "AIZA" in v:
+                if v.strip() not in gemini_keys:
+                  gemini_keys.append(v.strip())
+              elif "GROQ" in k_upper or "GSK" in v:
+                if v.strip() not in groq_keys:
+                  groq_keys.append(v.strip())
+
+      recursive_search(st.secrets)
   except Exception:
     pass
 
+  # 2. Ortam Değişkenleri (.env / Environment Variables) Tarama
   for env_key, env_val in os.environ.items():
     env_upper = env_key.upper()
     if env_val and isinstance(env_val, str) and len(env_val.strip()) > 5:
       if (
-          "GEMINI" in env_upper or "GOOGLE" in env_upper
+          "GEMINI" in env_upper or "GOOGLE" in env_upper or "AIZA" in env_val
       ) and env_val.strip() not in gemini_keys:
         gemini_keys.append(env_val.strip())
-      elif "GROQ" in env_upper and env_val.strip() not in groq_keys:
+      elif (
+          "GROQ" in env_upper or "GSK" in env_val
+      ) and env_val.strip() not in groq_keys:
         groq_keys.append(env_val.strip())
 
+  # 3. Manuel Eklenenler (Session State)
   if "manual_gemini" in st.session_state and st.session_state["manual_gemini"]:
     if st.session_state["manual_gemini"] not in gemini_keys:
       gemini_keys.append(st.session_state["manual_gemini"])
@@ -75,127 +90,9 @@ except ImportError:
   pass
 
 
-# Çevrimdışı / Yedek MEB Soru Veritabanı (API çalışmasa bile oyunlar çalışır)
-FALLBACK_QUESTIONS = {
-    "Türkçe": {
-        "balon": {
-            "soru": (
-                "Aşağıdaki cümlelerin hangisinde 'altında' sözcüğü mecmu"
-                " anlamda kullanılmıştır?"
-            ),
-            "secenekler": [
-                "A) Masanın altında bir kedi var.",
-                "B) Bu işin altında senin parmağın var.",
-                "C) Ağacın altında dinlendik.",
-                "D) Halının altında anahtar unutulmuş.",
-            ],
-            "dogru_cevap": "B",
-            "aciklama": (
-                "Gerçek anlamdan uzaklaşarak yeni bir anlam kazandığı için"
-                " mecazdır."
-            ),
-        },
-        "kelime": [
-            {
-                "kelime": "TERİM",
-                "ipucu": "Bilim, sanat veya meslek dalıyla ilgili özel kavram.",
-            },
-            {
-                "kelime": "DEYİM",
-                "ipucu": (
-                    "Genellikle gerçek anlamından uzak kendine özgü kalıplaşmış"
-                    " söz grubu."
-                ),
-            },
-            {
-                "kelime": "MECAZ",
-                "ipucu": (
-                    "Bir sözcüğün gerçek anlamı dışında başka bir anlamda"
-                    " kullanılması."
-                ),
-            },
-        ],
-    },
-    "Matematik": {
-        "balon": {
-            "soru": (
-                "34567 doğal sayısının binler basamağındaki rakamın basamak"
-                " değeri kaçtır?"
-            ),
-            "secenekler": [
-                "A) 4000",
-                "B) 500",
-                "C) 400",
-                "D) 30000",
-            ],
-            "dogru_cevap": "A",
-            "aciklama": (
-                "Binler basamağında 4 vardır, basamak değeri 4 x 1000 = 4000'dir."
-            ),
-        },
-        "kelime": [
-            {
-                "kelime": "KESİR",
-                "ipucu": (
-                    "Bütünün eş parçalarından birini veya birkaçını belirten"
-                    " ifade."
-                ),
-            },
-            {
-                "kelime": "PAY",
-                "ipucu": (
-                    "Kesir çizgisinin üstündeki sayı, eş parçadan kaç tanesini"
-                    " gösterir."
-                ),
-            },
-            {
-                "kelime": "PAYDA",
-                "ipucu": (
-                    "Bütünün kaç eş parçaya bölündüğünü gösteren alt sayı."
-                ),
-            },
-        ],
-    },
-    "Fen Bilimleri": {
-        "balon": {
-            "soru": (
-                "Güneş, Dünya ve Ay'ın birbirine göre hareketleri ile ilgili"
-                " hangisi yanlıştır?"
-            ),
-            "secenekler": [
-                "A) Dünya kendi etrafında döner.",
-                "B) Ay, Dünya etrafında dolanır.",
-                "C) Güneş, Dünya'nın etrafında döner.",
-                "D) Dünya, Güneş etrafında dolanır.",
-            ],
-            "dogru_cevap": "C",
-            "aciklama": (
-                "Güneş sabit değildir kendi ekseni etrafında döner ancak"
-                " Dünya'nın etrafında dönmez."
-            ),
-        },
-        "kelime": [
-            {
-                "kelime": "EVRE",
-                "ipucu": "Ay'ın şekil değişikliklerinin her bir durumu.",
-            },
-            {
-                "kelime": "KUVVET",
-                "ipucu": "Cisimleri hareket ettiren, durduran etki.",
-            },
-            {
-                "kelime": "SÜRTÜNME",
-                "ipucu": (
-                    "Yüzeylerin teması sonucu hareketi zorlaştıran kuvvet."
-                ),
-            },
-        ],
-    },
-}
-
-
 def ai_generate_content(prompt_text):
-  """Yapay zeka modelleri arasında yedekli çağrı yapar, hata durumunda yedek döner."""
+  """Gemini ve Groq API'leri arasında sırayla dener (Failover)."""
+  # 1. Gemini Modelleri
   if has_gemini and gemini_keys:
     for g_key in gemini_keys:
       try:
@@ -215,6 +112,7 @@ def ai_generate_content(prompt_text):
       except Exception:
         continue
 
+  # 2. Groq Modelleri
   if has_groq and groq_keys:
     for gr_key in groq_keys:
       try:
@@ -319,7 +217,7 @@ MEB_CURRICULUM = {
     },
 }
 
-# --- 3. ARAYÜZ TASARIMI (CSS) ---
+# --- 3. MEB TARZI ARAYÜZ (CSS) ---
 st.markdown(
     """
     <style>
@@ -346,16 +244,13 @@ st.markdown(
     unsafe_allow_html=True,
 )
 
-# --- 4. SOL MENÜ (API YARDIMCI GİRİŞİ) ---
+# --- 4. SOL MENÜ (API DURUMU VE YARDIMCI GİRİŞ) ---
 with st.sidebar:
   st.subheader("⚙️ API Yapılandırma")
   if not gemini_keys and not groq_keys:
-    st.info(
-        "💡 Otomatik anahtar yoksa test için buraya API anahtarınızı"
-        " yapıştırabilirsiniz:"
-    )
+    st.warning("⚠️ Otomatik API anahtarı algılanamadı.")
     m_key = st.text_input(
-        "Gemini (AIza...) veya Groq (gsk_...)", type="password"
+        "Geçici API Anahtarı Girin (Gemini/Groq):", type="password"
     )
     if m_key:
       if m_key.startswith("AIza"):
@@ -367,29 +262,27 @@ with st.sidebar:
         st.success("Groq eklendi!")
         st.rerun()
   else:
-    st.success("✅ Yapay Zeka Aktif")
+    st.success("✅ Yapay Zeka TOML'dan Aktif")
 
   st.markdown("---")
-  if st.button("🏠 Ana Sayfaya Dön (Ders Seçimi)"):
+  if st.button("🏠 Ana Sayfaya Dön"):
     st.session_state["selected_subject"] = None
     st.session_state["selected_unit"] = None
+    st.session_state["selected_game"] = None
     st.rerun()
 
-# --- 5. NAVİGASYON AKIŞI: DERS -> ÜNİTE -> OYUNLAR ---
-
-# Session state tanımları
+# --- 5. SESSION STATE TANIMLARI ---
 if "selected_subject" not in st.session_state:
   st.session_state["selected_subject"] = None
 if "selected_unit" not in st.session_state:
   st.session_state["selected_unit"] = None
+if "selected_game" not in st.session_state:
+  st.session_state["selected_game"] = None
 
-# AŞAMA 1: DERS SEÇİMİ (DASHBOARD - RENKLİ KUTUCUKLAR)
+# --- AŞAMA 1: DERS SEÇİMİ (DASHBOARD - RENTLİ KUTUCUKLARA TIKLAYINCA DİREKT SEÇER) ---
 if st.session_state["selected_subject"] is None:
   st.markdown(
-      "### 🌟 Lütfen Çalışmak İstediğiniz MEB Dersini Seçin (Dashboard)"
-  )
-  st.markdown(
-      "Aşağıdaki renkli ders kutucuklarından birine tıklayarak devam edin."
+      "### 🌟 Lütfen Çalışmak İstediğiniz MEB Dersine Tıklayın (Dashboard)"
   )
 
   subjects = list(MEB_CURRICULUM.keys())
@@ -408,11 +301,12 @@ if st.session_state["selected_subject"] is None:
             """,
           unsafe_allow_html=True,
       )
-      if st.button(f"📚 {subj} Seç", key=f"dash_btn_{subj}"):
+      # Kutucuğun altındaki butona basıldığında direkt dersi seçer
+      if st.button(f"🚀 {subj} Dersine Gir", key=f"subj_click_{subj}"):
         st.session_state["selected_subject"] = subj
         st.rerun()
 
-# AŞAMA 2: ÜNİTE SEÇİMİ (YENİ EKRANDA RENKLİ KUTUCUKLAR)
+# --- AŞAMA 2: ÜNİTE SEÇİMİ (YENİ EKRANDA RENKLİ KUTUCUKLAR) ---
 elif (
     st.session_state["selected_subject"] is not None
     and st.session_state["selected_unit"] is None
@@ -423,7 +317,7 @@ elif (
   st.markdown(
       f"### {curr_data['ikon']} {curr_subj} — Ünite / Konu Seçim Ekranı"
   )
-  st.write("Çalışmak istediğiniz alt üniteyi aşağıdaki kutucuklardan seçin:")
+  st.write("Çalışmak istediğiniz alt üniteyi aşağıdaki renkli kutucuktan seçin:")
 
   if st.button("⬅️ Ders Seçimine Geri Dön"):
     st.session_state["selected_subject"] = None
@@ -431,56 +325,113 @@ elif (
 
   st.markdown("---")
 
-  # Üniteleri renkli kutucuklar şeklinde listeleme
   unit_cols = st.columns(2)
   for idx, unit_name in enumerate(curr_data["uniteler"]):
     u_col = unit_cols[idx % 2]
     with u_col:
       st.markdown(
           f"""
-                <div style="background-color: {curr_data['renk']}; opacity: 0.9; padding: 15px; border-radius: 10px; color: white; text-align: center; margin-bottom: 12px; font-weight: bold; font-size: 16px;">
+                <div style="background-color: {curr_data['renk']}; opacity: 0.9; padding: 16px; border-radius: 10px; color: white; text-align: center; margin-bottom: 12px; font-weight: bold; font-size: 16px; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
                     📖 {unit_name}
                 </div>
             """,
           unsafe_allow_html=True,
       )
-      if st.button(f"Seç: {unit_name}", key=f"unit_btn_{idx}"):
+      if st.button(f"Seç: {unit_name}", key=f"unit_click_{idx}"):
         st.session_state["selected_unit"] = unit_name
         st.rerun()
 
-# AŞAMA 3: OYUN VE SORU MODELLERİ (SEÇİLEN DERS VE ÜNİTE ÜZERİNDEN)
-else:
+# --- AŞAMA 3: OYUN VE SORU MODELLERİ (YİNE DASHBOARD TARZI RENKLİ KUTUCUKLAR) ---
+elif (
+    st.session_state["selected_subject"] is not None
+    and st.session_state["selected_unit"] is not None
+    and st.session_state["selected_game"] is None
+):
   curr_subj = st.session_state["selected_subject"]
   curr_unit = st.session_state["selected_unit"]
   curr_data = MEB_CURRICULUM[curr_subj]
 
-  # Üst bilgi çubuğu
   st.markdown(
       f"""
-        <div style="background-color: {curr_data['renk']}; padding: 12px; border-radius: 8px; color: white; margin-bottom: 20px; display: flex; justify-content: space-between; align-items: center;">
-            <span><b>Ders:</b> {curr_subj} &nbsp;|&nbsp; <b>Ünite:</b> {curr_unit}</span>
+        <div style="background-color: {curr_data['renk']}; padding: 14px; border-radius: 10px; color: white; margin-bottom: 20px;">
+            <b>Seçilen Ders:</b> {curr_subj} &nbsp;|&nbsp; <b>Ünite:</b> {curr_unit}
         </div>
     """,
       unsafe_allow_html=True,
   )
 
-  col_back, _ = st.columns([1, 4])
-  with col_back:
-    if st.button("↩️ Ünite Değiştir"):
-      st.session_state["selected_unit"] = None
-      st.rerun()
+  if st.button("↩️ Ünite Değiştir"):
+    st.session_state["selected_unit"] = None
+    st.rerun()
 
-  st.markdown("### 🎮 MEB İnteraktif Oyun ve Soru Modelleri")
-  game_mode = st.tabs([
-      "🎈 Balon Patlatmaca",
-      "🧠 10 Soruluk MEB Sınavı",
-      "✍️ Açık Uçlu Soru Köşesi",
-      "🔤 Kelime Avı & Bulmaca",
-      "🤖 Yapay Zeka Koçum",
-  ])
+  st.markdown(
+      "### 🎮 Oyun ve Soru Modelleri (Lütfen bir oyun modu kutucuğu seçin)"
+  )
 
-  # --- MOD 1: BALON PATLATMACA ---
-  with game_mode[0]:
+  # Oyun Modelleri için Dashboard Renkli Kutucukları
+  games = [
+      {
+          "id": "balon",
+          "isim": "🎈 Balon Patlatmaca",
+          "renk": "#ff6b6b",
+          "aciklama": "Doğru şıkkı içeren balonu patlat!",
+      },
+      {
+          "id": "sinav10",
+          "isim": "🧠 10 Soruluk MEB Sınavı",
+          "renk": "#4d96ff",
+          "aciklama": "Kapsamlı 10 soruluk kazanım testi.",
+      },
+      {
+          "id": "acik",
+          "isim": "✍️ Açık Uçlu Soru Köşesi",
+          "renk": "#6bcb77",
+          "aciklama": "Yazılı provası ve AI değerlendirmesi.",
+      },
+      {
+          "id": "kelime",
+          "isim": "🔤 Kelime Avı & Bulmaca",
+          "renk": "#ffd93d",
+          "aciklama": "Ünite kavramları ve bulmacalar.",
+      },
+      {
+          "id": "koc",
+          "isim": "🤖 Yapay Zeka Koçum",
+          "renk": "#9b5de5",
+          "aciklama": "Aklına takılanları canlı sor.",
+      },
+  ]
+
+  g_cols = st.columns(3)
+  for g_idx, g_item in enumerate(games):
+    with g_cols[g_idx % 3]:
+      st.markdown(
+          f"""
+                <div style="background-color: {g_item['renk']}; padding: 20px; border-radius: 12px; color: white; text-align: center; margin-bottom: 15px; box-shadow: 0 4px 6px rgba(0,0,0,0.1);">
+                    <h3 style="margin:0; color: white;">{g_item['isim']}</h3>
+                    <p style="font-size: 13px; margin: 8px 0 0 0;">{g_item['aciklama']}</p>
+                </div>
+            """,
+          unsafe_allow_html=True,
+      )
+      if st.button(f"Seç: {g_item['isim']}", key=f"game_btn_{g_item['id']}"):
+        st.session_state["selected_game"] = g_item["id"]
+        st.rerun()
+
+# --- AŞAMA 4: SEÇİLEN OYUN MODUNUN ÇALIŞTIRILMASI ---
+else:
+  curr_subj = st.session_state["selected_subject"]
+  curr_unit = st.session_state["selected_unit"]
+  curr_game = st.session_state["selected_game"]
+
+  if st.button("⬅️ Oyun / Mod Seçimine Geri Dön"):
+    st.session_state["selected_game"] = None
+    st.rerun()
+
+  st.markdown("---")
+
+  # 1. BALON PATLATMACA
+  if curr_game == "balon":
     st.subheader("🎈 Balon Patlatmaca Soru Oyunu")
     if (
         "b_data" not in st.session_state
@@ -489,9 +440,14 @@ else:
       st.session_state["b_data"] = None
       st.session_state["b_unit"] = (curr_subj, curr_unit)
 
-    if st.button("🚀 Yeni Balon Soru Üret"):
-      with st.spinner("Balonlar hazırlanıyor..."):
-        prompt = f"5. Sınıf MEB, Ders: {curr_subj}, Ünite: {curr_unit}. Balon patlatmaca için 4 şıklı soru hazırla. JSON: {{\"soru\": \"...\", \"secenekler\": [\"A) ...\", \"B) ...\", \"C) ...\", \"D) ...\"], \"dogru_cevap\": \"A\", \"aciklama\": \"...\"}}"
+    if st.button("🚀 Yapay Zeka ile Balon Soru Üret"):
+      with st.spinner("Yapay zeka soru hazırlıyor..."):
+        prompt = f"""
+                5. Sınıf MEB müfredatı, Ders: {curr_subj}, Ünite: {curr_unit}.
+                Balon patlatmaca oyunu için AI destekli 4 şıklı soru üret.
+                Kesinlikle şu JSON formatında ver:
+                {{"soru": "Soru metni", "secenekler": ["A) ...", "B) ...", "C) ...", "D) ..."], "dogru_cevap": "A", "aciklama": "Açıklama"}}
+                """
         res = ai_generate_content(prompt)
         if res:
           try:
@@ -500,37 +456,26 @@ else:
             )
             st.rerun()
           except Exception:
-            pass
-        # Fallback veri
-        if not st.session_state["b_data"]:
-          st.session_state["b_data"] = FALLBACK_QUESTIONS.get(
-              curr_subj, FALLBACK_QUESTIONS["Türkçe"]
-          )["balon"]
-          st.rerun()
+            st.error("Üretim hatası.")
 
-    # Eğer veri yoksa varsayılan yedek yükle
-    if not st.session_state["b_data"]:
-      st.session_state["b_data"] = FALLBACK_QUESTIONS.get(
-          curr_subj, FALLBACK_QUESTIONS["Türkçe"]
-      )["balon"]
+    if st.session_state["b_data"]:
+      b_q = st.session_state["b_data"]
+      st.markdown(f"### ❓ {b_q['soru']}")
+      b_cols = st.columns(2)
+      for idx, opt in enumerate(b_q["secenekler"]):
+        with b_cols[idx % 2]:
+          if st.button(f"🎈 {opt}", key=f"ball_{idx}"):
+            if opt.startswith(b_q["dogru_cevap"]):
+              st.balloons()
+              st.success(f"🎉 Tebrikler! Doğru balon! {b_q['aciklama']}")
+            else:
+              st.error(
+                  f"💥 Yanlış balon! Doğru cevap **{b_q['dogru_cevap']}**."
+                  f" {b_q['aciklama']}"
+              )
 
-    b_q = st.session_state["b_data"]
-    st.markdown(f"### ❓ {b_q['soru']}")
-    b_cols = st.columns(2)
-    for idx, opt in enumerate(b_q["secenekler"]):
-      with b_cols[idx % 2]:
-        if st.button(f"🎈 {opt}", key=f"ball_{idx}"):
-          if opt.startswith(b_q["dogru_cevap"]):
-            st.balloons()
-            st.success(f"🎉 Tebrikler! Doğru balonu patlattın! {b_q['aciklama']}")
-          else:
-            st.error(
-                f"💥 Yanlış balon! Doğru cevap **{b_q['dogru_cevap']}**"
-                f" olacaktı. {b_q['aciklama']}"
-            )
-
-  # --- MOD 2: 10 SORULUK MEB SINAVI ---
-  with game_mode[1]:
+  # 2. 10 SORULUK MEB SINAVI
+  elif curr_game == "sinav10":
     st.subheader(f"🧠 10 Soruluk {curr_subj} MEB Kazanım Sınavı")
     if (
         "exam_10" not in st.session_state
@@ -539,9 +484,16 @@ else:
       st.session_state["exam_10"] = None
       st.session_state["ex_unit"] = (curr_subj, curr_unit)
 
-    if st.button("📝 10 Soruluk Sınavı Başlat"):
-      with st.spinner("10 adet MEB kalitesinde soru hazırlanıyor..."):
-        prompt = f"5. Sınıf MEB, Ders: {curr_subj}, Ünite: {curr_unit}. 10 adet 4 şıklı çoktan seçmeli soru listesi JSON formatında ver: [{{\"soru\": \"...\", \"secenekler\": [\"A) ...\", \"B) ...\", \"C) ...\", \"D) ...\"], \"dogru_cevap\": \"A\", \"aciklama\": \"...\"}}] "
+    if st.button("📝 Yapay Zeka ile 10 Soruluk Sınavı Başlat"):
+      with st.spinner("Yapay zeka 10 adet sınav sorusu üretiyor..."):
+        prompt = f"""
+                5. Sınıf MEB müfredatı, Ders: {curr_subj}, Ünite: {curr_unit}.
+                Yapay zeka ile tam 10 adet çoktan seçmeli (4 şıklı) soru üret.
+                JSON formatında liste olarak ver:
+                [
+                  {{"soru": "...", "secenekler": ["A)...", "B)...", "C)...", "D)..."], "dogru_cevap": "A", "aciklama": "..."}}
+                ]
+                """
         res = ai_generate_content(prompt)
         if res:
           try:
@@ -550,7 +502,7 @@ else:
             )
             st.rerun()
           except Exception:
-            pass
+            st.error("Biçim hatası.")
 
     if st.session_state["exam_10"]:
       exam = st.session_state["exam_10"]
@@ -566,7 +518,7 @@ else:
           )
           st.markdown("---")
 
-        if st.form_submit_button("Sınavı Tamamla"):
+        if st.form_submit_button("Sınavı Tamamla ve Puanı Gör"):
           corrects = 0
           for q_i, q in enumerate(exam):
             ans = user_ans_10.get(q_i)
@@ -583,8 +535,8 @@ else:
                   f" {q['aciklama']}"
               )
 
-  # --- MOD 3: AÇIK UÇLU SORU KÖŞESİ ---
-  with game_mode[2]:
+  # 3. AÇIK UÇLU SORU
+  elif curr_game == "acik":
     st.subheader("✍️ Açık Uçlu Soru ve Yapay Zeka Değerlendirme")
     if (
         "open_q" not in st.session_state
@@ -593,9 +545,13 @@ else:
       st.session_state["open_q"] = None
       st.session_state["op_unit"] = (curr_subj, curr_unit)
 
-    if st.button("✨ Klasik Soru Getir"):
-      with st.spinner("Soru hazırlanıyor..."):
-        prompt = f"5. Sınıf MEB, Ders: {curr_subj}, Ünite: {curr_unit}. 1 adet açık uçlu yazılı sorusu ve ideal cevap anahtarını JSON ver: {{\"soru\": \"...\", \"beklenen_cevap\": \"...\"}}"
+    if st.button("✨ Yapay Zeka ile Klasik Soru Getir"):
+      with st.spinner("Soru üretiliyor..."):
+        prompt = f"""
+                5. Sınıf MEB, Ders: {curr_subj}, Ünite: {curr_unit}.
+                1 adet açık uçlu yazılı sorusu ve ideal cevap anahtarını JSON ver:
+                {{"soru": "...", "beklenen_cevap": "..."}}
+                """
         res = ai_generate_content(prompt)
         if res:
           try:
@@ -612,7 +568,7 @@ else:
       stu_ans = st.text_area("Cevabınız:")
       if st.button("Yapay Zekaya Değerlendir"):
         if stu_ans:
-          with st.spinner("Değerlendiriliyor..."):
+          with st.spinner("Öğretmen yanıtınızı inceliyor..."):
             fb = ai_generate_content(
                 f"Sen 5. sınıf öğretmenisin. Soru: {oq['soru']}, İdeal Cevap:"
                 f" {oq['beklenen_cevap']}, Öğrencinin Cevabı: {stu_ans}."
@@ -621,31 +577,52 @@ else:
             if fb:
               st.success(fb)
         else:
-          st.warning("Cevap yazın.")
+          st.warning("Lütfen cevap yazın.")
 
-  # --- MOD 4: KELİME AVI & BULMACA ---
-  with game_mode[3]:
+  # 4. KELİME AVI & BULMACA
+  elif curr_game == "kelime":
     st.subheader("🔤 Kelime Avı & Bulmaca")
-    if st.button("🔍 Kelimeleri Getir"):
-      st.session_state["puz"] = FALLBACK_QUESTIONS.get(
-          curr_subj, FALLBACK_QUESTIONS["Türkçe"]
-      )["kelime"]
+    if (
+        "puz_data" not in st.session_state
+        or st.session_state.get("p_unit") != (curr_subj, curr_unit)
+    ):
+      st.session_state["puz_data"] = None
+      st.session_state["p_unit"] = (curr_subj, curr_unit)
 
-    if "puz" in st.session_state and st.session_state["puz"]:
+    if st.button("🔍 Yapay Zeka ile Kelimeleri Getir"):
+      with st.spinner("Kavramlar üretiliyor..."):
+        prompt = f"""
+                5. Sınıf {curr_subj} {curr_unit} için AI destekli 3 önemli anahtar kelime üret.
+                JSON formatında ver:
+                [
+                  {{"kelime": "TERİM", "ipucu": "Tanımı"}}
+                ]
+                """
+        res = ai_generate_content(prompt)
+        if res:
+          try:
+            st.session_state["puz_data"] = json.loads(
+                re.sub(r"```json|```", "", res).strip()
+            )
+            st.rerun()
+          except Exception:
+            pass
+
+    if st.session_state["puz_data"]:
       with st.form("puz_form"):
         p_res = {}
-        for idx, item in enumerate(st.session_state["puz"]):
+        for idx, item in enumerate(st.session_state["puz_data"]):
           st.markdown(f"**İpucu:** {item['ipucu']}")
           p_res[idx] = st.text_input(f"Kelime {idx+1}:", key=f"p_{idx}")
         if st.form_submit_button("Kontrol Et"):
-          for idx, item in enumerate(st.session_state["puz"]):
+          for idx, item in enumerate(st.session_state["puz_data"]):
             if p_res.get(idx, "").strip().upper() == item["kelime"].upper():
               st.success(f"✅ Doğru! ({item['kelime']})")
             else:
               st.error(f"❌ Yanlış. Doğru: **{item['kelime']}**")
 
-  # --- MOD 5: YAPAY ZEKA KOÇUM ---
-  with game_mode[4]:
+  # 5. YAPAY ZEKA KOÇUM
+  elif curr_game == "koc":
     st.subheader(f"🤖 {curr_subj} Canlı Yapay Zeka Koçu")
     user_q = st.text_input("Aklına takılan soruyu sor:")
     if st.button("Koçuma Sor"):
