@@ -1155,7 +1155,7 @@ else:
         st.markdown("#### Kelime Kutucukları:")
         user_guess = st.session_state["user_guess"]
 
-        # Kutucukların birbirine yakın ve düzenli durması için HTML container
+        # Kutucuklar (Tek bir temiz st.markdown bloğunda güvenli şekilde oluşturulur)
         boxes_html = '<div style="display: flex; gap: 8px; justify-content: center; margin-bottom: 20px;">'
         for b_i in range(len(target_word)):
           char_in_box = user_guess[b_i] if b_i < len(user_guess) else ""
@@ -1179,7 +1179,6 @@ else:
             "#### 🔠 Harf Havuzu (Seçmek İçin Harflere Tıklayın):"
         )
 
-        # Harf butonları için özel kompakt yerleşim
         pool_cols = st.columns(len(letter_pool))
         for l_i, l_char in enumerate(letter_pool):
           with pool_cols[l_i]:
@@ -1315,3 +1314,5 @@ else:
       st.session_state["selected_unit"] = None
       st.session_state["selected_game"] = None
       st.rerun()
+
+<FollowUp/>
