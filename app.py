@@ -202,20 +202,20 @@ if "game_started" not in st.session_state:
 if "coach_open" not in st.session_state:
   st.session_state["coach_open"] = False
 if "coach_theme" not in st.session_state:
-  st.session_state["coach_theme"] = "Mavi"
+  st.session_state["coach_theme"] = "Mavi-Beyaz"
 if "coach_messages" not in st.session_state:
   st.session_state["coach_messages"] = [
       {
           "role": "assistant",
           "content": (
               "Merhaba! Ben senin yapay zeka koçun **AdenMind**. Görsel"
-              " destekli MEB soruları, geometrik şekiller, Dünya-Güneş-Ay"
-              " modelleri ve eğlenceli oyunlarla öğrenmeye hazır mısın? 🦊✨"
+              " destekli MEB soruları, geometrik şekiller ve eğlenceli"
+              " oyunlarla öğrenmeye hazır mısın? 🦊✨"
           ),
       }
   ]
 
-# --- 4. TEMA RENK SEÇENEKLERİ (PEMBE VEYA MAVİ) ---
+# --- 4. TEMA RENK SEÇENEKLERİ (Mavi-Beyaz, Sarı-Kırmızı, Pembe, Mavi) ---
 theme_choice = st.session_state["coach_theme"]
 if theme_choice == "Pembe":
   c_bg_gradient = "linear-gradient(135deg, #ff758c, #ff7eb3)"
@@ -224,7 +224,21 @@ if theme_choice == "Pembe":
   c_bubble_user = "#ffccd5"
   c_bubble_ai = "#ffe5ec"
   c_text_color = "#590d22"
-else:  # Mavi
+elif theme_choice == "Sarı-Kırmızı":
+  c_bg_gradient = "linear-gradient(135deg, #f12711, #f5af19)"
+  c_border = "#f5af19"
+  c_accent = "#b91c1c"
+  c_bubble_user = "#fef08a"
+  c_bubble_ai = "#fef2f2"
+  c_text_color = "#7f1d1d"
+elif theme_choice == "Mavi-Beyaz":
+  c_bg_gradient = "linear-gradient(135deg, #2563eb, #60a5fa)"
+  c_border = "#3b82f6"
+  c_accent = "#1d4ed8"
+  c_bubble_user = "#e0f2fe"
+  c_bubble_ai = "#f8fafc"
+  c_text_color = "#1e3a8a"
+else:  # Klasik Mavi/Yeşil
   c_bg_gradient = "linear-gradient(135deg, #38ef7d, #11998e)"
   c_border = "#0ea5e9"
   c_accent = "#0284c7"
@@ -287,22 +301,20 @@ with st.sidebar:
   st.subheader("🦊 AdenMind Tema Tercihi")
   selected_theme = st.radio(
       "Koçunun Renk Dünyasını Seç:",
-      ["Mavi", "Pembe"],
-      index=0 if st.session_state["coach_theme"] == "Mavi" else 1,
+      ["Mavi-Beyaz", "Sarı-Kırmızı", "Pembe", "Yeşil-Mavi"],
+      index=[
+          "Mavi-Beyaz",
+          "Sarı-Kırmızı",
+          "Pembe",
+          "Yeşil-Mavi",
+      ].index(st.session_state["coach_theme"])
+      if st.session_state["coach_theme"]
+      in ["Mavi-Beyaz", "Sarı-Kırmızı", "Pembe", "Yeşil-Mavi"]
+      else 0,
   )
   if selected_theme != st.session_state["coach_theme"]:
     st.session_state["coach_theme"] = selected_theme
     st.rerun()
-
-  st.markdown("---")
-  st.subheader("⚙️ Sistem & API Durumu")
-  if gemini_keys or groq_keys:
-    st.success(
-        f"✅ Yapay Zeka Aktif!\n(Groq: {len(groq_keys)}, Gemini:"
-        f" {len(gemini_keys)})"
-    )
-  else:
-    st.warning("⚠️ TOML'dan anahtar okunamadı.")
 
   st.markdown("---")
   if st.button("🏠 Ana Sayfaya Dön", key="home_btn", use_container_width=True):
@@ -365,8 +377,8 @@ if st.session_state["coach_open"]:
 
     with st.form("coach_chat_form", clear_on_submit=True):
       user_input = st.text_input(
-          "AdenMind'a görsel bir soru veya konu sor (Örn: Dik üçgen açıları"
-          " veya Dünya'nın hareketleri):"
+          "AdenMind'a bir soru sor (Örn: Dik üçgen açıları veya Dünya'nın"
+          " hareketleri):"
       )
       submitted = st.form_submit_button("Gönder 🚀")
       if submitted and user_input:
@@ -379,12 +391,10 @@ if st.session_state["coach_open"]:
             f"Sen 5. sınıf MEB müfredatı odaklı, sevimli, eğlenceli ve teşvik"
             f" edici bir akıllı koçsun. Adın AdenMind. Öğrencinin seçtiği ders:"
             f" {curr_s}, ünite: {curr_u}. Öğrencinin mesajı: {user_input}."
-            " Eğer matematik veya fen konuları sorulursa (örneğin dik üçgen,"
-            " eşkenar üçgen, açı ölçüleri, Dünya-Güneş-Ay evreleri), metin"
-            " içinde görsel tasvirler, ASCII şemalar veya açıklayıcı görsel"
-            " benzetmelerle harika bir rehberlik yap."
+            " Matematik veya fen konularında (dik üçgen, açı, Dünya-Güneş-Ay"
+            " vb.) açıklayıcı şemalar/benzetmelerle rehberlik yap."
         )
-        with st.spinner("AdenMind düşünüyor ve görselleştiriyor..."):
+        with st.spinner("AdenMind düşünüyor..."):
           response = ai_generate_content(prompt)
           if response:
             st.session_state["coach_messages"].append(
@@ -579,8 +589,7 @@ else:
         prompt = f"""
                 5. Sınıf MEB müfredatı, Ders: {curr_subj}, Ünite: {curr_unit}.
                 Bu ünite için balon patlatmaca oyunu kapsamında TAM 5 ADET çoktan seçmeli (4 şıklı: A, B, C, D) soru üret.
-                Ders Matematik ise dik üçgen, eşkenar üçgen, açı hesaplama gibi geometrik/görsel senaryolara yer ver.
-                Ders Fen Bilimleri ise Dünya, Güneş, Ay ilişkileri veya şemalı/görsel açıklamalı sorular üret.
+                Matematik için dik üçgen, eşkenar üçgen, açı hesaplama; Fen için Dünya, Güneş, Ay ilişkileri gibi görsel senaryolara yer ver.
                 Kesinlikle şu JSON formatında bir liste olarak ver:
                 [
                   {{
@@ -935,8 +944,7 @@ else:
         prompt = f"""
                 5. Sınıf MEB müfredatı, Ders: {curr_subj}, Ünite: {curr_unit}.
                 Bu ünite için TAM 5 ADET çoktan seçmeli (4 şıklı) kazanım sorusu üret.
-                Ders Matematik ise dik üçgen, eşkenar üçgen, açı ölçüleri gibi geometrik senaryolar ekle.
-                Ders Fen Bilimleri ise Dünya, Güneş, Ay ve evreleri ile ilgili görsel/şemalı senaryolar ekle.
+                Matematik için dik üçgen, eşkenar üçgen, açı; Fen için Dünya-Güneş-Ay evreleri gibi senaryolar ekle.
                 JSON formatında liste olarak ver:
                 [
                   {{"soru": "...", "secenekler": ["A)...", "B)...", "C)...", "D)..."], "dogru_cevap": "A", "aciklama": "..."}}
@@ -1165,7 +1173,7 @@ else:
             st.session_state["game_started"] = False
             st.rerun()
 
-  # 3. DOĞRU / YANLIŞ MEYDAN OKUMASI
+  # 3. DOĞRU / YANLIŞ MEYDAN OKUMASI (Hiçbiri seçili gelmeme index=-1 ayarı)
   elif curr_game == "dogruyanlis":
     st.subheader(f"✅ {curr_subj} — Doğru / Yanlış Meydan Okuması")
 
@@ -1177,11 +1185,10 @@ else:
       st.session_state["dy_unit_key"] = (curr_subj, curr_unit)
 
     if st.button("🚀 Doğru/Yanlış Sorularını Üret", key="gen_dy"):
-      with st.spinner("Yapay zeka 5 adet görsel/kavramsal önerme hazırlıyor..."):
+      with st.spinner("Yapay zeka 5 adet doğru/yanlış önermesi hazırlıyor..."):
         prompt = f"""
                 5. Sınıf MEB müfredatı, Ders: {curr_subj}, Ünite: {curr_unit}.
                 Bu ünite için TAM 5 ADET Doğru veya Yanlış önermesi üret.
-                Ders Matematik/Fen ise şekil, açı, Dünya-Güneş-Ay gibi görsel/kavramsal konulara ağırlık ver.
                 JSON formatında liste olarak ver:
                 [
                   {{"ifade": "Önerme metni", "cevap": "D", "aciklama": "Açıklama"}}
@@ -1204,14 +1211,21 @@ else:
         for idx, item in enumerate(st.session_state["dy_questions"]):
           st.markdown(f"**Önerme {idx+1}:** {item['ifade']}")
           dy_answers[idx] = st.radio(
-              f"Seçiminiz ({idx+1}):", ["Doğru (D)", "Yanlış (Y)"], key=f"dy_{idx}"
+              f"Seçiminiz ({idx+1}):",
+              ["Doğru (D)", "Yanlış (Y)"],
+              index=None,
+              key=f"dy_{idx}",
           )
           st.markdown("---")
 
         if st.form_submit_button("Cevapları Kontrol Et"):
           score = 0
           for idx, item in enumerate(st.session_state["dy_questions"]):
-            user_choice = dy_answers[idx][0]  # 'D' veya 'Y'
+            user_ans = dy_answers[idx]
+            if user_ans is None:
+              st.warning(f"⚠️ Önerme {idx+1} boş bırakıldı.")
+              continue
+            user_choice = user_ans[0]  # 'D' veya 'Y'
             correct_choice = item["cevap"].upper()
             if user_choice == correct_choice:
               st.success(
@@ -1376,10 +1390,10 @@ else:
       st.session_state["c_unit_key"] = (curr_subj, curr_unit)
 
     if st.button("✨ Yazılı Sınavını Başlat (5 Soru)", key="gen_classic"):
-      with st.spinner("Yapay zeka görsel ve klasik yazılı soruları hazırlıyor..."):
+      with st.spinner("Yapay zeka yazılı sorularını hazırlıyor..."):
         prompt = f"""
                 5. Sınıf MEB, Ders: {curr_subj}, Ünite: {curr_unit}.
-                TAM 5 ADET açık uçlu yazılı sorusu (Matematik için şekilli/açılı, Fen için Dünya-Güneş-Ay şemalı senaryolar içerebilir) ve ideal cevap anahtarlarını JSON liste formatında ver:
+                TAM 5 ADET açık uçlu yazılı sorusu ve ideal cevap anahtarlarını JSON liste formatında ver:
                 [
                   {{"soru": "...", "beklenen_cevap": "..."}}
                 ]
