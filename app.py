@@ -23,25 +23,20 @@ def get_all_api_keys():
     if hasattr(st, "secrets") and "api_keys" in st.secrets:
       api_block = st.secrets["api_keys"]
 
-      # Groq anahtarlarını al
       if "groq_keys" in api_block:
-        g_list = api_block["groq_keys"]
-        for k in g_list:
+        for k in api_block["groq_keys"]:
           if isinstance(k, str) and len(k.strip()) > 5:
             if k.strip() not in groq_keys:
               groq_keys.append(k.strip())
 
-      # Gemini anahtarlarını al
       if "gemini_keys" in api_block:
-        ge_list = api_block["gemini_keys"]
-        for k in ge_list:
+        for k in api_block["gemini_keys"]:
           if isinstance(k, str) and len(k.strip()) > 5:
             if k.strip() not in gemini_keys:
               gemini_keys.append(k.strip())
-  except Exception as e:
-    st.error(f"Secrets okunurken hata oluştu: {e}")
+  except Exception:
+    pass
 
-  # Yedek / Manuel Eklenenler (Session State)
   if "manual_gemini" in st.session_state and st.session_state["manual_gemini"]:
     if st.session_state["manual_gemini"] not in gemini_keys:
       gemini_keys.append(st.session_state["manual_gemini"])
@@ -75,8 +70,7 @@ except ImportError:
 
 
 def ai_generate_content(prompt_text):
-  """Önce Groq (hızlı ve kararlı), ardından Gemini modellerini dener."""
-  # 1. Önce Groq dene (Groq anahtarları gsk_ ile başlar ve çok hızlıdır)
+  """Önce Groq, ardından Gemini modellerini dener."""
   if has_groq and groq_keys:
     for gr_key in groq_keys:
       try:
@@ -91,7 +85,6 @@ def ai_generate_content(prompt_text):
       except Exception:
         continue
 
-  # 2. Groq başarısız olursa Gemini dene
   if has_gemini and gemini_keys:
     for g_key in gemini_keys:
       try:
@@ -259,7 +252,7 @@ if "selected_unit" not in st.session_state:
 if "selected_game" not in st.session_state:
   st.session_state["selected_game"] = None
 
-# --- AŞAMA 1: DERS SEÇİMİ (BÜYÜK RENKLİ KARTLAR) ---
+# --- AŞAMA 1: DERS SEÇİMİ ---
 if st.session_state["selected_subject"] is None:
   st.markdown(
       "### 🌟 Lütfen Çalışmak İstediğiniz MEB Ders Kartına Tıklayın"
@@ -289,7 +282,7 @@ if st.session_state["selected_subject"] is None:
         st.session_state["selected_subject"] = subj
         st.rerun()
 
-# --- AŞAMA 2: ÜNİTE SEÇİMİ (BÜYÜK RENKLİ KARTLAR) ---
+# --- AŞAMA 2: ÜNİTE SEÇİMİ ---
 elif (
     st.session_state["selected_subject"] is not None
     and st.session_state["selected_unit"] is None
@@ -326,7 +319,7 @@ elif (
         st.session_state["selected_unit"] = unit_name
         st.rerun()
 
-# --- AŞAMA 3: OYUN VE SORU MODELLERİ (BÜYÜK RENKLİ KARTLAR) ---
+# --- AŞAMA 3: OYUN VE SORU MODELLERİ ---
 elif (
     st.session_state["selected_subject"] is not None
     and st.session_state["selected_unit"] is not None
@@ -390,49 +383,302 @@ else:
 
   st.markdown("---")
 
-  # 1. BALON PATLATMACA
+  # 1. BALON PATLATMACA (5 SORU, 50 SANİYE, HAREKETLİ BALONLAR, SES EFEKTLERİ)
   if curr_game == "balon":
-    st.subheader("🎈 Balon Patlatmaca Soru Oyunu")
-    if (
-        "b_data" not in st.session_state
-        or st.session_state.get("b_unit") != (curr_subj, curr_unit)
-    ):
-      st.session_state["b_data"] = None
-      st.session_state["b_unit"] = (curr_subj, curr_unit)
+    st.subheader("🎈 Klasik Balon Patlatmaca Soru Oyunu")
 
-    if st.button("🚀 Yapay Zeka ile Balon Soru Üret", key="gen_balloon"):
-      with st.spinner("Yapay zeka soru hazırlıyor..."):
+    if (
+        "balloon_5_questions" not in st.session_state
+        or st.session_state.get("b_unit_key") != (curr_subj, curr_unit)
+    ):
+      st.session_state["balloon_5_questions"] = None
+      st.session_state["b_unit_key"] = (curr_subj, curr_unit)
+
+    if st.button(
+        "🚀 5 Soruluk Balon Patlatmaca Oyununu Başlat", key="gen_5_balloons"
+    ):
+      with st.spinner(
+          "Yapay zeka 5 adet balon patlatmaca sorusu hazırlıyor..."
+      ):
         prompt = f"""
                 5. Sınıf MEB müfredatı, Ders: {curr_subj}, Ünite: {curr_unit}.
-                Balon patlatmaca oyunu için AI destekli 4 şıklı soru üret.
-                Kesinlikle şu JSON formatında ver:
-                {{"soru": "Soru metni", "secenekler": ["A) ...", "B) ...", "C) ...", "D) ..."], "dogru_cevap": "A", "aciklama": "Açıklama"}}
+                Bu oyun için TAM 5 ADET çoktan seçmeli (4 şıklı: A, B, C, D) soru üret.
+                Kesinlikle şu JSON formatında bir liste olarak ver:
+                [
+                  {{
+                    "soru": "Soru metni buraya",
+                    "secenekler": ["A) ...", "B) ...", "C) ...", "D) ..."],
+                    "dogru_cevap": "A",
+                    "aciklama": "Açıklama"
+                  }}
+                ]
                 """
         res = ai_generate_content(prompt)
         if res:
           try:
-            st.session_state["b_data"] = json.loads(
-                re.sub(r"```json|```", "", res).strip()
-            )
+            clean_res = re.sub(r"```json|```", "", res).strip()
+            st.session_state["balloon_5_questions"] = json.loads(clean_res)
             st.rerun()
-          except Exception:
-            st.error("Üretim hatası.")
+          except Exception as e:
+            st.error(f"Soru çözümleme hatası: {e}")
 
-    if st.session_state["b_data"]:
-      b_q = st.session_state["b_data"]
-      st.markdown(f"### ❓ {b_q['soru']}")
-      b_cols = st.columns(2)
-      for idx, opt in enumerate(b_q["secenekler"]):
-        with b_cols[idx % 2]:
-          if st.button(f"🎈 {opt}", key=f"ball_{idx}"):
-            if opt.startswith(b_q["dogru_cevap"]):
-              st.balloons()
-              st.success(f"🎉 Tebrikler! Doğru balon! {b_q['aciklama']}")
-            else:
-              st.error(
-                  f"💥 Yanlış balon! Doğru cevap **{b_q['dogru_cevap']}**."
-                  f" {b_q['aciklama']}"
-              )
+    if st.session_state["balloon_5_questions"]:
+      questions_json = json.dumps(
+          st.session_state["balloon_5_questions"], ensure_ascii=False
+      )
+
+      # HTML5 / JS Animasyonlu, Sesli ve 50 Saniyeli Balon Oyunu Komponenti
+      html_balloon_game = f"""
+            <!DOCTYPE html>
+            <html lang="tr">
+            <head>
+                <meta charset="UTF-8">
+                <style>
+                    body {{
+                        background: linear-gradient(135deg, #1e1e2f, #2a2a40);
+                        color: white;
+                        font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+                        text-align: center;
+                        margin: 0;
+                        padding: 10px;
+                        overflow: hidden;
+                    }
+                    #game-container {{
+                        position: relative;
+                        width: 100%;
+                        height: 480px;
+                        background: radial-gradient(circle, #22223b 0%, #11111d 100%);
+                        border-radius: 16px;
+                        overflow: hidden;
+                        box-shadow: 0 8px 24px rgba(0,0,0,0.5);
+                        border: 3px solid #ff4b4b;
+                    }
+                    .header-bar {{
+                        display: flex;
+                        justify-content: space-between;
+                        padding: 12px 20px;
+                        background: rgba(0,0,0,0.4);
+                        font-size: 18px;
+                        font-weight: bold;
+                    }
+                    .question-box {{
+                        font-size: 20px;
+                        font-weight: bold;
+                        padding: 15px 20px;
+                        background: rgba(255, 255, 255, 0.1);
+                        margin: 10px;
+                        border-radius: 10px;
+                        border-left: 5px solid #ff4b4b;
+                    }
+                    /* Hareketli Balonlar */
+                    .balloon {{
+                        position: absolute;
+                        width: 90px;
+                        height: 110px;
+                        border-radius: 50% 50% 50% 50% / 40% 40% 60% 60%;
+                        display: flex;
+                        align-items: center;
+                        justify-content: center;
+                        color: white;
+                        font-weight: bold;
+                        font-size: 14px;
+                        text-align: center;
+                        cursor: pointer;
+                        box-shadow: inset -10px -10px 20px rgba(0,0,0,0.3), 0 5px 15px rgba(0,0,0,0.3);
+                        animation: floatUp 8s linear infinite;
+                        padding: 10px;
+                        user-select: none;
+                    }
+                    .balloon::after {{
+                        content: "";
+                        position: absolute;
+                        bottom: -12px;
+                        left: 42px;
+                        width: 2px;
+                        height: 15px;
+                        background: #aaa;
+                    }
+                    @keyframes floatUp {{
+                        0% {{ bottom: -120px; transform: scale(1); }}
+                        50% {{ transform: scale(1.05); }}
+                        100% {{ bottom: 500px; transform: scale(1); }}
+                    }}
+                    .feedback-overlay {{
+                        position: absolute;
+                        top: 0; left: 0; width: 100%; height: 100%;
+                        background: rgba(0,0,0,0.8);
+                        display: flex;
+                        flex-direction: column;
+                        align-items: center;
+                        justify-content: center;
+                        font-size: 28px;
+                        z-index: 10;
+                        display: none;
+                    }
+                </style>
+            </head>
+            <body>
+                <div class="header-bar">
+                    <span id="q-counter">Soru: 1 / 5</span>
+                    <span id="timer" style="color: #ff4b4b;">Süre: 50 sn</span>
+                    <span id="score">Puan: 0</span>
+                </div>
+                
+                <div id="game-container">
+                    <div class="question-box" id="question-text">Soru yükleniyor...</div>
+                    <div id="balloons-area" style="position:relative; width:100%; height:340px;"></div>
+                    
+                    <div class="feedback-overlay" id="overlay">
+                        <div id="feedback-icon" style="font-size: 60px; margin-bottom: 10px;">🎉</div>
+                        <div id="feedback-msg" style="font-size: 22px; padding: 0 20px;">Tebrikler!</div>
+                    </div>
+                </div>
+
+                <script>
+                    const questions = {questions_json};
+                    let currentIdx = 0;
+                    let score = 0;
+                    let timeLeft = 50;
+                    let timerInterval = null;
+                    let gameActive = true;
+
+                    // Web Audio API ses efektleri (Harici dosya gerektirmez)
+                    const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+
+                    function playSuccessSound() {{
+                        if (audioCtx.state === 'suspended') audioCtx.resume();
+                        let osc = audioCtx.createOscillator();
+                        let gain = audioCtx.createGain();
+                        osc.type = 'sine';
+                        osc.frequency.setValueAtTime(400, audioCtx.currentTime);
+                        osc.frequency.exponentialRampToValueAtTime(800, audioCtx.currentTime + 0.3);
+                        gain.gain.setValueAtTime(0.3, audioCtx.currentTime);
+                        gain.gain.linearRampToValueAtTime(0.01, audioCtx.currentTime + 0.3);
+                        osc.connect(gain);
+                        gain.connect(audioCtx.destination);
+                        osc.start();
+                        osc.stop(audioCtx.currentTime + 0.3);
+                    }}
+
+                    function playWrongSound() {{
+                        if (audioCtx.state === 'suspended') audioCtx.resume();
+                        let osc = audioCtx.createOscillator();
+                        let gain = audioCtx.createGain();
+                        osc.type = 'sawtooth';
+                        osc.frequency.setValueAtTime(150, audioCtx.currentTime);
+                        osc.frequency.setValueAtTime(100, audioCtx.currentTime + 0.15);
+                        gain.gain.setValueAtTime(0.3, audioCtx.currentTime);
+                        gain.gain.linearRampToValueAtTime(0.01, audioCtx.currentTime + 0.3);
+                        osc.connect(gain);
+                        gain.connect(audioCtx.destination);
+                        osc.start();
+                        osc.stop(audioCtx.currentTime + 0.3);
+                    }}
+
+                    function loadQuestion() {{
+                        if (currentIdx >= questions.length || currentIdx >= 5) {{
+                            endGame();
+                            return;
+                        }}
+                        gameActive = true;
+                        timeLeft = 50;
+                        document.getElementById('timer').innerText = "Süre: " + timeLeft + " sn";
+                        document.getElementById('q-counter').innerText = "Soru: " + (currentIdx + 1) + " / 5";
+                        
+                        let q = questions[currentIdx];
+                        document.getElementById('question-text').innerText = q.soru;
+                        
+                        let area = document.getElementById('balloons-area');
+                        area.innerHTML = '';
+
+                        let colors = ['#ff4b4b', '#1c83e1', '#00cc96', '#ffa15a'];
+                        
+                        q.secenekler.forEach((opt, idx) => {{
+                            let b = document.createElement('div');
+                            b.className = 'balloon';
+                            b.style.backgroundColor = colors[idx % colors.length];
+                            b.style.left = (15 + idx * 20) + '%';
+                            b.style.animationDuration = (6 + Math.random() * 4) + 's';
+                            b.style.animationDelay = (idx * 0.5) + 's';
+                            b.innerText = opt;
+                            
+                            b.onclick = () => {{
+                                if (!gameActive) return;
+                                gameActive = false;
+                                clearInterval(timerInterval);
+                                
+                                let chosenLetter = opt.charAt(0).toUpperCase();
+                                let correctLetter = q.dogru_cevap.charAt(0).toUpperCase();
+                                
+                                let overlay = document.getElementById('overlay');
+                                let icon = document.getElementById('feedback-icon');
+                                let msg = document.getElementById('feedback-msg');
+                                overlay.style.display = 'flex';
+
+                                if (chosenLetter === correctLetter) {{
+                                    playSuccessSound();
+                                    score += 20;
+                                    document.getElementById('score').innerText = "Puan: " + score;
+                                    icon.innerText = "🎈💥 🎉";
+                                    msg.innerHTML = "Tebrikler! Doğru Patlatma!<br><span style='font-size:16px; color:#00cc96;'>" + q.aciklama + "</span>";
+                                }} else {{
+                                    playWrongSound();
+                                    icon.innerText = "❌ ⚠️";
+                                    msg.innerHTML = "Yanlış Balon!<br>Doğru Cevap: <b>" + q.dogru_cevap + "</b><br><span style='font-size:16px; color:#ff4b4b;'>" + q.aciklama + "</span>";
+                                }}
+
+                                setTimeout(() => {{
+                                    overlay.style.display = 'none';
+                                    currentIdx++;
+                                    loadQuestion();
+                                }, 3500);
+                            }};
+                            
+                            area.appendChild(b);
+                        }});
+
+                        // 50 Saniye Sayacı
+                        if(timerInterval) clearInterval(timerInterval);
+                        timerInterval = setInterval(() => {{
+                            timeLeft--;
+                            document.getElementById('timer').innerText = "Süre: " + timeLeft + " sn";
+                            if (timeLeft <= 0) {{
+                                clearInterval(timerInterval);
+                                if(gameActive) {{
+                                    gameActive = false;
+                                    playWrongSound();
+                                    let overlay = document.getElementById('overlay');
+                                    document.getElementById('feedback-icon').innerText = "⏰ ⚠️";
+                                    document.getElementById('feedback-msg').innerText = "Süre Bitti!";
+                                    overlay.style.display = 'flex';
+                                    setTimeout(() => {{
+                                        overlay.style.display = 'none';
+                                        currentIdx++;
+                                        loadQuestion();
+                                    }, 2500);
+                                }}
+                            }}
+                        }}, 1000);
+                    }}
+
+                    function endGame() {{
+                        let area = document.getElementById('game-container');
+                        area.innerHTML = `
+                            <div style="padding: 60px; font-size: 28px;">
+                                🏆 <b>Oyun Tamamlandı!</b><br><br>
+                                Toplam Puanınız: <span style="color: #00cc96; font-size: 38px;">${{score}} / 100</span><br><br>
+                                <button onclick="location.reload()" style="padding: 12px 24px; font-size: 20px; background: #00cc96; color: white; border: none; border-radius: 8px; cursor: pointer;">Tekrar Oyna 🔄</button>
+                            </div>
+                        `;
+                    }}
+
+                    loadQuestion();
+                </script>
+            </body>
+            </html>
+            """
+
+      st.components.v1.html(html_balloon_game, height=530)
 
   # 2. 10 SORULUK MEB SINAVI
   elif curr_game == "sinav10":
@@ -598,3 +844,5 @@ else:
           )
           if ans:
             st.success(ans)
+
+<FollowUp/>
