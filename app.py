@@ -412,81 +412,70 @@ with st.sidebar:
     st.rerun()
 
 
-# --- 8. SAĞ ALT KÖŞE: İDEAL BOYUTTA SEVİMLİ AVATAR & DİKEY CANLI SOHBET PENCERESİ ---
+# --- 8. SAĞ ALT KÖŞE: KUSURSUZ ENTEGRE EDİLMİŞ DİKEY CANLI SOHBET PENCERESİ ---
 
+# Sağ altta sabit avatar düğmesi (Sidebar veya ana akış içinde güvenli konumda)
 st.markdown(
-    f"""
+    """
     <style>
-    /* Sağ altta sabit duran ideal boyutlu sevimli avatar düğmesi (50 kuruşdan biraz büyük, 64px) */
-    .floating-avatar-container {{
+    .fixed-avatar-container {
         position: fixed;
         bottom: 25px;
         right: 25px;
         z-index: 99999;
-    }}
+    }
+    .chat-window-container {
+        position: fixed;
+        bottom: 95px;
+        right: 25px;
+        width: 320px;
+        background: #ffffff;
+        border: 2px solid """
+    + c_border
+    + """;
+        border-radius: 16px;
+        box-shadow: 0 10px 30px rgba(0,0,0,0.3);
+        z-index: 99998;
+        overflow: hidden;
+    }
     </style>
 """,
     unsafe_allow_html=True,
 )
 
-# Sağ altta sabit avatar butonu
-with st.container():
-  st.markdown(
-      '<div style="position: fixed; bottom: 25px; right: 25px; z-index: 99999;">',
-      unsafe_allow_html=True,
-  )
-  if st.session_state["coach_open"]:
-    if st.button("❌ Kapat", key="close_avatar_float"):
-      st.session_state["coach_open"] = False
-      st.rerun()
-  else:
-    if st.button("🦊 AdenMind", key="open_avatar_float"):
-      st.session_state["coach_open"] = True
-      st.rerun()
-  st.markdown("</div>", unsafe_allow_html=True)
-
-# Eğer asistan açıksa, avatarın hemen üzerinde yükselen modern dikey sohbet kutusu belirir
+# Sağ alttaki açma/kapama butonu
+st.markdown('<div class="fixed-avatar-container">', unsafe_allow_html=True)
 if st.session_state["coach_open"]:
+  if st.button("❌ Kapat", key="close_avatar_float"):
+    st.session_state["coach_open"] = False
+    st.rerun()
+else:
+  if st.button("🦊 AdenMind", key="open_avatar_float"):
+    st.session_state["coach_open"] = True
+    st.rerun()
+st.markdown("</div>", unsafe_allow_html=True)
+
+# Asistan açıksa doğrudan pencerenin içerisine Streamlit elementlerini güvenle yerleştiriyoruz
+if st.session_state["coach_open"]:
+  st.markdown('<div class="chat-window-container">', unsafe_allow_html=True)
+
+  # Üst şık başlık
   st.markdown(
       f"""
-        <div style="
-            position: fixed; 
-            bottom: 90px; 
-            right: 25px; 
-            width: 320px; 
-            height: 420px; 
-            background: #ffffff; 
-            border: 2px solid {c_border}; 
-            border-radius: 18px; 
-            box-shadow: 0 10px 30px rgba(0,0,0,0.3); 
-            z-index: 99998; 
-            display: flex;
-            flex-direction: column;
-            overflow: hidden;
-        ">
-            <!-- Üst Başlık -->
-            <div style="background: {c_bg_gradient}; padding: 10px 14px; color: white; display: flex; align-items: center; justify-content: space-between; font-weight: bold; font-size: 14px;">
-                <div style="display: flex; align-items: center; gap: 8px;">
-                    <span style="font-size: 20px;">🦊</span>
-                    <span>AdenMind (Canlı Asistan)</span>
-                </div>
-                <span style="font-size: 10px; background: rgba(0,0,0,0.2); padding: 2px 6px; border-radius: 8px;">Aktif</span>
+        <div style="background: {c_bg_gradient}; padding: 10px 14px; color: white; display: flex; align-items: center; justify-content: space-between; font-weight: bold; font-size: 14px;">
+            <div style="display: flex; align-items: center; gap: 8px;">
+                <span style="font-size: 20px;">🦊</span>
+                <span>AdenMind (Canlı Asistan)</span>
             </div>
+            <span style="font-size: 10px; background: rgba(0,0,0,0.2); padding: 2px 6px; border-radius: 8px;">Aktif</span>
         </div>
     """,
       unsafe_allow_html=True,
   )
 
-  # Dikey sohbet mesajları akışı
-  chat_container = st.container()
-  with chat_container:
-    st.markdown(
-        """
-        <div style="position: fixed; bottom: 140px; right: 30px; width: 304px; height: 290px; overflow-y: auto; z-index: 99999; padding-right: 4px;">
-        """,
-        unsafe_allow_html=True,
-    )
-
+  # Sohbet mesajları akış alanı (Kompakt yükseklik)
+  chat_box = st.container(height=260)
+  with chat_box:
     for msg in st.session_state["coach_messages"]:
       if msg["role"] == "assistant":
         st.markdown(
@@ -512,15 +501,7 @@ if st.session_state["coach_open"]:
             unsafe_allow_html=True,
         )
 
-    st.markdown("</div>", unsafe_allow_html=True)
-
-  # Alt mesaj yazma formu
-  st.markdown(
-      """
-        <div style="position: fixed; bottom: 95px; right: 30px; width: 304px; z-index: 99999; background: white; padding-top: 4px;">
-    """,
-      unsafe_allow_html=True,
-  )
+  # Alt mesaj yazma formu (Pencerenin içine tam oturur)
   with st.form("vertical_chat_form", clear_on_submit=True):
     col_inp, col_btn = st.columns([4, 1])
     with col_inp:
