@@ -406,7 +406,8 @@ if st.session_state["coach_open"]:
 
   with st.form("floating_coach_form", clear_on_submit=True):
     lamp_input = st.text_input(
-        "Asistana soru sor (Örn: Kesirler, Noktalama...)", key="lamp_query"
+        "Asistana soru sor (Örn: Açı hesaplama, Ay evreleri...)",
+        key="lamp_query",
     )
     lamp_submitted = st.form_submit_button("Sor 🚀", use_container_width=True)
     if lamp_submitted and lamp_input:
@@ -628,19 +629,24 @@ else:
       st.session_state["game_started"] = False
 
     if st.button("🚀 Balon Sorularını Üret", key="gen_5_balloons"):
-      with st.spinner("Yapay zeka 5 balon sorusu hazırlıyor..."):
+      with st.spinner("Yapay zeka görsel destekli 5 balon sorusu hazırlıyor..."):
         prompt = f"""
-                5. Sınıf MEB, Ders: {curr_subj}, Ünite: {curr_unit}.
+                5. Sınıf MEB müfredatı, Ders: {curr_subj}, Ünite: {curr_unit}.
                 TAM 5 ADET çoktan seçmeli (4 şıklı: A, B, C, D) soru üret.
-                JSON formatında liste olarak ver:
+                Matematik için dik üçgen, açı, çember; Fen için dinamometre, Dünya-Güneş-Ay evreleri gibi konularda sorular üret.
+                Her sorunun içinde görsel anlatım gerekiyorsa, soru metninde svg veya şekil detaylarını belirt.
+                Kesinlikle şu JSON formatında bir liste olarak ver:
                 [
                   {{
                     "soru": "Soru metni",
                     "secenekler": ["A) ...", "B) ...", "C) ...", "D) ..."],
                     "dogru_cevap": "A",
-                    "aciklama": "Açıklama"
+                    "aciklama": "Açıklama",
+                    "gorsel_tipi": "aci", 
+                    "gorsel_parametre": 60
                   }}
                 ]
+                (Not: gorsel_tipi şu değerlerden biri olabilir: 'aci', 'ucgen', 'dinamometre', 'ay_evresi', 'cember' veya 'yok'. gorsel_parametre ise açı derecesi, dinamometre Newton değeri veya ay evresi adı olabilir).
                 """
         res = ai_generate_content(prompt)
         if res:
@@ -655,7 +661,7 @@ else:
 
     if st.session_state["balloon_5_questions"]:
       if not st.session_state["game_started"]:
-        st.success("✅ Sorular Hazır! Oyunu başlatmak için tıklayın.")
+        st.success("✅ Görsel Destekli Sorular Hazır! Oyunu başlatmak için tıklayın.")
         if st.button(
             "✨ OYUNU BAŞLAT 🎮",
             key="start_balloon_fullscreen",
@@ -725,6 +731,66 @@ else:
         )
         st.components.v1.html(html_balloon_game, height=560)
 
+
+  # --- AKILLI GÖRSEL ÜRETİCİ FONKSİYON (SVG) ---
+  def render_question_visual(gorsel_tipi, param):
+    if not gorsel_tipi or gorsel_tipi == "yok":
+      return
+
+    # 1. DİK ÜÇGEN / AÇI ÇİZİMİ
+    if gorsel_tipi in ["ucgen", "aci"]:
+      deg = 60
+      try:
+        deg = int(re.search(r"\d+", str(param)).group())
+      except Exception:
+        pass
+      svg_code = f"""
+            <svg width="220" height="150" viewBox="0 0 220 150" style="background:#0f172a; border-radius:12px; display:block; margin: 10px auto;">
+                <polygon points="30,130 190,130 190,30" fill="none" stroke="#38bdf8" stroke-width="4"/>
+                <polyline points="170,130 170,110 190,110" fill="none" stroke="#f43f5e" stroke-width="3"/>
+                <path d="M 60 130 A 30 30 0 0 1 75 105" fill="none" stroke="#facc15" stroke-width="3"/>
+                <text x="80" y="120" fill="#facc15" font-size="14" font-weight="bold">{deg}°</text>
+                <text x="100" y="145" fill="#ffffff" font-size="12">Taban Kenar</text>
+                <text x="195" y="80" fill="#ffffff" font-size="12">Dik Kenar</text>
+            </svg>
+            """
+      st.markdown(svg_code, unsafe_allow_html=True)
+
+    # 2. DİNAMOMETRE ÇİZİMİ
+    elif gorsel_tipi == "dinamometre":
+      newton = 5
+      try:
+        newton = int(re.search(r"\d+", str(param)).group())
+      except Exception:
+        pass
+      spring_y = 50 + min(newton * 8, 70)
+      svg_code = f"""
+            <svg width="180" height="220" viewBox="0 0 180 220" style="background:#0f172a; border-radius:12px; display:block; margin: 10px auto;">
+                <rect x="75" y="10" width="30" height="20" fill="#94a3b8" rx="5"/>
+                <rect x="60" y="30" width="60" height="140" fill="none" stroke="#38bdf8" stroke-width="4" rx="10"/>
+                <path d="M 90 30 Q 70 {30+spring_y/4} 110 {30+spring_y/2} Q 70 {30+3*spring_y/4} 90 {30+spring_y}" fill="none" stroke="#facc15" stroke-width="3"/>
+                <rect x="70" y="{30+spring_y}" width="40" height="25" fill="#f43f5e" rx="4"/>
+                <text x="78" y="{47+spring_y}" fill="#ffffff" font-size="14" font-weight="bold">{newton} N</text>
+                <text x="35" y="200" fill="#38bdf8" font-size="12">Dinamometre Ölçüm</text>
+            </svg>
+            """
+      st.markdown(svg_code, unsafe_allow_html=True)
+
+    # 3. DÜNYA - GÜNEŞ - AY EVRELERİ ÇİZİMİ
+    elif gorsel_tipi in ["ay_evresi", "cember"]:
+      phase_name = str(param)
+      svg_code = f"""
+            <svg width="220" height="160" viewBox="0 0 220 160" style="background:#0f172a; border-radius:12px; display:block; margin: 10px auto;">
+                <circle cx="50" cy="80" r="30" fill="#f59e0b"/>
+                <text x="35" y="85" fill="#000000" font-size="11" font-weight="bold">GÜNEŞ</text>
+                <circle cx="170" cy="80" r="25" fill="#334155" stroke="#94a3b8" stroke-width="2"/>
+                <path d="M 170 55 A 25 25 0 0 1 170 105 Z" fill="#f8fafc"/>
+                <text x="135" y="125" fill="#38bdf8" font-size="12" font-weight="bold">{phase_name}</text>
+            </svg>
+            """
+      st.markdown(svg_code, unsafe_allow_html=True)
+
+
   # 2. 5 SORULUK MEB KAZANIM OYUNU
   elif curr_game == "sinav10":
     st.subheader(f"🧠 {curr_subj} — 5 Soruluk MEB Kazanım Yarışması")
@@ -735,14 +801,24 @@ else:
       st.session_state["quiz_5_data"] = None
       st.session_state["q_unit_key"] = (curr_subj, curr_unit)
 
-    if st.button("🚀 Kazanım Sorularını Üret", key="gen_5_quiz"):
-      with st.spinner("Sorular üretiliyor..."):
+    if st.button("🚀 Görsel Destekli Kazanım Sorularını Üret", key="gen_5_quiz"):
+      with st.spinner("Sorular ve özel şemalar hazırlanıyor..."):
         prompt = f"""
                 5. Sınıf MEB, Ders: {curr_subj}, Ünite: {curr_unit}.
-                TAM 5 ADET çoktan seçmeli (4 şıklı) soru üret. JSON liste formatında ver:
+                TAM 5 ADET çoktan seçmeli (4 şıklı) soru üret. 
+                Matematik soruları için açı (örn: 60 derece, dik açı) veya üçgen; Fen soruları için dinamometre (örn: 8 N) veya Ay evresi (örn: İlk Dördün) içersin.
+                JSON liste formatında şu yapıda ver:
                 [
-                  {{"soru": "...", "secenekler": ["A)...", "B)...", "C)...", "D)..."], "dogru_cevap": "A", "aciklama": "..."}}
+                  {{
+                    "soru": "...", 
+                    "secenekler": ["A)...", "B)...", "C)...", "D)..."], 
+                    "dogru_cevap": "A", 
+                    "aciklama": "...",
+                    "gorsel_tipi": "aci",
+                    "gorsel_parametre": "60 derece"
+                  }}
                 ]
+                (gorsel_tipi: 'aci', 'ucgen', 'dinamometre', 'ay_evresi' veya 'yok')
                 """
         res = ai_generate_content(prompt)
         if res:
@@ -760,6 +836,12 @@ else:
         ans_dict = {}
         for idx, q in enumerate(qdata):
           st.markdown(f"**Soru {idx+1}:** {q['soru']}")
+          # Soruya uygun dinamik görseli çizdir
+          if "gorsel_tipi" in q and q["gorsel_tipi"] != "yok":
+            render_question_visual(
+                q.get("gorsel_tipi"), q.get("gorsel_parametre", "")
+            )
+
           ans_dict[idx] = st.radio(
               f"Şıklar ({idx+1}):", q["secenekler"], index=None, key=f"q_{idx}"
           )
@@ -799,7 +881,7 @@ else:
                 5. Sınıf MEB, Ders: {curr_subj}, Ünite: {curr_unit}.
                 TAM 5 ADET Doğru veya Yanlış önermesi üret. JSON formatında liste ver:
                 [
-                  {{"ifade": "...", "cevap": "D", "aciklama": "..."}}
+                  {{"ifade": "...", "cevap": "D", "aciklama": "...", "gorsel_tipi": "yok", "gorsel_parametre": ""}}
                 ]
                 """
         res = ai_generate_content(prompt)
@@ -830,6 +912,10 @@ else:
             """,
             unsafe_allow_html=True,
         )
+        if "gorsel_tipi" in q_item and q_item["gorsel_tipi"] != "yok":
+          render_question_visual(
+              q_item.get("gorsel_tipi"), q_item.get("gorsel_parametre", "")
+          )
 
         if st.session_state["dy_feedback"]:
           st.markdown(st.session_state["dy_feedback"], unsafe_allow_html=True)
@@ -894,7 +980,7 @@ else:
                 5. Sınıf MEB, Ders: {curr_subj}, Ünite: {curr_unit}.
                 Cümle içinde boşluk bırakılmış 5 adet soru üret. JSON liste formatında ver:
                 [
-                  {{"cumle": "Güneş kendi ekseni etrafında ... döner.", "dogru_kelime": "saat yönünün tersine", "secenekler": ["saat yönünün tersine", "saat yönünde", "kuzeye", "güneye"]}}
+                  {{"cumle": "Güneş kendi ekseni etrafında ... döner.", "dogru_kelime": "saat yönünün tersine", "secenekler": ["saat yönünün tersine", "saat yönünde", "kuzeye", "güneye"], "gorsel_tipi": "yok", "gorsel_parametre": ""}}
                 ]
                 """
         res = ai_generate_content(prompt)
@@ -913,6 +999,10 @@ else:
         f_ans = {}
         for idx, fq in enumerate(fdata):
           st.markdown(f"**Soru {idx+1}:** {fq['cumle']}")
+          if "gorsel_tipi" in fq and fq["gorsel_tipi"] != "yok":
+            render_question_visual(
+                fq.get("gorsel_tipi"), fq.get("gorsel_parametre", "")
+            )
           f_ans[idx] = st.selectbox(
               f"Boşluğa gelecek kelimeyi seç ({idx+1}):",
               fq["secenekler"],
