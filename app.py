@@ -208,14 +208,13 @@ if "coach_messages" not in st.session_state:
       {
           "role": "assistant",
           "content": (
-              "Merhaba! Ben senin yapay zeka koçun **AdenMind**. Görsel"
-              " destekli MEB soruları, geometrik şekiller ve eğlenceli"
-              " oyunlarla öğrenmeye hazır mısın? 🦊✨"
+              "Merhaba! Ben senin yapay zeka koçun **AdenMind**. Aladdin'in"
+              " lambası gibi tıkla, dilediğin soruyu küçük ekrandan sor! 🦊✨"
           ),
       }
   ]
 
-# --- 4. TEMA RENK SEÇENEKLERİ (Mavi-Beyaz, Sarı-Kırmızı, Pembe, Mavi) ---
+# --- 4. TEMA RENK SEÇENEKLERİ ---
 theme_choice = st.session_state["coach_theme"]
 if theme_choice == "Pembe":
   c_bg_gradient = "linear-gradient(135deg, #ff758c, #ff7eb3)"
@@ -238,7 +237,7 @@ elif theme_choice == "Mavi-Beyaz":
   c_bubble_user = "#e0f2fe"
   c_bubble_ai = "#f8fafc"
   c_text_color = "#1e3a8a"
-else:  # Klasik Mavi/Yeşil
+else:  # Yeşil-Mavi
   c_bg_gradient = "linear-gradient(135deg, #38ef7d, #11998e)"
   c_border = "#0ea5e9"
   c_accent = "#0284c7"
@@ -246,7 +245,7 @@ else:  # Klasik Mavi/Yeşil
   c_bubble_ai = "#f0fdf4"
   c_text_color = "#0369a1"
 
-# --- 5. MODERN MEB STİLLERİ (CSS) ---
+# --- 5. MODERN STİLLER VE KAYAN (FLOATING) AVATAR CSS ---
 st.markdown(
     f"""
     <style>
@@ -324,43 +323,86 @@ with st.sidebar:
     st.session_state["game_started"] = False
     st.rerun()
 
-# --- 7. GLOBAL SAĞ ALT KÖŞE: ADENMİND AKILLI ASİSTAN ---
-st.markdown("---")
-with st.container():
-  col_space, col_trigger = st.columns([9, 3])
-  with col_trigger:
-    coach_btn_label = (
-        "🦊 AdenMind'ı Gizle ❌"
-        if st.session_state["coach_open"]
-        else f"🦊 AdenMind ({st.session_state['coach_theme']}) 💬"
-    )
-    if st.button(coach_btn_label, key="toggle_coach_floating"):
-      st.session_state["coach_open"] = not st.session_state["coach_open"]
-      st.rerun()
+# --- 7. SAĞ ALT KÖŞE: ADENMİND SİHİRLİ LAMBA / AVATAR WIDGET ---
+st.markdown(
+    """
+    <style>
+    .floating-avatar-container {
+        position: fixed;
+        bottom: 25px;
+        right: 25px;
+        z-index: 99999;
+    }
+    </style>
+""",
+    unsafe_allow_html=True,
+)
 
-if st.session_state["coach_open"]:
-  with st.container():
+# Streamlit konteynerini sayfanın en altına konumlandırmak için alt alta boşluk bırakıyoruz
+st.markdown("<br><br><br>", unsafe_allow_html=True)
+
+# Sağ altta sabit duracak şekilde buton ve sohbet penceresi
+with st.container():
+  # Sağ alta buton yerleştirme sütunları
+  col_bos, col_btn = [st.container(), st.container()]
+  with col_btn:
+    # Sabit konumlandırma ve şık stil için özel HTML/Streamlit köprüsü
     st.markdown(
-        f"""
-        <div style="background: {c_bg_gradient}; padding: 22px; border-radius: 18px; border: 3px solid white; box-shadow: 0 12px 35px rgba(0,0,0,0.35); margin-bottom: 25px; color: white;">
-            <div style="display: flex; align-items: center; gap: 15px;">
-                <div style="font-size: 45px; background: rgba(255,255,255,0.2); padding: 10px; border-radius: 50%;">🦊</div>
-                <div>
-                    <h2 style="margin: 0; font-size: 24px;">AdenMind — Senin Akıllı Koçun</h2>
-                    <p style="margin: 4px 0 0 0; font-size: 14px; opacity: 0.9;">Görsel destekli MEB soruları ve eğlenceli ipuçlarıyla her an yanındayım!</p>
-                </div>
-            </div>
-        </div>
+        """
+        <div style="position: fixed; bottom: 20px; right: 20px; z-index: 99999; text-align: right;">
         """,
         unsafe_allow_html=True,
     )
 
+    coach_btn_text = (
+        "❌ AdenMind'ı Kapat"
+        if st.session_state["coach_open"]
+        else "🦊 AdenMind'a Danış (Sihirli Lamba) 💬"
+    )
+    if st.button(coach_btn_text, key="floating_lamp_btn"):
+      st.session_state["coach_open"] = not st.session_state["coach_open"]
+      st.rerun()
+
+    st.markdown("</div>", unsafe_allow_html=True)
+
+# Eğer lamba açıldıysa küçük pencere olarak sağ altta belirsin
+if st.session_state["coach_open"]:
+  st.markdown(
+      f"""
+        <div style="
+            position: fixed; 
+            bottom: 85px; 
+            right: 20px; 
+            width: 360px; 
+            max-height: 500px; 
+            background: #ffffff; 
+            border: 3px solid {c_border}; 
+            border-radius: 16px; 
+            box-shadow: 0 10px 30px rgba(0,0,0,0.3); 
+            z-index: 99998; 
+            padding: 16px; 
+            overflow-y: auto;
+        ">
+        <div style="display: flex; align-items: center; justify-content: space-between; border-bottom: 2px solid #eee; padding-bottom: 8px; margin-bottom: 10px;">
+            <div style="display: flex; align-items: center; gap: 8px;">
+                <span style="font-size: 28px;">🦊</span>
+                <b style="color: {c_text_color}; font-size: 16px;">AdenMind (Koç)</b>
+            </div>
+            <span style="font-size: 12px; color: #666;">Canlı Asistan</span>
+        </div>
+        """,
+      unsafe_allow_html=True,
+  )
+
+  # Sohbet geçmişi alanının Streamlit bileşenleri
+  chat_container = st.container()
+  with chat_container:
     for msg in st.session_state["coach_messages"]:
       if msg["role"] == "assistant":
         st.markdown(
             f"""
-                <div style="background-color: {c_bubble_ai}; padding: 14px 18px; border-radius: 12px; margin-bottom: 10px; border-left: 5px solid {c_accent}; color: {c_text_color}; font-weight: 500;">
-                    <b>🦊 AdenMind:</b> {msg['content']}
+                <div style="background-color: {c_bubble_ai}; padding: 10px 12px; border-radius: 10px; margin-bottom: 8px; border-left: 4px solid {c_accent}; color: {c_text_color}; font-size: 13px;">
+                    <b>AdenMind:</b> {msg['content']}
                 </div>
                 """,
             unsafe_allow_html=True,
@@ -368,49 +410,45 @@ if st.session_state["coach_open"]:
       else:
         st.markdown(
             f"""
-                <div style="background-color: {c_bubble_user}; padding: 14px 18px; border-radius: 12px; margin-bottom: 10px; text-align: right; color: #1e293b; font-weight: 500;">
-                    <b>Sen:</b> {msg['content']} 👤
+                <div style="background-color: {c_bubble_user}; padding: 10px 12px; border-radius: 10px; margin-bottom: 8px; text-align: right; color: #1e293b; font-size: 13px;">
+                    <b>Sen:</b> {msg['content']}
                 </div>
                 """,
             unsafe_allow_html=True,
         )
 
-    with st.form("coach_chat_form", clear_on_submit=True):
-      user_input = st.text_input(
-          "AdenMind'a bir soru sor (Örn: Dik üçgen açıları veya Dünya'nın"
-          " hareketleri):"
+  with st.form("floating_coach_form", clear_on_submit=True):
+    lamp_input = st.text_input(
+        "Soru sor (Örn: Dik üçgen, Güneş-Ay...)", key="lamp_query"
+    )
+    lamp_submitted = st.form_submit_button("Sor 🚀", use_container_width=True)
+    if lamp_submitted and lamp_input:
+      st.session_state["coach_messages"].append(
+          {"role": "user", "content": lamp_input}
       )
-      submitted = st.form_submit_button("Gönder 🚀")
-      if submitted and user_input:
-        st.session_state["coach_messages"].append(
-            {"role": "user", "content": user_input}
-        )
-        curr_s = st.session_state.get("selected_subject", "Genel")
-        curr_u = st.session_state.get("selected_unit", "Genel Konu")
-        prompt = (
-            f"Sen 5. sınıf MEB müfredatı odaklı, sevimli, eğlenceli ve teşvik"
-            f" edici bir akıllı koçsun. Adın AdenMind. Öğrencinin seçtiği ders:"
-            f" {curr_s}, ünite: {curr_u}. Öğrencinin mesajı: {user_input}."
-            " Matematik veya fen konularında (dik üçgen, açı, Dünya-Güneş-Ay"
-            " vb.) açıklayıcı şemalar/benzetmelerle rehberlik yap."
-        )
-        with st.spinner("AdenMind düşünüyor..."):
-          response = ai_generate_content(prompt)
-          if response:
-            st.session_state["coach_messages"].append(
-                {"role": "assistant", "content": response}
-            )
-          else:
-            st.session_state["coach_messages"].append(
-                {
-                    "role": "assistant",
-                    "content": (
-                        "Üzgünüm, şu anda yanıt oluşturamadım. Lütfen tekrar"
-                        " dene!"
-                    ),
-                }
-            )
-        st.rerun()
+      curr_s = st.session_state.get("selected_subject", "Genel")
+      curr_u = st.session_state.get("selected_unit", "Genel Konu")
+      prompt = (
+          f"Sen 5. sınıf MEB müfredatı odaklı, sevimli ve bilgili akıllı koçsun."
+          f" Adın AdenMind. Öğrencinin dersi: {curr_s}, ünite: {curr_u}."
+          f" Öğrencinin sorusu: {lamp_input}. Açıklayıcı ve kısa yanıt ver."
+      )
+      with st.spinner("AdenMind lamba ışığında düşünüyor..."):
+        response = ai_generate_content(prompt)
+        if response:
+          st.session_state["coach_messages"].append(
+              {"role": "assistant", "content": response}
+          )
+        else:
+          st.session_state["coach_messages"].append(
+              {
+                  "role": "assistant",
+                  "content": "Bağlantı hatası oluştu, tekrar dene!",
+              }
+          )
+      st.rerun()
+
+  st.markdown("</div>", unsafe_allow_html=True)
 
 # --- AŞAMA 1: DERS SEÇİMİ ---
 if st.session_state["selected_subject"] is None:
@@ -1173,7 +1211,7 @@ else:
             st.session_state["game_started"] = False
             st.rerun()
 
-  # 3. DOĞRU / YANLIŞ MEYDAN OKUMASI (Hiçbiri seçili gelmeme index=-1 ayarı)
+  # 3. DOĞRU / YANLIŞ MEYDAN OKUMASI
   elif curr_game == "dogruyanlis":
     st.subheader(f"✅ {curr_subj} — Doğru / Yanlış Meydan Okuması")
 
