@@ -314,7 +314,7 @@ st.markdown(
 )
 
 
-# --- 6. GERÇEKÇİ VE CEVABI İFŞA ETMEYEN GÖRSEL MOTORU ---
+# --- 6. GERÇEKÇİ, YÜKSEK KALİTELİ VE CEVABI İFŞA ETMEYEN SVG MOTORU ---
 def render_question_visual(gorsel_tipi, param):
   if not gorsel_tipi or gorsel_tipi == "yok":
     return
@@ -370,125 +370,177 @@ def render_question_visual(gorsel_tipi, param):
         """
     st.components.v1.html(svg_html, height=195)
 
-  # 2. FEN BİLİMLERİ: GERÇEKÇİ AY GÖRSELİ (EVRELER)
+  # 2. FEN BİLİMLERİ: GERÇEKÇİ DİNAMİK AY EVRELERİ (SORUYLA BİREBİR UYUMLU)
   elif gorsel_tipi == "ay_evresi":
+    # Soruda geçen evreye göre birebir çizim kararı
+    if "ilk_dordun" in param_str or "ilk dördün" in param_str:
+      moon_shadow = (
+          '<path d="M 130 40 A 40 40 0 0 0 130 120 Z"'
+          ' fill="rgba(15, 23, 42, 0.92)"/>'
+      )
+    elif "son_dordun" in param_str or "son dördün" in param_str:
+      moon_shadow = (
+          '<path d="M 130 40 A 40 40 0 0 1 130 120 Z"'
+          ' fill="rgba(15, 23, 42, 0.92)"/>'
+      )
+    elif "yeni_ay" in param_str or "yeni ay" in param_str:
+      moon_shadow = (
+          '<circle cx="130" cy="80" r="40" fill="rgba(15, 23, 42, 0.95)"'
+          ' stroke="#475569" stroke-width="1"/>'
+      )
+    elif "hilal" in param_str:
+      moon_shadow = (
+          '<path d="M 130 40 A 40 40 0 0 1 130 120 A 28 28 0 0 0 130 40 Z"'
+          ' fill="rgba(15, 23, 42, 0.92)"/>'
+      )
+    elif "siskin_ay" in param_str or "şişkin ay" in param_str:
+      moon_shadow = (
+          '<path d="M 130 40 A 40 40 0 0 0 130 120 A 20 20 0 0 1 130 40 Z"'
+          ' fill="rgba(15, 23, 42, 0.92)"/>'
+      )
+    else:  # Dolunay veya Varsayılan
+      moon_shadow = ""  # Tamamen aydınlık gerçekçi dolunay
+
     svg_html = f"""
         <div style="display: flex; justify-content: center; margin: 10px 0;">
-            <svg width="260" height="180" viewBox="0 0 260 180" style="background: linear-gradient(135deg, #0b1329, #1c2541); border-radius: 16px; border: 1px solid #38bdf8;">
-                <circle cx="30" cy="30" r="1" fill="#fff"/><circle cx="220" cy="40" r="1.5" fill="#fff"/><circle cx="200" cy="130" r="1" fill="#fff"/>
-                <!-- Gerçekçi Ay Gövdesi ve Krater Dokuları -->
-                <circle cx="130" cy="80" r="40" fill="#94a3b8" stroke="#cbd5e1" stroke-width="2"/>
-                <circle cx="115" cy="70" r="7" fill="#64748b" opacity="0.4"/>
-                <circle cx="145" cy="95" r="9" fill="#64748b" opacity="0.4"/>
-                <circle cx="130" cy="60" r="5" fill="#64748b" opacity="0.4"/>
-                <!-- Ayla ilgili gölge simülasyonu -->
-                <path d="M 130 40 A 40 40 0 0 1 130 120 Z" fill="rgba(15, 23, 42, 0.75)"/>
-                <rect x="0" y="150" width="260" height="30" fill="rgba(0,0,0,0.4)" rx="0 0 16 16"/>
-                <text x="130" y="170" fill="#38bdf8" font-size="12" font-weight="bold" text-anchor="middle">🌕 Gerçekçi Ay Gözlem Modeli</text>
+            <svg width="260" height="180" viewBox="0 0 260 180" style="background: linear-gradient(135deg, #020617, #0f172a); border-radius: 16px; border: 1px solid #38bdf8;">
+                <defs>
+                    <radialGradient id="moonTexture" cx="35%" cy="35%" r="65%">
+                        <stop offset="0%" stop-color="#ffffff" />
+                        <stop offset="50%" stop-color="#e2e8f0" />
+                        <stop offset="85%" stop-color="#cbd5e1" />
+                        <stop offset="100%" stop-color="#94a3b8" />
+                    </radialGradient>
+                </defs>
+                <!-- Derin Uzay Yıldızları -->
+                <circle cx="20" cy="25" r="1" fill="#fff" opacity="0.8"/><circle cx="230" cy="35" r="1.5" fill="#fff" opacity="0.9"/><circle cx="210" cy="140" r="1" fill="#fff" opacity="0.7"/>
+                
+                <!-- Aydınlık Gerçekçi Ay Gövdesi -->
+                <circle cx="130" cy="80" r="40" fill="url(#moonTexture)" stroke="#f1f5f9" stroke-width="1.5"/>
+                <!-- Gerçekçi Krater Havzaları -->
+                <circle cx="118" cy="68" r="8" fill="#64748b" opacity="0.35"/>
+                <circle cx="142" cy="92" r="10" fill="#64748b" opacity="0.35"/>
+                <circle cx="128" cy="98" r="5" fill="#64748b" opacity="0.3"/>
+                <circle cx="138" cy="62" r="4" fill="#64748b" opacity="0.25"/>
+                
+                <!-- Sorunun Durumuna Göre Gölgelendirme Katmanı -->
+                {moon_shadow}
+                
+                <rect x="0" y="150" width="260" height="30" fill="rgba(0,0,0,0.5)" rx="0 0 16 16"/>
+                <text x="130" y="170" fill="#38bdf8" font-size="12" font-weight="bold" text-anchor="middle">🌙 Ay Gözlem Modeli</text>
             </svg>
         </div>
         """
     st.components.v1.html(svg_html, height=195)
 
-  # 3. FEN BİLİMLERİ: GERÇEKÇİ GÜNEŞ GÖRSELİ
+  # 3. FEN BİLİMLERİ: ULTRA GERÇEKÇİ GÜNEŞ MODELİ
   elif gorsel_tipi == "gunes":
     svg_html = """
         <div style="display: flex; justify-content: center; margin: 10px 0;">
-            <svg width="260" height="180" viewBox="0 0 260 180" style="background: linear-gradient(135deg, #0f172a, #2e1005); border-radius: 16px; border: 1px solid #f59e0b;">
+            <svg width="260" height="180" viewBox="0 0 260 180" style="background: linear-gradient(135deg, #090314, #1f0803); border-radius: 16px; border: 1px solid #f59e0b;">
                 <defs>
-                    <radialGradient id="realSun" cx="50%" cy="50%" r="50%">
+                    <radialGradient id="realSunGrad" cx="50%" cy="50%" r="50%">
                         <stop offset="0%" stop-color="#fffbeb" />
-                        <stop offset="40%" stop-color="#f59e0b" />
-                        <stop offset="90%" stop-color="#ea580c" />
-                        <stop offset="100%" stop-color="#b91c1c" />
+                        <stop offset="35%" stop-color="#fef08a" />
+                        <stop offset="70%" stop-color="#f59e0b" />
+                        <stop offset="95%" stop-color="#dc2626" />
+                        <stop offset="100%" stop-color="#7f1d1d" />
                     </radialGradient>
+                    <filter id="glow">
+                        <feGaussianBlur stdDeviation="4" result="coloredBlur"/>
+                        <feMerge>
+                            <feMergeNode in="coloredBlur"/>
+                            <feMergeNode in="SourceGraphic"/>
+                        </feMerge>
+                    </filter>
                 </defs>
-                <!-- Güneş Alev Tacı (Korona) Işımaları -->
-                <circle cx="130" cy="80" r="54" fill="none" stroke="#fde047" stroke-width="3" stroke-dasharray="8,6" opacity="0.7"/>
-                <circle cx="130" cy="80" r="45" fill="url(#realSun)"/>
-                <!-- Güneş Yüzey Lekeleri (Fotosfer Detayı) -->
-                <circle cx="115" cy="70" r="4" fill="#7f1d1d" opacity="0.8"/>
-                <circle cx="145" cy="90" r="5" fill="#7f1d1d" opacity="0.8"/>
-                <circle cx="130" cy="95" r="3" fill="#7f1d1d" opacity="0.8"/>
-                <rect x="0" y="150" width="260" height="30" fill="rgba(0,0,0,0.4)" rx="0 0 16 16"/>
-                <text x="130" y="170" fill="#facc15" font-size="12" font-weight="bold" text-anchor="middle">☀️ Gerçekçi Güneş Yüzeyi ve Katmanları</text>
+                <!-- Güneş Işıma Aurası -->
+                <circle cx="130" cy="80" r="52" fill="#facc15" opacity="0.15" filter="url(#glow)"/>
+                <circle cx="130" cy="80" r="44" fill="url(#realSunGrad)" filter="url(#glow)"/>
+                <!-- Güneş Yüzey Plazma Fırtınaları (Fotosfer Lekeleri) -->
+                <ellipse cx="118" cy="68" rx="4" ry="2" fill="#450a0a" opacity="0.75"/>
+                <ellipse cx="145" cy="88" rx="6" ry="3" fill="#450a0a" opacity="0.8"/>
+                <circle cx="128" cy="95" r="2.5" fill="#450a0a" opacity="0.7"/>
+                
+                <rect x="0" y="150" width="260" height="30" fill="rgba(0,0,0,0.5)" rx="0 0 16 16"/>
+                <text x="130" y="170" fill="#facc15" font-size="12" font-weight="bold" text-anchor="middle">☀️ Güneş Yüzeyi ve Işıma Modeli</text>
             </svg>
         </div>
         """
     st.components.v1.html(svg_html, height=195)
 
-  # 4. FEN BİLİMLERİ: GERÇEKÇİ DÜNYA GÖRSELİ
+  # 4. FEN BİLİMLERİ: GERÇEKÇİ DÜNYA VE ATMOSFER MODELİ
   elif gorsel_tipi == "dunya":
     svg_html = """
         <div style="display: flex; justify-content: center; margin: 10px 0;">
-            <svg width="260" height="180" viewBox="0 0 260 180" style="background: linear-gradient(135deg, #0284c7, #0f172a); border-radius: 16px; border: 1px solid #38bdf8;">
+            <svg width="260" height="180" viewBox="0 0 260 180" style="background: linear-gradient(135deg, #020617, #0f172a); border-radius: 16px; border: 1px solid #38bdf8;">
                 <defs>
-                    <radialGradient id="earthGrad" cx="40%" cy="40%" r="60%">
+                    <radialGradient id="realEarth" cx="40%" cy="35%" r="65%">
                         <stop offset="0%" stop-color="#38bdf8" />
-                        <stop offset="70%" stop-color="#0284c7" />
-                        <stop offset="100%" stop-color="#0369a1" />
+                        <stop offset="60%" stop-color="#0284c7" />
+                        <stop offset="90%" stop-color="#0369a1" />
+                        <stop offset="100%" stop-color="#0f172a" />
                     </radialGradient>
                 </defs>
-                <!-- Dünya Küresi -->
-                <circle cx="130" cy="80" r="44" fill="url(#earthGrad)" stroke="#60a5fa" stroke-width="2"/>
-                <!-- Kıtalar (Gerçekçi Yeşil-Kahve Dokular) -->
-                <path d="M 105 60 Q 125 45 140 65 Q 130 90 105 75 Z" fill="#15803d" opacity="0.9"/>
-                <path d="M 125 95 Q 150 85 155 110 Q 130 115 120 95 Z" fill="#15803d" opacity="0.9"/>
-                <path d="M 110 95 Q 100 105 115 115 Z" fill="#15803d" opacity="0.8"/>
-                <!-- Bulut Katmanları -->
-                <path d="M 100 55 Q 110 50 120 55" fill="none" stroke="#ffffff" stroke-width="2" stroke-linecap="round" opacity="0.7"/>
-                <path d="M 135 95 Q 145 90 155 95" fill="none" stroke="#ffffff" stroke-width="2" stroke-linecap="round" opacity="0.7"/>
-                <!-- Eksen Eğikliği Çizgisi -->
-                <line x1="112" y1="25" x2="148" y2="135" stroke="#facc15" stroke-width="2" stroke-dasharray="4,4"/>
-                <rect x="0" y="150" width="260" height="30" fill="rgba(0,0,0,0.4)" rx="0 0 16 16"/>
-                <text x="130" y="170" fill="#38bdf8" font-size="12" font-weight="bold" text-anchor="middle">🌍 Gerçekçi Dünya ve Atmosfer Modeli</text>
+                <!-- Atmosfer Halesi -->
+                <circle cx="130" cy="80" r="45" fill="none" stroke="#60a5fa" stroke-width="2" opacity="0.5"/>
+                <circle cx="130" cy="80" r="42" fill="url(#realEarth)"/>
+                <!-- Kıtalar -->
+                <path d="M 106 60 Q 124 46 138 64 Q 128 88 106 74 Z" fill="#16a34a" opacity="0.9"/>
+                <path d="M 124 94 Q 148 84 152 108 Q 128 114 118 94 Z" fill="#16a34a" opacity="0.9"/>
+                <!-- Beyaz Bulut Katmanları -->
+                <path d="M 100 52 Q 112 48 124 52" fill="none" stroke="#ffffff" stroke-width="2.5" stroke-linecap="round" opacity="0.8"/>
+                <path d="M 132 92 Q 144 88 156 92" fill="none" stroke="#ffffff" stroke-width="2.5" stroke-linecap="round" opacity="0.8"/>
+                <!-- Eksen Çizgisi -->
+                <line x1="112" y1="24" x2="148" y2="136" stroke="#facc15" stroke-width="2" stroke-dasharray="4,4"/>
+                <rect x="0" y="150" width="260" height="30" fill="rgba(0,0,0,0.5)" rx="0 0 16 16"/>
+                <text x="130" y="170" fill="#38bdf8" font-size="12" font-weight="bold" text-anchor="middle">🌍 Dünya ve Atmosfer Görseli</text>
             </svg>
         </div>
         """
     st.components.v1.html(svg_html, height=195)
 
-  # 5. FEN BİLİMLERİ: GERÇEKÇİ BOYUT KARŞILAŞTIRMASI (GÜNEŞ - DÜNYA - AY)
+  # 5. FEN BİLİMLERİ: GERÇEKÇİ BOYUT KARŞILAŞTIRMASI
   elif gorsel_tipi == "karsilastirma":
     svg_html = """
         <div style="display: flex; justify-content: center; margin: 10px 0;">
-            <svg width="260" height="180" viewBox="0 0 260 180" style="background: linear-gradient(135deg, #0b1329, #1c2541); border-radius: 16px; border: 1px solid #a855f7;">
-                <!-- Güneş Gerçekçi Görsel (Küçültülmüş Ölçek) -->
+            <svg width="260" height="180" viewBox="0 0 260 180" style="background: linear-gradient(135deg, #020617, #1e1b4b); border-radius: 16px; border: 1px solid #a855f7;">
+                <!-- Güneş -->
                 <circle cx="55" cy="80" r="36" fill="#f59e0b" stroke="#facc15" stroke-width="2"/>
                 <circle cx="55" cy="80" r="28" fill="#ea580c" opacity="0.5"/>
                 <text x="55" y="84" fill="#fff" font-size="10" font-weight="bold" text-anchor="middle">Güneş</text>
                 
-                <!-- Dünya Gerçekçi Görsel -->
+                <!-- Dünya -->
                 <circle cx="155" cy="80" r="15" fill="#0284c7" stroke="#38bdf8" stroke-width="1.5"/>
-                <path d="M 150 75 Q 155 72 160 78 Z" fill="#15803d"/>
+                <path d="M 150 75 Q 155 72 160 78 Z" fill="#16a34a"/>
                 <text x="155" y="106" fill="#38bdf8" font-size="10" font-weight="bold" text-anchor="middle">Dünya</text>
                 
-                <!-- Ay Gerçekçi Görsel -->
+                <!-- Ay -->
                 <circle cx="215" cy="80" r="6" fill="#94a3b8" stroke="#cbd5e1" stroke-width="1"/>
-                <circle cx="213" cy="79" r="1.5" fill="#64748b"/>
                 <text x="215" y="100" fill="#cbd5e1" font-size="9" font-weight="bold" text-anchor="middle">Ay</text>
                 
-                <rect x="0" y="150" width="260" height="30" fill="rgba(0,0,0,0.4)" rx="0 0 16 16"/>
-                <text x="130" y="170" fill="#c084fc" font-size="11" font-weight="bold" text-anchor="middle">🔭 Gerçekçi Boyut Karşılaştırma Modeli</text>
+                <rect x="0" y="150" width="260" height="30" fill="rgba(0,0,0,0.5)" rx="0 0 16 16"/>
+                <text x="130" y="170" fill="#c084fc" font-size="11" font-weight="bold" text-anchor="middle">🔭 Boyut Karşılaştırma Modeli</text>
             </svg>
         </div>
         """
     st.components.v1.html(svg_html, height=195)
 
-  # 6. FEN BİLİMLERİ: GERÇEKÇİ TUTULMA HİZALANMASI
+  # 6. FEN BİLİMLERİ: GERÇEKÇİ TUTULMA VE DİZİLİM MODELİ
   elif gorsel_tipi == "tutulma":
     svg_html = """
         <div style="display: flex; justify-content: center; margin: 10px 0;">
-            <svg width="260" height="180" viewBox="0 0 260 180" style="background: linear-gradient(135deg, #0f172a, #030712); border-radius: 16px; border: 1px solid #ef4444;">
-                <polygon points="35,80 140,65 140,95" fill="rgba(250, 204, 21, 0.15)"/>
+            <svg width="260" height="180" viewBox="0 0 260 180" style="background: linear-gradient(135deg, #020617, #000000); border-radius: 16px; border: 1px solid #ef4444;">
+                <polygon points="35,80 140,65 140,95" fill="rgba(250, 204, 21, 0.12)"/>
                 <!-- Güneş -->
                 <circle cx="35" cy="80" r="22" fill="#f59e0b" stroke="#fde047" stroke-width="1.5"/>
-                <!-- Ay (Gerçekçi Kraterli) -->
+                <!-- Ay -->
                 <circle cx="130" cy="80" r="8" fill="#94a3b8" stroke="#cbd5e1" stroke-width="1"/>
-                <!-- Dünya (Gerçekçi Mavi/Yeşil) -->
+                <!-- Dünya -->
                 <circle cx="205" cy="80" r="16" fill="#0284c7" stroke="#38bdf8" stroke-width="1.5"/>
-                <path d="M 200 75 Q 205 72 210 78 Z" fill="#15803d"/>
-                <rect x="0" y="150" width="260" height="30" fill="rgba(0,0,0,0.4)" rx="0 0 16 16"/>
-                <text x="130" y="170" fill="#f87171" font-size="11" font-weight="bold" text-anchor="middle">🪐 Gök Cisimlerinin Gerçekçi Dizilimi</text>
+                <path d="M 200 75 Q 205 72 210 78 Z" fill="#16a34a"/>
+                <rect x="0" y="150" width="260" height="30" fill="rgba(0,0,0,0.5)" rx="0 0 16 16"/>
+                <text x="130" y="170" fill="#f87171" font-size="11" font-weight="bold" text-anchor="middle">🪐 Gök Cisimlerinin Konum Dizilimi</text>
             </svg>
         </div>
         """
@@ -505,20 +557,15 @@ def render_question_visual(gorsel_tipi, param):
     svg_html = f"""
         <div style="display: flex; justify-content: center; margin: 10px 0;">
             <svg width="180" height="220" viewBox="0 0 180 220" style="background:#0f172a; border-radius:12px; border: 2px solid #38bdf8;">
-                <!-- Üst Asma Halkası -->
                 <circle cx="90" cy="15" r="8" fill="none" stroke="#94a3b8" stroke-width="3"/>
                 <rect x="75" y="23" width="30" height="12" fill="#64748b" rx="3"/>
-                <!-- Şeffaf Gövde Borusu -->
                 <rect x="55" y="35" width="70" height="135" fill="rgba(56, 189, 248, 0.1)" stroke="#38bdf8" stroke-width="3" rx="8"/>
-                <!-- Cetvel çizgileri -->
                 <line x1="60" y1="50" x2="70" y2="50" stroke="#94a3b8" stroke-width="2"/>
                 <line x1="60" y1="70" x2="70" y2="70" stroke="#94a3b8" stroke-width="2"/>
                 <line x1="60" y1="90" x2="70" y2="90" stroke="#94a3b8" stroke-width="2"/>
                 <line x1="60" y1="110" x2="70" y2="110" stroke="#94a3b8" stroke-width="2"/>
                 <line x1="60" y1="130" x2="70" y2="130" stroke="#94a3b8" stroke-width="2"/>
-                <!-- Esnek Yay Kıvrımları -->
                 <path d="M 90 35 Q 65 {35+spring_y/4} 115 {35+spring_y/2} Q 65 {35+3*spring_y/4} 90 {35+spring_y}" fill="none" stroke="#facc15" stroke-width="3.5"/>
-                <!-- Alt Kanca ve Ölçüm Ucu -->
                 <rect x="65" y="{35+spring_y}" width="50" height="20" fill="#f43f5e" rx="4"/>
                 <text x="90" y="{49+spring_y}" fill="#ffffff" font-size="12" font-weight="bold" text-anchor="middle">{newton} N</text>
                 <path d="M 90 {55+spring_y} L 90 {75+spring_y}" fill="none" stroke="#94a3b8" stroke-width="3"/>
@@ -808,19 +855,19 @@ else:
 
   st.markdown("---")
 
-  # GERÇEKÇİ GÖRSEL VE K,L,M YERİNE GERÇEK NESNE PROMPT TALİMATI
+  # KESİN SORU-GÖRSEL UYUMU PROMPT TALİMATI
   visual_prompt_instruction = """
-  (GÖRSEL VE NESNE KURALLARI: 
-   1. K, L, M gibi soyut harfler yerine sorularda gerçek nesne adlarını kullan (Dünya, Ay, Güneş, Dinamometre vb.).
-   2. Görsel asla sorunun doğru cevabını ifşa etmemeli! Görsel sadece konuyu betimleyen gerçekçi bir illüstrasyon olmalı.
-   3. Eğer ders Fen Bilimleri ise konuya göre gorsel_tipi değerlerinden birini seç:
-      - 'gunes' (gorsel_parametre: 'gunes')
-      - 'dunya' (gorsel_parametre: 'dunya')
-      - 'ay_evresi' (gorsel_parametre: 'ay')
-      - 'karsilastirma' (gorsel_parametre: 'boyut')
-      - 'tutulma' (gorsel_parametre: 'tutulma')
-      - 'dinamometre' (gorsel_parametre: '5n')
-   4. Görsel gerekmeyen sorular için gorsel_tipi: 'yok' yapın.)
+  (SINIROSIZ SORU-GÖRSEL EŞLEŞTİRME KURALLARI: 
+   1. Görsel parametresini tam olarak sorudaki duruma göre seç!
+      - Eğer soruda 'İlk Dördün' soruluyorsa gorsel_tipi: 'ay_evresi' ve gorsel_parametre: 'ilk_dordun' ver.
+      - 'Son Dördün' ise gorsel_parametre: 'son_dordun' ver.
+      - 'Yeni Ay' ise gorsel_parametre: 'yeni_ay' ver.
+      - 'Hilal' ise gorsel_parametre: 'hilal' ver.
+      - 'Dolunay' ise gorsel_parametre: 'dolunay' ver.
+      - Güneş sorularında gorsel_tipi: 'gunes', Dünya sorularında gorsel_tipi: 'dunya' ver.
+      - Dinamometre sorularında gorsel_tipi: 'dinamometre' ve gorsel_parametre olarak '10N' ver.
+   2. Görsel Asla sorunun şıkkını doğrudan 'Doğru cevap A şıkkıdır' gibi ele vermemeli, sadece sorudaki durumu betimlemelidir.
+   3. Görsel gerekmeyen ders veya konularda gorsel_tipi: 'yok' yapın.)
   """
 
   # 1. BALON PATLATMACA
@@ -848,8 +895,8 @@ else:
                     "secenekler": ["A) ...", "B) ...", "C) ...", "D) ..."],
                     "dogru_cevap": "A",
                     "aciklama": "Açıklama",
-                    "gorsel_tipi": "gunes", 
-                    "gorsel_parametre": "gunes"
+                    "gorsel_tipi": "ay_evresi", 
+                    "gorsel_parametre": "dolunay"
                   }}
                 ]
                 """
@@ -966,8 +1013,8 @@ else:
                     "secenekler": ["A)...", "B)...", "C)...", "D)..."], 
                     "dogru_cevap": "A", 
                     "aciklama": "...",
-                    "gorsel_tipi": "dunya",
-                    "gorsel_parametre": "dunya"
+                    "gorsel_tipi": "ay_evresi",
+                    "gorsel_parametre": "ilk_dordun"
                   }}
                 ]
                 """
@@ -1083,7 +1130,7 @@ else:
                 {visual_prompt_instruction}
                 JSON liste formatında ver:
                 [
-                  {{"ifade": "...", "cevap": "D", "aciklama": "...", "gorsel_tipi": "ay_evresi", "gorsel_parametre": "ay"}}
+                  {{"ifade": "...", "cevap": "D", "aciklama": "...", "gorsel_tipi": "gunes", "gorsel_parametre": "gunes"}}
                 ]
                 """
         res = ai_generate_content(prompt)
@@ -1194,7 +1241,7 @@ else:
                 {visual_prompt_instruction}
                 JSON liste formatında ver:
                 [
-                  {{"cumle": "...", "dogru_kelime": "...", "secenekler": ["...", "...", "...", "..."], "gorsel_tipi": "dinamometre", "gorsel_parametre": "5n"}}
+                  {{"cumle": "...", "dogru_kelime": "...", "secenekler": ["...", "...", "...", "..."], "gorsel_tipi": "dunya", "gorsel_parametre": "dunya"}}
                 ]
                 """
         res = ai_generate_content(prompt)
