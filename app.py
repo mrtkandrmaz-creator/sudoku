@@ -774,7 +774,7 @@ else:
         )
         st.components.v1.html(html_balloon_game, height=560)
 
-  # 2. 5 SORULUK MEB KAZANIM OYUNU (TEK SORU MODU - CEVAPLAR GİZLİ)
+  # 2. 5 SORULUK MEB KAZANIM OYUNU (TEK SORU MODU)
   elif curr_game == "sinav10":
     st.subheader(
         f"🧠 {curr_subj} — 5 Soruluk MEB Kazanım Yarışması (Tek Soru Modu)"
@@ -999,7 +999,7 @@ else:
           st.session_state["dy_questions"] = None
           st.rerun()
 
-  # 4. BOŞLUK DOLDURMA YARIŞMASI (TEK SORU / SEÇMELİ MOD)
+  # 4. BOŞLUK DOLDURMA YARIŞMASI
   elif curr_game == "bosluk":
     st.subheader(f"📝 {curr_subj} — Boşluk Doldurma Yarışması")
     if (
@@ -1211,9 +1211,10 @@ else:
         if res:
           st.markdown(res)
 
-  # 8. KELİME AVI
+  # 8. KELİME AVI (KUTULAR İÇİNDE SEÇİLEBİLEN KARIŞIK HARF SİSTEMİ)
   elif curr_game == "kelime":
     st.subheader(f"🔤 {curr_subj} — Kelime Avı Bulmacası")
+
     if (
         "puz_items" not in st.session_state
         or st.session_state.get("p_unit_key") != (curr_subj, curr_unit)
@@ -1221,8 +1222,8 @@ else:
       st.session_state["puz_items"] = None
       st.session_state["p_unit_key"] = (curr_subj, curr_unit)
       st.session_state["puz_idx"] = 0
-      st.session_state["puz_score"] = 0
       st.session_state["user_guess"] = []
+      st.session_state["used_indices"] = []
 
     if st.button("🔍 Kelime Avını Başlat", key="gen_puz"):
       with st.spinner("Bulmaca kelimeleri hazırlanıyor..."):
@@ -1240,8 +1241,8 @@ else:
                 re.sub(r"```json|```", "", res).strip()
             )
             st.session_state["puz_idx"] = 0
-            st.session_state["puz_score"] = 0
             st.session_state["user_guess"] = []
+            st.session_state["used_indices"] = []
             st.rerun()
           except Exception:
             pass
@@ -1249,11 +1250,22 @@ else:
     if st.session_state["puz_items"]:
       items = st.session_state["puz_items"]
       p_idx = st.session_state["puz_idx"]
+
       if p_idx < len(items):
         cur_item = items[p_idx]
         t_word = cur_item["kelime"].upper()
-        st.info(f"💡 İpucu: {cur_item['ipucu']}")
 
+        st.markdown(
+            f"""
+            <div style="background: rgba(255,255,255,0.06); padding: 18px; border-radius: 12px; margin-bottom: 15px;">
+                <b>Bulmaca {p_idx + 1} / {len(items)}</b><br>
+                <span style="font-size: 18px; color: #38bdf8;">💡 İpucu: {cur_item['ipucu']}</span>
+            </div>
+            """,
+            unsafe_allow_html=True,
+        )
+
+        # Karıştırılmış harf havuzu oluşturma
         if f"pool_{p_idx}" not in st.session_state:
           pool = list(t_word)
           while len(pool) < len(t_word) + 3:
@@ -1261,27 +1273,80 @@ else:
           random.shuffle(pool)
           st.session_state[f"pool_{p_idx}"] = pool
 
+        pool_chars = st.session_state[f"pool_{p_idx}"]
         user_g = st.session_state["user_guess"]
-        st.write("Oluşturulan:", "".join(user_g))
+        used_idx = st.session_state["used_indices"]
 
-        cols = st.columns(len(st.session_state[f"pool_{p_idx}"]))
-        for l_i, l_char in enumerate(st.session_state[f"pool_{p_idx}"]):
-          with cols[l_i]:
-            if st.button(l_char, key=f"hb_{p_idx}_{l_i}_{l_char}"):
-              if len(st.session_state["user_guess"]) < len(t_word):
-                st.session_state["user_guess"].append(l_char)
-                st.rerun()
+        # Oluşturulan kelime kutuları
+        st.markdown(
+            "**Oluşturduğunuz Kelime Kutuları:**", unsafe_allow_html=True
+        )
+        box_cols = st.columns(len(t_word))
+        for i in range(len(t_word)):
+          with box_cols[i]:
+            char_val = user_g[i] if i < len(user_g) else "_"
+            st.markdown(
+                f"""
+                <div style="background: #1e293b; border: 2px solid {c_border}; border-radius: 8px; padding: 12px; text-align: center; font-size: 22px; font-weight: bold; color: #facc15;">
+                    {char_val}
+                </div>
+                """,
+                unsafe_allow_html=True,
+            )
 
-        if st.button("Kontrol Et"):
-          if "".join(st.session_state["user_guess"]) == t_word:
-            st.success("🎉 Doğru!")
-            st.session_state["puz_idx"] += 1
+        st.markdown("<br>", unsafe_allow_html=True)
+        st.markdown(
+            "**Seçebileceğiniz Karışık Harfler (Tıklayın):**",
+            unsafe_allow_html=True,
+        )
+
+        char_cols = st.columns(len(pool_chars))
+        for c_i, c_char in enumerate(pool_chars):
+          with char_cols[c_i]:
+            is_disabled = c_i in used_idx
+            if not is_disabled:
+              if st.button(c_char, key=f"char_btn_{p_idx}_{c_i}_{c_char}"):
+                if len(st.session_state["user_guess"]) < len(t_word):
+                  st.session_state["user_guess"].append(c_char)
+                  st.session_state["used_indices"].append(c_i)
+                  st.rerun()
+            else:
+              st.button(
+                  "✔️", key=f"char_btn_used_{p_idx}_{c_i}", disabled=True
+              )
+
+        col_reset, col_check = st.columns(2)
+        with col_reset:
+          if st.button("🔄 Harfleri Sıfırla", use_container_width=True):
             st.session_state["user_guess"] = []
+            st.session_state["used_indices"] = []
             st.rerun()
-          else:
-            st.error("Tekrar dene.")
+        with col_check:
+          if st.button("✅ Kelimeyi Kontrol Et", use_container_width=True):
+            current_typed = "".join(st.session_state["user_guess"])
+            if current_typed == t_word:
+              st.success("🎉 Tebrikler, Doğru Kelime!")
+              st.session_state["puz_idx"] += 1
+              st.session_state["user_guess"] = []
+              st.session_state["used_indices"] = []
+              st.rerun()
+            else:
+              st.error(
+                  "❌ Eksik veya yanlış harf kombinasyonu! Sıfırlayıp tekrar"
+                  " deneyin."
+              )
       else:
-        st.success("Tüm kelimeler tamamlandı!")
+        st.markdown(
+            """
+            <div style="background: rgba(255,255,255,0.06); padding: 30px; border-radius: 16px; text-align: center;">
+                <h2>🏆 Tebrikler! Tüm Kelime Avı Bulmacalarını Tamamladınız!</h2>
+            </div>
+            """,
+            unsafe_allow_html=True,
+        )
+        if st.button("🔄 Yeni Bulmaca Başlat", use_container_width=True):
+          st.session_state["puz_items"] = None
+          st.rerun()
 
   # 9. KLASİK YAZILI SİMÜLATÖRÜ
   elif curr_game == "acik":
