@@ -11,17 +11,18 @@ st.set_page_config(
     layout="wide",
 )
 
-# --- 1. ESNEK VE KUSURSUZ TOML / SECRETS API TARAMA MOTORU ---
+# --- 1. KOŞULSUZ VE ESNEK TOML / SECRETS API TARAMA MOTORU ---
 
 
 def get_all_api_keys():
-  """Streamlit secrets veya ortam değişkenlerindeki toml formatından
+  """Streamlit secrets (TOML) veya ortam değişkenlerinden
 
-  bağımsız olarak tüm anahtarları otomatik ve esnek toplar.
+  tüm API anahtarlarını koşulsuz ve eksiksiz toplar.
   """
   gemini_keys = []
   groq_keys = []
 
+  # Streamlit Secrets (TOML) taraması
   try:
     if hasattr(st, "secrets") and st.secrets:
 
@@ -32,10 +33,21 @@ def get_all_api_keys():
               recursive_search(v)
             elif isinstance(v, str) and len(v.strip()) > 5:
               k_upper = str(k).upper()
-              if "GEMINI" in k_upper or "GOOGLE" in k_upper or "AIZA" in v:
-                if v.strip() not in gemini_keys:
+              if (
+                  "GEMINI" in k_upper
+                  or "GOOGLE" in k_upper
+                  or "AIZA" in v
+                  or "API_KEY" in k_upper
+              ):
+                if v.strip() not in gemini_keys and not v.strip().startswith(
+                    "gsk_"
+                ):
                   gemini_keys.append(v.strip())
-              elif "GROQ" in k_upper or "GSK" in v:
+              if (
+                  "GROQ" in k_upper
+                  or "GSK" in v
+                  or v.strip().startswith("gsk_")
+              ):
                 if v.strip() not in groq_keys:
                   groq_keys.append(v.strip())
 
@@ -43,18 +55,26 @@ def get_all_api_keys():
   except Exception:
     pass
 
+  # Sistem ortam değişkenleri taraması
   for env_key, env_val in os.environ.items():
     env_upper = env_key.upper()
     if env_val and isinstance(env_val, str) and len(env_val.strip()) > 5:
       if (
-          "GEMINI" in env_upper or "GOOGLE" in env_upper or "AIZA" in env_val
-      ) and env_val.strip() not in gemini_keys:
-        gemini_keys.append(env_val.strip())
-      elif (
-          "GROQ" in env_upper or "GSK" in env_val
-      ) and env_val.strip() not in groq_keys:
-        groq_keys.append(env_val.strip())
+          "GEMINI" in env_upper
+          or "GOOGLE" in env_upper
+          or env_val.strip().startswith("AIza")
+      ):
+        if env_val.strip() not in gemini_keys:
+          gemini_keys.append(env_val.strip())
+      if (
+          "GROQ" in env_upper
+          or "GSK" in env_upper
+          or env_val.strip().startswith("gsk_")
+      ):
+        if env_val.strip() not in groq_keys:
+          groq_keys.append(env_val.strip())
 
+  # Manuel eklenenler
   if "manual_gemini" in st.session_state and st.session_state["manual_gemini"]:
     if st.session_state["manual_gemini"] not in gemini_keys:
       gemini_keys.append(st.session_state["manual_gemini"])
@@ -88,7 +108,7 @@ except ImportError:
 
 
 def ai_generate_content(prompt_text):
-  """Gemini (mutlaka gemini-3.6-flash dahil) ve Groq API'leri dener."""
+  """Mutlaka gemini-3.6-flash modelini ve Groq modellerini dener."""
   if has_gemini and gemini_keys:
     for g_key in gemini_keys:
       try:
@@ -213,7 +233,7 @@ MEB_CURRICULUM = {
     },
 }
 
-# --- 3. MEB TARZI ARAYÜZ (CSS & BUTON HACK) ---
+# --- 3. MEB TARZI ARAYÜZ (CSS) ---
 st.markdown(
     """
     <style>
@@ -228,7 +248,6 @@ st.markdown(
         margin-bottom: 25px;
         box-shadow: 0 4px 12px rgba(0,0,0,0.15);
     }
-    /* Streamlit butonlarını büyük renkli kutucuklara dönüştürüyoruz */
     .stButton>button {
         border-radius: 14px;
         font-weight: bold;
@@ -267,12 +286,10 @@ with st.sidebar:
         st.success("Groq eklendi!")
         st.rerun()
   else:
-    st.success("✅ Yapay Zeka Aktif")
+    st.success("✅ Yapay Zeka TOML'dan Aktif")
 
   st.markdown("---")
-  if st.button(
-      "🏠 Ana Sayfaya Dön", key="home_btn", help="Ana menüye döner"
-  ):
+  if st.button("🏠 Ana Sayfaya Dön", key="home_btn", help="Ana menüye döner"):
     st.session_state["selected_subject"] = None
     st.session_state["selected_unit"] = None
     st.session_state["selected_game"] = None
@@ -286,7 +303,7 @@ if "selected_unit" not in st.session_state:
 if "selected_game" not in st.session_state:
   st.session_state["selected_game"] = None
 
-# --- AŞAMA 1: DERS SEÇİMİ (BÜYÜK RENKLİ KUTUCUKLAR) ---
+# --- AŞAMA 1: DERS SEÇİMİ ---
 if st.session_state["selected_subject"] is None:
   st.markdown(
       "### 🌟 Lütfen Çalışmak İstediğiniz MEB Dersine Tıklayın (Dashboard)"
@@ -299,7 +316,6 @@ if st.session_state["selected_subject"] is None:
     col_idx = i % 3
     data = MEB_CURRICULUM[subj]
     with cols[col_idx]:
-      # Her dersin kendi rengini buton arkaplanına enjekte ediyoruz
       st.markdown(
           f"""
             <style>
@@ -318,7 +334,7 @@ if st.session_state["selected_subject"] is None:
         st.session_state["selected_subject"] = subj
         st.rerun()
 
-# --- AŞAMA 2: ÜNİTE SEÇİMİ (BÜYÜK RENKLİ KUTUCUKLAR) ---
+# --- AŞAMA 2: ÜNİTE SEÇİMİ ---
 elif (
     st.session_state["selected_subject"] is not None
     and st.session_state["selected_unit"] is None
@@ -358,7 +374,7 @@ elif (
         st.session_state["selected_unit"] = unit_name
         st.rerun()
 
-# --- AŞAMA 3: OYUN VE SORU MODELLERİ (BÜYÜK RENKLİ KUTUCUKLAR) ---
+# --- AŞAMA 3: OYUN VE SORU MODELLERİ SEÇİMİ ---
 elif (
     st.session_state["selected_subject"] is not None
     and st.session_state["selected_unit"] is not None
@@ -384,31 +400,11 @@ elif (
   st.markdown("### 🎮 Lütfen Bir Oyun / Soru Modülü Kutucuğuna Tıklayın")
 
   games = [
-      {
-          "id": "balon",
-          "isim": "🎈 Balon Patlatmaca",
-          "renk": "#ff6b6b",
-      },
-      {
-          "id": "sinav10",
-          "isim": "🧠 10 Soruluk MEB Sınavı",
-          "renk": "#1c83e1",
-      },
-      {
-          "id": "acik",
-          "isim": "✍️ Açık Uçlu Soru Köşesi",
-          "renk": "#00cc96",
-      },
-      {
-          "id": "kelime",
-          "isim": "🔤 Kelime Avı & Bulmaca",
-          "renk": "#ffa15a",
-      },
-      {
-          "id": "koc",
-          "isim": "🤖 Yapay Zeka Koçum",
-          "renk": "#ab63fa",
-      },
+      {"id": "balon", "isim": "🎈 Balon Patlatmaca", "renk": "#ff6b6b"},
+      {"id": "sinav10", "isim": "🧠 10 Soruluk MEB Sınavı", "renk": "#1c83e1"},
+      {"id": "acik", "isim": "✍️ Açık Uçlu Soru Köşesi", "renk": "#00cc96"},
+      {"id": "kelime", "isim": "🔤 Kelime Avı & Bulmaca", "renk": "#ffa15a"},
+      {"id": "koc", "isim": "🤖 Yapay Zeka Koçum", "renk": "#ab63fa"},
   ]
 
   g_cols = st.columns(3)
@@ -652,5 +648,3 @@ else:
           )
           if ans:
             st.success(ans)
-
-<FollowUp/>
