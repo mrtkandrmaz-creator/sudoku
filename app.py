@@ -11,81 +11,71 @@ st.set_page_config(
     layout="wide",
 )
 
-# --- 1. KOŞULSUZ VE ESNEK TOML / SECRETS API TARAMA MOTORU ---
+# --- 1. TOML [api_keys] FORMATINI DOĞRUDAN OKUYAN KUSURSUZ MOTOR ---
 
 
 def get_all_api_keys():
-  """Streamlit secrets (TOML) veya ortam değişkenlerinden
-
-  tüm API anahtarlarını biçim fark etmeksizin koşulsuz toplar.
-  """
+  """Streamlit secrets içindeki [api_keys] tablosunu ve listeleri kesin okur."""
   gemini_keys = []
   groq_keys = []
 
-  # Streamlit Secrets (TOML) derinlemesine özyinelemeli tarama
   try:
     if hasattr(st, "secrets") and st.secrets:
-      # 1. Doğrudan anahtarları kontrol et
-      for top_key in st.secrets.keys():
-        tk_lower = str(top_key).lower()
-        try:
-          val = str(st.secrets[top_key]).strip()
-          if len(val) > 5:
-            if (
-                "gemini" in tk_lower
-                or "google" in tk_lower
-                or val.startswith("AIza")
-            ):
-              if val not in gemini_keys:
-                gemini_keys.append(val)
-            elif "groq" in tk_lower or val.startswith("gsk_"):
-              if val not in groq_keys:
-                groq_keys.append(val)
-        except Exception:
-          pass
+      # 1. Doğrudan [api_keys] tablosu altındaki listeleri kontrol et
+      if "api_keys" in st.secrets:
+        api_block = st.secrets["api_keys"]
+        if isinstance(api_block, dict):
+          # groq_keys listesi
+          if "groq_keys" in api_block:
+            g_list = api_block["groq_keys"]
+            if isinstance(g_list, (list, tuple)):
+              for k in g_list:
+                if isinstance(k, str) and len(k.strip()) > 5:
+                  if k.strip() not in groq_keys:
+                    groq_keys.append(k.strip())
+          # gemini_keys listesi
+          if "gemini_keys" in api_block:
+            ge_list = api_block["gemini_keys"]
+            if isinstance(ge_list, (list, tuple)):
+              for k in ge_list:
+                if isinstance(k, str) and len(k.strip()) > 5:
+                  if k.strip() not in gemini_keys:
+                    gemini_keys.append(k.strip())
 
-      # 2. İç içe tabloları (nested dict) tarama
+      # 2. Genel esnek tarama (Her ihtimale karşı)
       def recursive_search(data):
         if isinstance(data, dict):
           for k, v in data.items():
-            if isinstance(v, dict):
-              recursive_search(v)
-            elif isinstance(v, str):
-              val = v.strip()
-              k_lower = str(k).lower()
-              if len(val) > 5:
-                if (
-                    "gemini" in k_lower
-                    or "google" in k_lower
-                    or val.startswith("AIza")
-                ):
-                  if val not in gemini_keys and not val.startswith("gsk_"):
-                    gemini_keys.append(val)
-                elif "groq" in k_lower or val.startswith("gsk_"):
-                  if val not in groq_keys:
-                    groq_keys.append(val)
+            recursive_search(v)
+        elif isinstance(data, (list, tuple)):
+          for item in data:
+            if isinstance(item, str) and len(item.strip()) > 5:
+              val = item.strip()
+              if val.startswith("gsk_") and val not in groq_keys:
+                groq_keys.append(val)
+              elif (
+                  val.startswith("AQ.")
+                  or "AIza" in val
+                  or len(val) > 20
+                  and val not in gemini_keys
+              ):
+                if val not in gemini_keys and not val.startswith("gsk_"):
+                  gemini_keys.append(val)
 
       recursive_search(st.secrets)
   except Exception:
     pass
 
-  # Sistem Ortam Değişkenleri Taraması
+  # Sistem Ortam Değişkenleri
   for env_key, env_val in os.environ.items():
-    env_lower = env_key.lower()
     if env_val and isinstance(env_val, str) and len(env_val.strip()) > 5:
       val = env_val.strip()
-      if (
-          "gemini" in env_lower
-          or "google" in env_lower
-          or val.startswith("AIza")
-      ):
-        if val not in gemini_keys:
-          gemini_keys.append(val)
-      elif "groq" in env_lower or val.startswith("gsk_"):
-        if val not in groq_keys:
-          groq_keys.append(val)
+      if val.startswith("gsk_") and val not in groq_keys:
+        groq_keys.append(val)
+      elif (val.startswith("AQ.") or "AIza" in val) and val not in gemini_keys:
+        gemini_keys.append(val)
 
-  # Manuel eklenenler (Session State)
+  # Manuel eklenenler
   if "manual_gemini" in st.session_state and st.session_state["manual_gemini"]:
     if st.session_state["manual_gemini"] not in gemini_keys:
       gemini_keys.append(st.session_state["manual_gemini"])
@@ -119,7 +109,7 @@ except ImportError:
 
 
 def ai_generate_content(prompt_text):
-  """Mutlaka gemini-3.6-flash ve Groq modellerini dener."""
+  """Gemini ve Groq anahtarlarını sırayla dener."""
   if has_gemini and gemini_keys:
     for g_key in gemini_keys:
       try:
@@ -280,21 +270,11 @@ with st.sidebar:
   st.subheader("⚙️ Sistem & API Durumu")
   if gemini_keys or groq_keys:
     st.success(
-        f"✅ Yapay Zeka Aktif!\n(Gemini: {len(gemini_keys)}, Groq:"
-        f" {len(groq_keys)})"
+        f"✅ Yapay Zeka Aktif!\n(Groq: {len(groq_keys)}, Gemini:"
+        f" {len(gemini_keys)})"
     )
   else:
-    st.warning("⚠️ TOML'dan anahtar okunamadı. Geçici girebilirsiniz:")
-    m_key = st.text_input("API Key Girin:", type="password")
-    if m_key:
-      if m_key.startswith("AIza"):
-        st.session_state["manual_gemini"] = m_key
-        st.success("Gemini eklendi!")
-        st.rerun()
-      elif m_key.startswith("gsk_"):
-        st.session_state["manual_groq"] = m_key
-        st.success("Groq eklendi!")
-        st.rerun()
+    st.warning("⚠️ TOML'dan anahtar okunamadı.")
 
   st.markdown("---")
   if st.button("🏠 Ana Sayfaya Dön", key="home_btn", use_container_width=True):
@@ -650,3 +630,5 @@ else:
           )
           if ans:
             st.success(ans)
+
+<FollowUp/>
