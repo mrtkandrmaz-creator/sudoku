@@ -387,7 +387,7 @@ else:
 
   st.markdown("---")
 
-  # 1. BALON PATLATMACA (5 SORU, 50 SANİYE, HAREKETLİ BALONLAR, WEB AUDIO SESLERİ)
+  # 1. BALON PATLATMACA
   if curr_game == "balon":
     st.subheader(f"🎈 {curr_subj} — Klasik Balon Patlatmaca Oyunu")
 
@@ -631,7 +631,7 @@ else:
                                     overlay.style.display = 'none';
                                     currentIdx++;
                                     loadQuestion();
-                                }, 3500);
+                                }}, 3500);
                             }};
                             
                             area.appendChild(b);
@@ -678,7 +678,7 @@ else:
             """
       st.components.v1.html(html_balloon_game, height=535)
 
-  # 2. 5 SORULUK MEB KAZANIM OYUNU (60 Saniye Süreli İnteraktif Bilgi Yarışması)
+  # 2. 5 SORULUK MEB KAZANIM OYUNU
   elif curr_game == "sinav10":
     st.subheader(f"🧠 {curr_subj} — 5 Soruluk MEB Kazanım Yarışması")
 
@@ -862,7 +862,7 @@ else:
             """
       st.components.v1.html(html_quiz_game, height=450)
 
-  # 3. KLASİK YAZILI SİMÜLATÖRÜ (5 Açık Uçlu Soru ve AI Değerlendirme)
+  # 3. KLASİK YAZILI SİMÜLATÖRÜ
   elif curr_game == "acik":
     st.subheader(f"✍️ {curr_subj} — 5 Soruluk Klasik Yazılı Sınavı")
 
@@ -904,7 +904,6 @@ else:
           st.markdown("---")
 
         if st.form_submit_button("Yazılı Kağıdını Yapay Zekaya Puanlat"):
-          total_points = 0
           for idx, cq in enumerate(exam_list):
             ans = user_answers.get(idx, "")
             if ans.strip():
@@ -918,7 +917,7 @@ else:
             else:
               st.warning(f"Soru {idx+1} boş bırakıldı (0 Puan).")
 
-  # 4. KELİME AVI & BULMACA (5 Kavram Bulmacası)
+  # 4. KELİME AVI & BULMACA
   elif curr_game == "kelime":
     st.subheader(f"🔤 {curr_subj} — 5 Soruluk Kelime Avı & Bulmaca")
 
@@ -986,5 +985,3 @@ else:
           )
           if ans:
             st.success(ans)
-
-<FollowUp/>
