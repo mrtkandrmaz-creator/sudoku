@@ -201,8 +201,6 @@ if "game_started" not in st.session_state:
   st.session_state["game_started"] = False
 if "coach_theme" not in st.session_state:
   st.session_state["coach_theme"] = "Mavi-Beyaz"
-if "coach_open" not in st.session_state:
-  st.session_state["coach_open"] = False
 if "coach_messages" not in st.session_state:
   st.session_state["coach_messages"] = [
       {
@@ -383,7 +381,7 @@ def render_question_visual(gorsel_tipi, param):
     st.markdown(svg_code, unsafe_allow_html=True)
 
 
-# --- 7. SOL MENÜ ---
+# --- 7. SOL MENÜ VE ADENMİND YAPAY ZEKA ROBOTU ---
 with st.sidebar:
   st.subheader("🦊 AdenMind Tema Tercihi")
   selected_theme = st.radio(
@@ -411,78 +409,27 @@ with st.sidebar:
     st.session_state["game_started"] = False
     st.rerun()
 
-
-# --- 8. SAĞ ALT KÖŞE: SAĞ ALT PENCERE İÇİNDE KUSURSUZ CANLI SOHBET MOTORU ---
-
-st.markdown(
-    f"""
-    <style>
-    /* Sağ altta sabit duran açma butonu */
-    .fixed-avatar-container {{
-        position: fixed;
-        bottom: 25px;
-        right: 25px;
-        z-index: 99999;
-    }}
-    /* İstediğiniz o sağ alttaki şık, dikey pencere yapısı */
-    .floating-chat-window {{
-        position: fixed;
-        bottom: 95px;
-        right: 25px;
-        width: 320px;
-        background: #ffffff;
-        border: 2px solid {c_border};
-        border-radius: 18px;
-        box-shadow: 0 10px 30px rgba(0,0,0,0.3);
-        z-index: 99998;
-        overflow: hidden;
-        padding-bottom: 10px;
-    }}
-    </style>
-""",
-    unsafe_allow_html=True,
-)
-
-# Sağ alttaki açma/kapama kontrolü
-st.markdown('<div class="fixed-avatar-container">', unsafe_allow_html=True)
-if st.session_state["coach_open"]:
-  if st.button("❌ Kapat", key="close_avatar_float"):
-    st.session_state["coach_open"] = False
-    st.rerun()
-else:
-  if st.button("🦊 AdenMind", key="open_avatar_float"):
-    st.session_state["coach_open"] = True
-    st.rerun()
-st.markdown("</div>", unsafe_allow_html=True)
-
-# Asistan açıksa her şey tam olarak sağ alttaki o şık pencerenin içine yerleşir
-if st.session_state["coach_open"]:
-  st.markdown('<div class="floating-chat-window">', unsafe_allow_html=True)
-
-  # Üst Mavi Bant Başlık
+  # --- SOL PANELDE COMPACT ADENMİND SOHBET MOTORU ---
+  st.markdown("---")
   st.markdown(
       f"""
-        <div style="background: {c_bg_gradient}; padding: 10px 14px; color: white; display: flex; align-items: center; justify-content: space-between; font-weight: bold; font-size: 13px;">
-            <div style="display: flex; align-items: center; gap: 6px;">
-                <span style="font-size: 18px;">🦊</span>
-                <span>AdenMind (Canlı Asistan)</span>
-            </div>
-            <span style="font-size: 9px; background: rgba(0,0,0,0.2); padding: 2px 6px; border-radius: 8px;">Aktif</span>
+        <div style="background: {c_bg_gradient}; padding: 10px; border-radius: 10px; color: white; display: flex; align-items: center; gap: 8px; font-weight: bold; font-size: 13px; margin-bottom: 10px;">
+            <span style="font-size: 18px;">🦊</span>
+            <span>AdenMind (Canlı Asistan)</span>
         </div>
     """,
       unsafe_allow_html=True,
   )
 
-  # Sohbet mesajları kaydırma alanı (Pencereye tam oturan yükseklik)
-  chat_box = st.container(height=240)
-  with chat_box:
+  sidebar_chat_box = st.container(height=320)
+  with sidebar_chat_box:
     for msg in st.session_state["coach_messages"]:
       if msg["role"] == "assistant":
         st.markdown(
             f"""
-                <div style="display: flex; align-items: flex-start; gap: 6px; margin-bottom: 6px;">
+                <div style="display: flex; align-items: flex-start; gap: 4px; margin-bottom: 6px;">
                     <div style="font-size: 14px;">🦊</div>
-                    <div style="background-color: {c_bubble_ai}; padding: 6px 8px; border-radius: 10px; border-top-left-radius: 2px; color: {c_text_color}; font-size: 11px; max-width: 85%; box-shadow: 0 1px 2px rgba(0,0,0,0.1);">
+                    <div style="background-color: {c_bubble_ai}; padding: 6px 8px; border-radius: 8px; color: {c_text_color}; font-size: 11px;">
                         {msg['content']}
                     </div>
                 </div>
@@ -493,7 +440,7 @@ if st.session_state["coach_open"]:
         st.markdown(
             f"""
                 <div style="display: flex; justify-content: flex-end; margin-bottom: 6px;">
-                    <div style="background-color: {c_bubble_user}; padding: 6px 8px; border-radius: 10px; border-top-right-radius: 2px; color: #1e293b; font-size: 11px; max-width: 85%; box-shadow: 0 1px 2px rgba(0,0,0,0.1);">
+                    <div style="background-color: {c_bubble_user}; padding: 6px 8px; border-radius: 8px; color: #1e293b; font-size: 11px;">
                         {msg['content']}
                     </div>
                 </div>
@@ -501,15 +448,11 @@ if st.session_state["coach_open"]:
             unsafe_allow_html=True,
         )
 
-  # Alt Mesaj Giriş Formu (Pencerenin içine tam entegre)
-  with st.form("vertical_chat_form", clear_on_submit=True):
-    col_inp, col_btn = st.columns([4, 1])
-    with col_inp:
-      user_msg = st.text_input(
-          "Mesaj yaz...", label_visibility="collapsed", key="v_msg"
-      )
-    with col_btn:
-      submitted = st.form_submit_button("Git")
+  with st.form("sidebar_chat_form", clear_on_submit=True):
+    user_msg = st.text_input(
+        "Asistana sor...", label_visibility="collapsed", key="s_msg"
+    )
+    submitted = st.form_submit_button("Gönder", use_container_width=True)
 
     if submitted and user_msg:
       st.session_state["coach_messages"].append(
@@ -535,8 +478,6 @@ if st.session_state["coach_open"]:
             }
         )
       st.rerun()
-
-  st.markdown("</div>", unsafe_allow_html=True)
 
 
 # --- AŞAMA 1: DERS SEÇİMİ (KARTLARA DİREKT TIKLAMA) ---
@@ -1185,19 +1126,80 @@ else:
           st.session_state["fc_idx"] = 0
           st.rerun()
 
-  # 6. OYNAYARAK ÖĞREN
+  # 6. OYNAYARAK ÖĞREN (DOĞRU CEVAPLAR KALDIRILDI, KULLANICI SEÇER)
   elif curr_game == "oynayarak":
     st.subheader(f"🎯 {curr_subj} — Oynayarak Öğren Atölyesi")
-    st.info(
-        "Bu modül, konuları oyunlaştırılmış senaryolar, interaktif bulmacalar"
-        " ve mini görevlerle pekiştirmenizi sağlar."
-    )
-    if st.button("🚀 Oynayarak Öğren Görevini Başlat"):
-      with st.spinner("Görev yükleniyor..."):
-        prompt = f"5. Sınıf {curr_subj} {curr_unit} için eğlenceli ve interaktif bir oynayarak öğren görev senaryosu ve ipuçları üret."
+    if (
+        "interactive_quest" not in st.session_state
+        or st.session_state.get("iq_unit_key") != (curr_subj, curr_unit)
+    ):
+      st.session_state["interactive_quest"] = None
+      st.session_state["iq_unit_key"] = (curr_subj, curr_unit)
+
+    if st.button("🚀 İnteraktif Görevi Başlat", key="gen_interactive_quest"):
+      with st.spinner(
+          "Yapay zeka eğitsel oyun senaryosunu ve bulmacaları hazırlıyor..."
+      ):
+        prompt = f"""
+                5. Sınıf MEB müfredatı, Ders: {curr_subj}, Ünite: {curr_unit}.
+                Öğrencinin oynayarak öğreneceği, kendi karar vereceği bir senaryo ve çoktan seçmeli mini görev (soru, 4 şık A, B, C, D ve ipucu) üret. 
+                DİKKAT: Doğru cevabı açıkça METNİN İÇİNDE YAZMA. Sadece senaryo, ipucu ve 4 şıkkı ver.
+                JSON formatında şu yapıda ver:
+                {{
+                  "senaryo": "...",
+                  "gorev_sorusu": "...",
+                  "secenekler": ["A) ...", "B) ...", "C) ...", "D) ..."],
+                  "ipucu": "..."
+                }}
+                """
         res = ai_generate_content(prompt)
         if res:
-          st.markdown(res)
+          try:
+            st.session_state["interactive_quest"] = json.loads(
+                re.sub(r"```json|```", "", res).strip()
+            )
+            st.rerun()
+          except Exception:
+            pass
+
+    if st.session_state["interactive_quest"]:
+      iq = st.session_state["interactive_quest"]
+      st.markdown(
+          f"""
+            <div style="background: rgba(255,255,255,0.06); padding: 20px; border-radius: 14px; border: 2px solid {c_border}; margin-bottom: 15px;">
+                <h4 style="color: #38bdf8; margin-top:0;">📖 Görev Senaryosu</h4>
+                <p style="font-size: 16px;">{iq.get('senaryo', '')}</p>
+                <hr style="border-color: rgba(255,255,255,0.2);">
+                <h4 style="color: #facc15;">🎯 Soru / Karar Noktası</h4>
+                <p style="font-size: 18px; font-weight: bold;">{iq.get('gorev_sorusu', '')}</p>
+            </div>
+            """,
+          unsafe_allow_html=True,
+      )
+
+      with st.form("interactive_choice_form"):
+        user_choice = st.radio(
+            "Seçiminizi Yapın:", iq.get("secenekler", []), index=None
+        )
+        submitted_choice = st.form_submit_button("Seçimi Gönder ve Değerlendir")
+
+        if submitted_choice:
+          if user_choice:
+            eval_prompt = f"""
+                        Ders: {curr_subj}, Ünite: {curr_unit}.
+                        Görev Sorusu: {iq.get('gorev_sorusu')}
+                        Öğrencinin Seçtiği Şık: {user_choice}
+                        Bu seçimin doğru olup olmadığını değerlendir, nedenini sevimli bir dille açıkla.
+                        """
+            feedback = ai_generate_content(eval_prompt)
+            st.success("Değerlendirme Tamamlandı! ✨")
+            st.info(feedback)
+          else:
+            st.warning("Lütfen seçeneklerden birini işaretleyin!")
+
+      if st.button("💡 AdenMind İpucu İste"):
+        st.toast(f"Koçun İpucu: {iq.get('ipucu', 'Dikkatli düşün!')}")
+        st.info(f"🦊 **AdenMind İpucu:** {iq.get('ipucu', '')}")
 
   # 7. ETKİNLİKLERLE ÖĞREN
   elif curr_game == "etkinlik":
