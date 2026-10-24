@@ -1,47 +1,43 @@
+import json
 import random
+import re
 import streamlit as st
 
 # Sayfa Yapılandırması
 st.set_page_config(
-    page_title="MEB 5. Sınıf Oyunla Öğrenme Platformu",
-    page_icon="🎒",
+    page_title="MEB Tarzı İnteraktif Oyunla Öğrenme Platformu",
+    page_icon="🎮",
     layout="wide",
 )
 
-# --- 1. ÇOKLU API YÖNETİMİ VE BAĞLANTI (GEMINI & GROQ) ---
+# --- 1. ESNEK TOML / SECRETS API TARAMA MOTORU ---
 
 
-def get_api_keys():
-  """Streamlit secrets üzerinden birden çok Gemini ve Groq anahtarını toplar."""
+def get_all_api_keys():
+  """Streamlit secrets içindeki anahtarları isimlendirme bağımsız tarar."""
   gemini_keys = []
   groq_keys = []
 
   try:
-    if "GEMINI_API_KEY" in st.secrets:
-      gemini_keys.append(st.secrets["GEMINI_API_KEY"])
-    for i in range(1, 10):
-      key_name = f"GEMINI_API_KEY_{i}"
-      if key_name in st.secrets:
-        gemini_keys.append(st.secrets[key_name])
-  except Exception:
-    pass
-
-  try:
-    if "GROQ_API_KEY" in st.secrets:
-      groq_keys.append(st.secrets["GROQ_API_KEY"])
-    for i in range(1, 10):
-      key_name = f"GROQ_API_KEY_{i}"
-      if key_name in st.secrets:
-        groq_keys.append(st.secrets[key_name])
+    # Tüm secrets anahtarlarını tarayıp içinde gemini veya groq geçenleri ayıklarız
+    for key, val in st.secrets.items():
+      key_upper = key.upper()
+      if val and isinstance(val, str) and len(val.strip()) > 5:
+        if "GEMINI" in key_upper:
+          if val not in gemini_keys:
+            gemini_keys.append(val.strip())
+        elif "GROQ" in key_upper:
+          if val not in groq_keys:
+            groq_keys.append(val.strip())
   except Exception:
     pass
 
   return gemini_keys, groq_keys
 
 
-gemini_keys, groq_keys = get_api_keys()
+gemini_keys, groq_keys = get_all_api_keys()
 
-# API Kütüphanelerini İçe Aktarma Denemesi
+# Kütüphane Yükleme Kontrolleri
 has_gemini = False
 has_groq = False
 
@@ -63,15 +59,12 @@ except ImportError:
 
 
 def ai_generate_content(prompt_text):
-  """Tanımlı çoklu API'ler arasında geçiş yaparak (yedekli) yapay zeka yanıtı üretir."""
-  response_text = None
-
-  # Önce Gemini dene
+  """Çoklu API anahtarları arasında sırayla dener (Failover mekanizması)."""
+  # Önce Gemini
   if has_gemini and gemini_keys:
     for g_key in gemini_keys:
       try:
         genai.configure(api_key=g_key)
-        # Güvenli model seçimi
         for model_name in [
             "gemini-1.5-flash",
             "gemini-1.5-pro",
@@ -87,7 +80,7 @@ def ai_generate_content(prompt_text):
       except Exception:
         continue
 
-  # Gemini başarısız olursa Groq dene
+  # Gemini başarısızsa Groq
   if has_groq and groq_keys:
     for gr_key in groq_keys:
       try:
@@ -105,7 +98,7 @@ def ai_generate_content(prompt_text):
   return None
 
 
-# --- 2. 5. SINIF MEB MÜFREDATI VE ÜNİTELERİ ---
+# --- 2. 5. SINIF MEB MÜFREDATI ---
 MEB_CURRICULUM = {
     "Türkçe": [
         "1. Tema: Sözcükte Anlam",
@@ -118,8 +111,8 @@ MEB_CURRICULUM = {
         "1. Ünite: Doğal Sayılar ve İşlemler",
         "2. Ünite: Kesirler",
         "3. Ünite: Ondalık Gösterimler",
-        "4. Ünite: Temel Geometrik Kavramlar ve Çizimler",
-        "5. Ünite: Veri İşleme ve Uzunluk Ölçme",
+        "4. Ünite: Temel Geometrik Kavramlar",
+        "5. Ünite: Veri İşleme",
     ],
     "Fen Bilimleri": [
         "1. Ünite: Güneş, Dünya ve Ay",
@@ -128,19 +121,19 @@ MEB_CURRICULUM = {
         "4. Ünite: Madde ve Değişim",
         "5. Ünite: Işığın Yayılması",
         "6. Ünite: İnsan ve Çevre",
-        "7. Ünite: Elektrik Devre Elemanları",
+        "7. Ünite: Elektrik Devreleri",
     ],
     "Sosyal Bilgiler": [
         "1. Ünite: Birlikte Yaşamak",
         "2. Ünite: Evimiz Dünya",
-        "3. Ünite: Çevremizde Değerler ve Kültür",
+        "3. Ünite: Kültür ve Miras",
         "4. Ünite: Yaşayan Türkiye",
         "5. Ünite: Üreten Türkiye",
         "6. Ünite: Yönetime Katılıyorum",
     ],
     "Din Kültürü ve Ahlak Bilgisi": [
         "1. Ünite: Allah İnancı",
-        "2. Ünite: Ramazan ve Oruç İbadeti",
+        "2. Ünite: Ramazan ve Oruç",
         "3. Ünite: Hz. Muhammed ve Aile Hayatı",
         "4. Ünite: Çevremizde Dinin İzleri",
         "5. Ünite: Ahlaki Değerler",
@@ -166,221 +159,295 @@ MEB_CURRICULUM = {
     ],
 }
 
-# --- 3. ARAYÜZ VE MENÜLER ---
+# --- 3. ARAYÜZ TASARIMI ---
 st.markdown(
     """
     <style>
     .main-header {
-        background: linear-gradient(90deg, #ff8c00, #ffa500);
-        padding: 15px;
-        border-radius: 10px;
+        background: linear-gradient(90deg, #1e3c72, #2a5298);
+        padding: 18px;
+        border-radius: 12px;
         color: white;
         text-align: center;
         font-weight: bold;
-        font-size: 24px;
+        font-size: 26px;
         margin-bottom: 20px;
+        box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+    }
+    .game-box {
+        background-color: #f8f9fa;
+        padding: 20px;
+        border-radius: 10px;
+        border: 2px solid #e9ecef;
+        margin-bottom: 15px;
     }
     .stButton>button {
-        background-color: #ff8c00;
+        background-color: #2a5298;
         color: white;
         border-radius: 8px;
         font-weight: bold;
         border: none;
+        width: 100%;
     }
     .stButton>button:hover {
-        background-color: #e07b00;
+        background-color: #1e3c72;
         color: white;
     }
     </style>
-    <div class="main-header">🎒 5. Sınıf MEB Eğlenceli Öğrenme Merkezi (Murat KANDIRMAZ)</div>
+    <div class="main-header">🎮 MEB İnteraktif Oyunla Öğrenme Platformu (Murat KANDIRMAZ)</div>
 """,
     unsafe_allow_html=True,
 )
 
-# API Durum Kontrolü ve Uyarı
+# API Durumu Uyarısı
 if not gemini_keys and not groq_keys:
   st.warning(
-      "⚠️ Yapay zeka anahtarları (Gemini veya Groq) algılanamadı! Sorular"
-      " yerel havuzdan üretilecektir. Tam performans için `secrets.toml`"
-      " dosyanızı ekleyin."
+      "⚠️ Hiçbir API anahtarı algılanamadı! Sistem yerel yedek modda"
+      " çalışacaktır. `secrets.toml` yapılandırmanızı kontrol edebilirsiniz."
   )
 
-# Yan Menü: Ders ve Mod Seçimi
-st.sidebar.title("📌 Ders ve Mod Seçimi")
+# Kenar Çubuğu: Ders, Ünite ve Oyun Modu Seçimi
+st.sidebar.title("📌 Menü ve Ayarlar")
 selected_subject = st.sidebar.selectbox(
-    "Ders Seçiniz", list(MEB_CURRICULUM.keys())
+    "📚 Ders Seçiniz", list(MEB_CURRICULUM.keys())
 )
 selected_unit = st.sidebar.selectbox(
-    "Ünite / Konu Seçiniz", MEB_CURRICULUM[selected_subject]
+    "📖 Ünite Seçiniz", MEB_CURRICULUM[selected_subject]
 )
 
-game_mode = st.sidebar.radio(
-    "Öğrenme Modu Seçin:",
+game_mode = st.sidebar.selectbox(
+    "🎯 İnteraktif Oyun Modu:",
     [
-        "🎯 AI Soru Fabrikası (Test Çöz)",
-        "🧩 Kelime Eşleştirme & Bulmaca",
-        "🤖 AI Akıllı Öğretmen (Koç)",
+        "🔤 Kelime Avı & Bulmaca",
+        "⚖️ Doğru / Yanlış Bulmaca",
+        "🧠 Çoktan Seçmeli Meb Sınavı",
+        "🤖 Yapay Zeka Eğitmenimle Soru-Cevap",
     ],
 )
 
-# --- MOD 1: AI SORU FABRİKASI ---
-if game_mode == "🎯 AI Soru Fabrikası (Test Çöz)":
-  st.subheader(f"🎯 {selected_subject} - {selected_unit} Test Alanı")
+# --- OYUN MODU 1: KELİME AVI & BULMACA ---
+if game_mode == "🔤 Kelime Avı & Bulmaca":
+  st.subheader(f"🔤 Kelime Avı & Bulmaca — {selected_subject}")
   st.write(
-      "MEB müfredatına uygun olarak yapay zeka tarafından hazırlanan soruları"
-      " çöz, puanları topla!"
+      "Bu ünitedeki anahtar kavramları bulmaca bulmacaları ve tanım"
+      " eşleştirmeleriyle öğren!"
   )
 
-  if "quiz_data" not in st.session_state or st.session_state.get(
-      "current_unit"
-  ) != (selected_subject, selected_unit):
-    st.session_state["quiz_data"] = None
-    st.session_state["user_answers"] = {}
-    st.session_state["current_unit"] = (selected_subject, selected_unit)
+  if (
+      "puzzle_data" not in st.session_state
+      or st.session_state.get("puzzle_unit") != (selected_subject, selected_unit)
+  ):
+    st.session_state["puzzle_data"] = None
+    st.session_state["puzzle_unit"] = (selected_subject, selected_unit)
 
-  if st.button("🚀 Bu Üniteden Yeni Sorular Üret"):
-    with st.spinner("Yapay zeka MEB kazanımlarına uygun sorular hazırlıyor..."):
+  if st.button("🔍 Bulmaca Kelimelerini Üret"):
+    with st.spinner("Yapay zeka MEB müfredatına uygun kelime avı hazırlıyor..."):
       prompt = f"""
-            Sen uzman bir 5. Sınıf MEB müfredat öğretmenisin. 
+            Sen uzman bir 5. Sınıf MEB müfredat öğretmenisin.
             Ders: {selected_subject}
-            Ünite/Konu: {selected_unit}
+            Ünite: {selected_unit}
             
-            Lütfen bu konuyla ilgili 5 adet çoktan seçmeli, 4 şıklı (A, B, C, D) eğlenceli ve öğretici soru hazırla.
-            Yanıtı kesinlikle aşağıdaki JSON formatında ver, başka hiçbir metin ekleme:
+            Bu üniteyle ilgili tam 4 adet önemli anahtar kelime ve bu kelimelerin kısa tanımlarını seç.
+            Yanıtı sadece aşağıdaki JSON formatında ver, başka hiçbir metin ekleme:
             [
-              {{
-                "soru": "Soru metni buraya",
-                "secenekler": ["A) şık", "B) şık", "C) şık", "D) şık"],
-                "dogru_cevap": "A",
-                "aciklama": "Çocuğun anlayacağı dilde kısa açıklama"
-              }}
-            ]
-            """
-      ai_response = ai_generate_content(prompt)
-      if ai_response:
-        import json
-        import re
-
-        try:
-          # JSON temizleme
-          cleaned = re.sub(r"```json|```", "", ai_response).strip()
-          st.session_state["quiz_data"] = json.loads(cleaned)
-          st.success("Sorular başarıyla yüklendi!")
-        except Exception:
-          st.error(
-              "Sorular yüklenirken biçim hatası oluştu. Lütfen tekrar deneyin."
-          )
-          st.session_state["quiz_data"] = None
-      else:
-        st.error(
-            "Yapay zeka yanıt veremedi. Lütfen API anahtarlarınızı kontrol"
-            " edin."
-        )
-
-  # Soruları Göster
-  if st.session_state["quiz_data"]:
-    quiz = st.session_state["quiz_data"]
-    with st.form(key="quiz_form"):
-      score = 0
-      for idx, q in enumerate(quiz):
-        st.markdown(f"**Soru {idx+1}:** {q['soru']}")
-        choice = st.radio(
-            f"Seçiminiz (Soru {idx+1}):",
-            q["secenekler"],
-            key=f"q_{idx}",
-            index=None,
-        )
-        st.session_state["user_answers"][idx] = choice
-        st.markdown("---")
-
-      submitted = st.form_submit_button("Sınavı Bitir ve Puanı Gör")
-      if submitted:
-        correct_count = 0
-        for idx, q in enumerate(quiz):
-          user_ans = st.session_state["user_answers"].get(idx)
-          if user_ans and user_ans.startswith(q["dogru_cevap"]):
-            correct_count += 1
-
-        st.balloons()
-        st.success(
-            f"🎉 Sınav Tamamlandı! Toplam Puanınız: {correct_count * 20} / 100"
-            f" ({correct_count} Doğru, {len(quiz)-correct_count} Yanlış)"
-        )
-
-        with st.expander("📖 Soru Çözümleri ve Açıklamalar"):
-          for idx, q in enumerate(quiz):
-            st.markdown(
-                f"**Soru {idx+1}:** Doğru Cevap: **{q['dogru_cevap']}**"
-            )
-            st.info(f"Açıklama: {q['aciklama']}")
-
-# --- MOD 2: KELİME EŞLEŞTİRME & BULMACA ---
-elif game_mode == "🎯 Kelime Eşleştirme & Bulmaca" or game_mode == (
-    "🧩 Kelime Eşleştirme & Bulmaca"
-):
-  st.subheader(f"🧩 {selected_subject} - Bilgi Kartları & Kelime Bulmaca")
-  st.write(
-      "Bu ünitenin en önemli kavramlarını öğrenmek için yapay zekadan anahtar"
-      " kelimeler isteyin."
-  )
-
-  if st.button("✨ Ünite Terim Kartlarını Getir"):
-    with st.spinner("Kavramlar hazırlanıyor..."):
-      prompt = f"""
-            5. Sınıf {selected_subject} dersi {selected_unit} konusu için en önemli 5 anahtar kelimeyi ve kısa açıklamalarını seç.
-            Yanıtı JSON formatında şu şekilde ver:
-            [
-              {{"kelime": "Kavram", "tanim": "Çocuklar için basit açıklama"}}
+              {{"kelime": "TERİM", "ipucu": "Tanımı veya bulmaca ipucu cümlesi"}}
             ]
             """
       res = ai_generate_content(prompt)
       if res:
-        import json
-        import re
-
         try:
           cleaned = re.sub(r"```json|```", "", res).strip()
-          terms = json.loads(cleaned)
-          for t in terms:
-            st.info(f"🔑 **{t['kelime']}**: {t['tanim']}")
+          st.session_state["puzzle_data"] = json.loads(cleaned)
+          st.success("Bulmaca başarıyla oluşturuldu!")
         except Exception:
-          st.write(res)
+          st.error("Veri işlenirken hata oluştu. Lütfen tekrar deneyin.")
       else:
-        st.warning(
-            "Yapay zekaya ulaşılamadı. Lütfen API ayarlarınızı kontrol edin."
+        st.error("Yapay zeka yanıt veremedi.")
+
+  if st.session_state["puzzle_data"]:
+    items = st.session_state["puzzle_data"]
+    with st.form("puzzle_form"):
+      score = 0
+      user_guesses = {}
+      for i, item in enumerate(items):
+        st.markdown(f"**İpucu {i+1}:** {item['ipucu']}")
+        # Harf sayısı ipucu
+        hidden_word = (
+            item["kelime"][0]
+            + " _ " * (len(item["kelime"]) - 2)
+            + item["kelime"][-1]
+            if len(item["kelime"]) > 2
+            else "_ * "
         )
+        st.caption(f"Karakter Sayısı: {len(item['kelime'])} harfli")
+        user_guesses[i] = st.text_input(
+            f"Cevabınız (İpucu {i+1}):", key=f"puz_{i}"
+        )
+        st.markdown("---")
 
-# --- MOD 3: AI AKILLI ÖĞRETMEN ---
-elif game_mode == "🤖 AI Akıllı Öğretmen (Koç)":
-  st.subheader(f"🤖 {selected_subject} Yapay Zeka Öğretmenim")
+      sub = st.form_submit_button("Bulmacayı Kontrol Et")
+      if sub:
+        correct_count = 0
+        for i, item in enumerate(items):
+          ans = user_guesses.get(i, "").strip().upper()
+          if ans == item["kelime"].upper():
+            correct_count += 1
+            st.success(f"✅ İpucu {i+1} Doğru! ({item['kelime']})")
+          else:
+            st.error(
+                f"❌ İpucu {i+1} Yanlış. Doğru Cevap: **{item['kelime']}**"
+            )
+
+        if correct_count == len(items):
+          st.balloons()
+          st.success("🏆 Tebrikler! Kelime avı bulmacasını tamamen bitirdin!")
+
+# --- OYUN MODU 2: DOĞRU / YANLIŞ BULMACA ---
+elif game_mode == "⚖️ Doğru / Yanlış Bulmaca":
+  st.subheader(f"⚖️ Doğru / Yanlış Bulmaca — {selected_subject}")
   st.write(
-      f"Seçtiğin ünite ({selected_unit}) hakkında anlamadığın yerleri bana sor,"
-      " sana örneklerle anlatayım!"
+      "Cümlelerin doğru mu yanlış mı olduğunu tahmin et, puanları topla!"
   )
 
-  user_question = st.text_input(
-      "Aklına takılan soruyu yaz:",
-      placeholder="Örn: Bu konuyu bana bir masal gibi anlatır mısın?",
+  if (
+      "dw_data" not in st.session_state
+      or st.session_state.get("dw_unit") != (selected_subject, selected_unit)
+  ):
+    st.session_state["dw_data"] = None
+    st.session_state["dw_unit"] = (selected_subject, selected_unit)
+
+  if st.button("⚡ D/Y Sorularını Üret"):
+    with st.spinner("Doğru/Yanlış bulmaca soruları hazırlanıyor..."):
+      prompt = f"""
+            Sen uzman bir 5. Sınıf MEB öğretmenisin. 
+            Ders: {selected_subject}
+            Ünite: {selected_unit}
+            
+            Bu konuyla ilgili 5 adet Doğru veya Yanlış türünde cümle hazırla.
+            Yanıtı sadece şu JSON formatında ver:
+            [
+              {{"ifade": "Cümle buraya", "cevap": "Doğru", "aciklama": "Neden doğru/yanlış olduğu açıklaması"}},
+              {{"ifade": "Cümle buraya", "cevap": "Yanlış", "aciklama": "Açıklama"}}
+            ]
+            """
+      res = ai_generate_content(prompt)
+      if res:
+        try:
+          cleaned = re.sub(r"```json|```", "", res).strip()
+          st.session_state["dw_data"] = json.loads(cleaned)
+          st.success("Sorular yüklendi!")
+        except Exception:
+          st.error("Biçim hatası oluştu.")
+      else:
+        st.error("Yapay zeka yanıt veremedi.")
+
+  if st.session_state["dw_data"]:
+    dw_list = st.session_state["dw_data"]
+    with st.form("dw_form"):
+      dw_answers = {}
+      for idx, item in enumerate(dw_list):
+        st.markdown(f"**Soru {idx+1}:** {item['ifade']}")
+        dw_answers[idx] = st.radio(
+            "Seçiminiz:", ["Doğru", "Yanlış"], key=f"dw_{idx}", index=None
+        )
+        st.markdown("---")
+
+      dw_sub = st.form_submit_button("Sonuçları Değerlendir")
+      if dw_sub:
+        corrects = 0
+        for idx, item in enumerate(dw_list):
+          user_choice = dw_answers.get(idx)
+          if user_choice == item["cevap"]:
+            corrects += 1
+            st.success(
+                f"Soru {idx+1}: Doğru Bildiniz! 👏 Açıklama: {item['aciklama']}"
+            )
+          else:
+            st.error(
+                f"Soru {idx+1}: Yanlış. Doğru cevap **{item['cevap']}** olacaktı."
+                f" Açıklama: {item['aciklama']}"
+            )
+        st.info(f"Toplam Skor: {corrects} / {len(dw_list)}")
+
+# --- OYUN MODU 3: ÇOKTAN SEÇMELİ MEB SINAVI ---
+elif game_mode == "🧠 Çoktan Seçmeli Meb Sınavı":
+  st.subheader(f"🧠 {selected_subject} — MEB Kazanım Testi")
+  st.write("LGS ve MEB yazılı sınavlarına hazırlık için çoktan seçmeli test.")
+
+  if (
+      "quiz_data" not in st.session_state
+      or st.session_state.get("q_unit") != (selected_subject, selected_unit)
+  ):
+    st.session_state["quiz_data"] = None
+    st.session_state["q_unit"] = (selected_subject, selected_unit)
+
+  if st.button("🚀 Test Sorularını Getir"):
+    with st.spinner("Sorular üretiliyor..."):
+      prompt = f"""
+            5. Sınıf MEB müfredatı, Ders: {selected_subject}, Ünite: {selected_unit}.
+            4 şıklı (A, B, C, D) 4 adet çoktan seçmeli soru hazırla.
+            JSON formatında ver:
+            [
+              {{"soru": "Soru?", "secenekler": ["A) ...", "B) ...", "C) ...", "D) ..."], "dogru_cevap": "A", "aciklama": "..."}}
+            ]
+            """
+      res = ai_generate_content(prompt)
+      if res:
+        try:
+          cleaned = re.sub(r"```json|```", "", res).strip()
+          st.session_state["quiz_data"] = json.loads(cleaned)
+          st.success("Test hazır!")
+        except Exception:
+          st.error("Hata oluştu.")
+
+  if st.session_state["quiz_data"]:
+    quiz = st.session_state["quiz_data"]
+    with st.form("quiz_main"):
+      user_q_ans = {}
+      for idx, q in enumerate(quiz):
+        st.markdown(f"**Soru {idx+1}:** {q['soru']}")
+        user_q_ans[idx] = st.radio(
+            f"Şıklar (Soru {idx+1}):", q["secenekler"], key=f"mq_{idx}", index=None
+        )
+        st.markdown("---")
+
+      if st.form_submit_button("Testi Bitir"):
+        score_c = 0
+        for idx, q in enumerate(quiz):
+          ans = user_q_ans.get(idx)
+          if ans and ans.startswith(q["dogru_cevap"]):
+            score_c += 1
+        st.balloons()
+        st.success(
+            f"🎉 Sınav Bitti! Puanınız: {score_c * 25} / 100 ({score_c} Doğru)"
+        )
+        for idx, q in enumerate(quiz):
+          st.info(f"Soru {idx+1} Açıklama: {q['aciklama']}")
+
+# --- OYUN MODU 4: YAPAY ZEKA EĞİTMENİM ---
+elif game_mode == "🤖 Yapay Zeka Eğitmenimle Soru-Cevap":
+  st.subheader(f"🤖 {selected_subject} - Canlı AI Eğitmen")
+  st.write(
+      f"Seçtiğin ünite ({selected_unit}) hakkında kafana takılanları sor, eğlenceli"
+      " bir dille anlatalım!"
   )
 
+  question = st.text_input(
+      "Merak ettiğin soruyu yaz:", placeholder="Örn: Bu konuyu bana örnekle..."
+  )
   if st.button("Cevap Al"):
-    if user_question:
-      with st.spinner("Öğretmeniniz düşünüyor..."):
+    if question:
+      with st.spinner("Eğitmen yanıtlıyor..."):
         prompt = f"""
-                Sen 5. sınıfa giden bir öğrenciye öğretmenlik yapan, çok sevecen, açıklayıcı ve motive edici bir yapay zeka eğitim koçusun.
-                Ders: {selected_subject}
-                Ünite: {selected_unit}
-                Öğrencinin Sorusu: {user_question}
-                
-                Lütfen 5. sınıf seviyesine uygun, anlaşılır, örnekli ve samimi bir dille yanıtla.
+                Sen 5. sınıf öğrencisine rehberlik eden sevecen bir MEB öğretmenisin.
+                Ders: {selected_subject}, Ünite: {selected_unit}
+                Soru: {question}
+                Öğrencinin yaş seviyesine uygun, sade ve örnekli bir açıklama yap.
                 """
-        answer = ai_generate_content(prompt)
-        if answer:
-          st.success(answer)
+        ans = ai_generate_content(prompt)
+        if ans:
+          st.success(ans)
         else:
-          st.error(
-              "Şu anda yapay zeka servislerine erişilemiyor. Lütfen tekrar"
-              " deneyin."
-          )
+          st.error("Yapay zekaya ulaşılamadı.")
     else:
       st.warning("Lütfen bir soru yazın.")
