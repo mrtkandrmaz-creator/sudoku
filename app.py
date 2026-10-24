@@ -209,10 +209,18 @@ if "coach_messages" not in st.session_state:
           "role": "assistant",
           "content": (
               "Merhaba! Ben senin yapay zeka koçun **AdenMind**. Aladdin'in"
-              " lambası gibi tıkla, dilediğin soruyu küçük ekrandan sor! 🦊✨"
+              " lambası gibi tıkla, dilediğin soruyu küçük pencereden sor! 🦊✨"
           ),
       }
   ]
+
+# Doğru Yanlış Oyunu için session state'ler
+if "dy_score" not in st.session_state:
+  st.session_state["dy_score"] = 0
+if "dy_current_q" not in st.session_state:
+  st.session_state["dy_current_q"] = 0
+if "dy_feedback" not in st.session_state:
+  st.session_state["dy_feedback"] = ""
 
 # --- 4. TEMA RENK SEÇENEKLERİ ---
 theme_choice = st.session_state["coach_theme"]
@@ -324,29 +332,11 @@ with st.sidebar:
     st.rerun()
 
 # --- 7. SAĞ ALT KÖŞE: ADENMİND SİHİRLİ LAMBA / AVATAR WIDGET ---
-st.markdown(
-    """
-    <style>
-    .floating-avatar-container {
-        position: fixed;
-        bottom: 25px;
-        right: 25px;
-        z-index: 99999;
-    }
-    </style>
-""",
-    unsafe_allow_html=True,
-)
-
-# Streamlit konteynerini sayfanın en altına konumlandırmak için alt alta boşluk bırakıyoruz
 st.markdown("<br><br><br>", unsafe_allow_html=True)
 
-# Sağ altta sabit duracak şekilde buton ve sohbet penceresi
 with st.container():
-  # Sağ alta buton yerleştirme sütunları
   col_bos, col_btn = [st.container(), st.container()]
   with col_btn:
-    # Sabit konumlandırma ve şık stil için özel HTML/Streamlit köprüsü
     st.markdown(
         """
         <div style="position: fixed; bottom: 20px; right: 20px; z-index: 99999; text-align: right;">
@@ -365,7 +355,7 @@ with st.container():
 
     st.markdown("</div>", unsafe_allow_html=True)
 
-# Eğer lamba açıldıysa küçük pencere olarak sağ altta belirsin
+# Küçük pencere şeklinde açılan asistan sohbet ekranı
 if st.session_state["coach_open"]:
   st.markdown(
       f"""
@@ -394,7 +384,6 @@ if st.session_state["coach_open"]:
       unsafe_allow_html=True,
   )
 
-  # Sohbet geçmişi alanının Streamlit bileşenleri
   chat_container = st.container()
   with chat_container:
     for msg in st.session_state["coach_messages"]:
@@ -1211,7 +1200,7 @@ else:
             st.session_state["game_started"] = False
             st.rerun()
 
-  # 3. DOĞRU / YANLIŞ MEYDAN OKUMASI
+  # 3. DOĞRU / YANLIŞ MEYDAN OKUMASI (Her ekrana tek soru, altta Doğru ve Yanlış butonları)
   elif curr_game == "dogruyanlis":
     st.subheader(f"✅ {curr_subj} — Doğru / Yanlış Meydan Okuması")
 
@@ -1221,9 +1210,12 @@ else:
     ):
       st.session_state["dy_questions"] = None
       st.session_state["dy_unit_key"] = (curr_subj, curr_unit)
+      st.session_state["dy_score"] = 0
+      st.session_state["dy_current_q"] = 0
+      st.session_state["dy_feedback"] = ""
 
-    if st.button("🚀 Doğru/Yanlış Sorularını Üret", key="gen_dy"):
-      with st.spinner("Yapay zeka 5 adet doğru/yanlış önermesi hazırlıyor..."):
+    if st.button("🚀 Yeni Doğru/Yanlış Yarışmasını Başlat", key="gen_dy"):
+      with st.spinner("Yapay zeka önermeleri hazırlıyor..."):
         prompt = f"""
                 5. Sınıf MEB müfredatı, Ders: {curr_subj}, Ünite: {curr_unit}.
                 Bu ünite için TAM 5 ADET Doğru veya Yanlış önermesi üret.
@@ -1239,44 +1231,89 @@ else:
             st.session_state["dy_questions"] = json.loads(
                 re.sub(r"```json|```", "", res).strip()
             )
+            st.session_state["dy_score"] = 0
+            st.session_state["dy_current_q"] = 0
+            st.session_state["dy_feedback"] = ""
             st.rerun()
           except Exception:
             st.error("Biçim hatası.")
 
     if st.session_state["dy_questions"]:
-      with st.form("dy_form"):
-        dy_answers = {}
-        for idx, item in enumerate(st.session_state["dy_questions"]):
-          st.markdown(f"**Önerme {idx+1}:** {item['ifade']}")
-          dy_answers[idx] = st.radio(
-              f"Seçiminiz ({idx+1}):",
-              ["Doğru (D)", "Yanlış (Y)"],
-              index=None,
-              key=f"dy_{idx}",
-          )
-          st.markdown("---")
+      questions = st.session_state["dy_questions"]
+      q_idx = st.session_state["dy_current_q"]
 
-        if st.form_submit_button("Cevapları Kontrol Et"):
-          score = 0
-          for idx, item in enumerate(st.session_state["dy_questions"]):
-            user_ans = dy_answers[idx]
-            if user_ans is None:
-              st.warning(f"⚠️ Önerme {idx+1} boş bırakıldı.")
-              continue
-            user_choice = user_ans[0]  # 'D' veya 'Y'
-            correct_choice = item["cevap"].upper()
-            if user_choice == correct_choice:
-              st.success(
-                  f"✅ Önerme {idx+1} Doğru! — Açıklama: {item['aciklama']}"
-              )
-              score += 20
-            else:
-              st.error(
-                  f"❌ Önerme {idx+1} Yanlış. Doğru Cevap: **{correct_choice}** —"
-                  f" Açıklama: {item['aciklama']}"
-              )
-          st.balloons()
-          st.info(f"🏆 Toplam Puanınız: {score} / 100")
+      if q_idx < len(questions):
+        q_item = questions[q_idx]
+
+        st.markdown(
+            f"""
+            <div style="background: rgba(255,255,255,0.06); padding: 24px; border-radius: 16px; border: 2px solid {c_border}; margin-bottom: 20px;">
+                <div style="font-weight: bold; margin-bottom: 10px; color: #38bdf8;">Soru: {q_idx + 1} / {len(questions)}</div>
+                <div style="font-size: 20px; font-weight: bold;">{q_item['ifade']}</div>
+            </div>
+            """,
+            unsafe_allow_html=True,
+        )
+
+        if st.session_state["dy_feedback"]:
+          st.markdown(st.session_state["dy_feedback"], unsafe_allow_html=True)
+          st.markdown("<br>", unsafe_allow_html=True)
+          if st.button("➡️ Sonraki Soruya Geç", use_container_width=True):
+            st.session_state["dy_feedback"] = ""
+            st.session_state["dy_current_q"] += 1
+            st.rerun()
+        else:
+          col_d, col_y = st.columns(2)
+          with col_d:
+            if st.button("✅ DOĞRU (D)", use_container_width=True):
+              correct_ans = q_item["cevap"].upper()
+              if correct_ans == "D":
+                st.session_state["dy_score"] += 20
+                st.session_state["dy_feedback"] = (
+                    f"🎉 **Tebrikler, Doğru Bildin!**<br><span"
+                    f" style='color:#10b981;'>{q_item['aciklama']}</span>"
+                )
+              else:
+                st.session_state["dy_feedback"] = (
+                    f"❌ **Yanlış Cevap!** Doğru cevap **Yanlış (Y)**"
+                    f" olacaktı.<br><span"
+                    f" style='color:#f43f5e;'>{q_item['aciklama']}</span>"
+                )
+              st.rerun()
+          with col_y:
+            if st.button("❌ YANLIŞ (Y)", use_container_width=True):
+              correct_ans = q_item["cevap"].upper()
+              if correct_ans == "Y":
+                st.session_state["dy_score"] += 20
+                st.session_state["dy_feedback"] = (
+                    f"🎉 **Tebrikler, Doğru Bildin!**<br><span"
+                    f" style='color:#10b981;'>{q_item['aciklama']}</span>"
+                )
+              else:
+                st.session_state["dy_feedback"] = (
+                    f"❌ **Yanlış Cevap!** Doğru cevap **Doğru (D)**"
+                    f" olacaktı.<br><span"
+                    f" style='color:#f43f5e;'>{q_item['aciklama']}</span>"
+                )
+              st.rerun()
+      else:
+        st.markdown(
+            f"""
+            <div style="background: rgba(255,255,255,0.06); padding: 40px; border-radius: 16px; text-align: center;">
+                <h2>🏆 Doğru / Yanlış Meydan Okuması Tamamlandı!</h2>
+                <p style="font-size: 26px;">Toplam Puanınız: <span style="color: #10b981; font-size: 40px;">{st.session_state['dy_score']} / 100</span></p>
+            </div>
+            """,
+            unsafe_allow_html=True,
+        )
+        st.markdown("<br>", unsafe_allow_html=True)
+        if st.button("🔄 Tekrar Oyna", use_container_width=True):
+          st.session_state["dy_questions"] = None
+          st.session_state["dy_score"] = 0
+          st.session_state["dy_current_q"] = 0
+          st.session_state["dy_feedback"] = ""
+          st.rerun()
+
       st.markdown("<br>", unsafe_allow_html=True)
       if st.button("🏠 Ana Ekrana Dön", key="back_home_dy"):
         st.session_state["selected_subject"] = None
