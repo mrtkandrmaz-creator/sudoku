@@ -412,89 +412,77 @@ with st.sidebar:
     st.rerun()
 
 
-# --- 8. SAĞ ALT KÖŞE: 50 KURUŞ BOYUTUNDA SEVİMLİ AVATAR & DİKEY CANLI SOHBET ---
+# --- 8. SAĞ ALT KÖŞE: İDEAL BOYUTTA SEVİMLİ AVATAR & DİKEY CANLI SOHBET PENCERESİ ---
 
-# Avatar açma/kapama butonunu tetiklemek için özel CSS ve Container
 st.markdown(
     f"""
     <style>
-    /* 50 kuruş para boyutunda (yaklaşık 45-50px) yuvarlak sevimli avatar düğmesi */
-    .floating-avatar-btn {{
+    /* Sağ altta sabit duran ideal boyutlu sevimli avatar düğmesi (50 kuruşdan biraz büyük, 64px) */
+    .floating-avatar-container {{
         position: fixed;
         bottom: 25px;
         right: 25px;
-        width: 50px;
-        height: 50px;
-        background: {c_bg_gradient};
-        border-radius: 50%;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        font-size: 26px;
-        box-shadow: 0 4px 15px rgba(0,0,0,0.3);
-        cursor: pointer;
         z-index: 99999;
-        transition: transform 0.2s ease;
-        border: 2px solid white;
-    }}
-    .floating-avatar-btn:hover {{
-        transform: scale(1.1);
     }}
     </style>
 """,
     unsafe_allow_html=True,
 )
 
-# Sağ alt köşe etkileşimli butonu
+# Sağ altta sabit avatar butonu
 with st.container():
-  # Görünmez ama tıklanabilir Streamlit butonunu absolute konumlandırılmış şık bir avatarın altına konumlandırıyoruz
+  st.markdown(
+      '<div style="position: fixed; bottom: 25px; right: 25px; z-index: 99999;">',
+      unsafe_allow_html=True,
+  )
   if st.session_state["coach_open"]:
-    if st.button("❌", key="close_avatar_float", help="Asistanı Kapat"):
+    if st.button("❌ Kapat", key="close_avatar_float"):
       st.session_state["coach_open"] = False
       st.rerun()
   else:
-    if st.button("🦊", key="open_avatar_float", help="AdenMind Canlı Asistan"):
+    if st.button("🦊 AdenMind", key="open_avatar_float"):
       st.session_state["coach_open"] = True
       st.rerun()
+  st.markdown("</div>", unsafe_allow_html=True)
 
-# Eğer asistan açıksa sağ altta dikey, modern mobil sohbet penceresi belirir
+# Eğer asistan açıksa, avatarın hemen üzerinde yükselen modern dikey sohbet kutusu belirir
 if st.session_state["coach_open"]:
   st.markdown(
       f"""
         <div style="
             position: fixed; 
-            bottom: 85px; 
-            right: 20px; 
-            width: 330px; 
-            height: 440px; 
+            bottom: 90px; 
+            right: 25px; 
+            width: 320px; 
+            height: 420px; 
             background: #ffffff; 
             border: 2px solid {c_border}; 
-            border-radius: 20px; 
-            box-shadow: 0 10px 30px rgba(0,0,0,0.25); 
+            border-radius: 18px; 
+            box-shadow: 0 10px 30px rgba(0,0,0,0.3); 
             z-index: 99998; 
             display: flex;
             flex-direction: column;
             overflow: hidden;
         ">
-            <!-- Üst Modern Başlık -->
+            <!-- Üst Başlık -->
             <div style="background: {c_bg_gradient}; padding: 10px 14px; color: white; display: flex; align-items: center; justify-content: space-between; font-weight: bold; font-size: 14px;">
                 <div style="display: flex; align-items: center; gap: 8px;">
                     <span style="font-size: 20px;">🦊</span>
-                    <span>AdenMind</span>
+                    <span>AdenMind (Canlı Asistan)</span>
                 </div>
-                <span style="font-size: 11px; opacity: 0.9; background: rgba(0,0,0,0.2); padding: 2px 6px; border-radius: 10px;">Çevrimiçi</span>
+                <span style="font-size: 10px; background: rgba(0,0,0,0.2); padding: 2px 6px; border-radius: 8px;">Aktif</span>
             </div>
         </div>
     """,
       unsafe_allow_html=True,
   )
 
-  # Sohbet mesajları dikey akış alanı
+  # Dikey sohbet mesajları akışı
   chat_container = st.container()
   with chat_container:
     st.markdown(
         """
-        <div style="position: fixed; bottom: 140px; right: 28px; width: 314px; height: 310px; overflow-y: auto; z-index: 99999; padding-right: 4px;">
+        <div style="position: fixed; bottom: 140px; right: 30px; width: 304px; height: 290px; overflow-y: auto; z-index: 99999; padding-right: 4px;">
         """,
         unsafe_allow_html=True,
     )
@@ -526,10 +514,10 @@ if st.session_state["coach_open"]:
 
     st.markdown("</div>", unsafe_allow_html=True)
 
-  # Dikey sohbet alt form giriş alanı
+  # Alt mesaj yazma formu
   st.markdown(
       """
-        <div style="position: fixed; bottom: 90px; right: 28px; width: 314px; z-index: 99999; background: white; padding-top: 4px;">
+        <div style="position: fixed; bottom: 95px; right: 30px; width: 304px; z-index: 99999; background: white; padding-top: 4px;">
     """,
       unsafe_allow_html=True,
   )
@@ -540,7 +528,7 @@ if st.session_state["coach_open"]:
           "Mesaj yaz...", label_visibility="collapsed", key="v_msg"
       )
     with col_btn:
-      submitted = st.form_submit_button("Gönder")
+      submitted = st.form_submit_button("Git")
 
     if submitted and user_msg:
       st.session_state["coach_messages"].append(
