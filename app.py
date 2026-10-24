@@ -11,59 +11,37 @@ st.set_page_config(
     layout="wide",
 )
 
-# --- 1. [api_keys] TOML YAPISINI KESİN OKUYAN MOTOR ---
+# --- 1. [api_keys] TOML YAPISINI DOĞRUDAN OKUYAN KESİN MOTOR ---
 
 
 def get_all_api_keys():
-  """Streamlit secrets içindeki [api_keys] tablosunu ve listeleri doğrudan okur."""
+  """Streamlit secrets içindeki [api_keys] tablosunu doğrudan ve hatasız okur."""
   gemini_keys = []
   groq_keys = []
 
   try:
-    if hasattr(st, "secrets") and st.secrets:
-      # Doğrudan [api_keys] tablosu kontrolü
-      if "api_keys" in st.secrets:
-        api_block = st.secrets["api_keys"]
-        if isinstance(api_block, dict):
-          if "gemini_keys" in api_block:
-            for k in api_block["gemini_keys"]:
-              if isinstance(k, str) and len(k.strip()) > 5:
-                if k.strip() not in gemini_keys:
-                  gemini_keys.append(k.strip())
-          if "groq_keys" in api_block:
-            for k in api_block["groq_keys"]:
-              if isinstance(k, str) and len(k.strip()) > 5:
-                if k.strip() not in groq_keys:
-                  groq_keys.append(k.strip())
+    if hasattr(st, "secrets") and "api_keys" in st.secrets:
+      api_block = st.secrets["api_keys"]
 
-      # Alternatif genel tarama
-      def recursive_search(data):
-        if isinstance(data, dict):
-          for k, v in data.items():
-            recursive_search(v)
-        elif isinstance(data, (list, tuple)):
-          for item in data:
-            if isinstance(item, str) and len(item.strip()) > 5:
-              val = item.strip()
-              if val.startswith("gsk_") and val not in groq_keys:
-                groq_keys.append(val)
-              elif val not in gemini_keys and not val.startswith("gsk_"):
-                gemini_keys.append(val)
+      # Groq anahtarlarını al
+      if "groq_keys" in api_block:
+        g_list = api_block["groq_keys"]
+        for k in g_list:
+          if isinstance(k, str) and len(k.strip()) > 5:
+            if k.strip() not in groq_keys:
+              groq_keys.append(k.strip())
 
-      recursive_search(st.secrets)
-  except Exception:
-    pass
+      # Gemini anahtarlarını al
+      if "gemini_keys" in api_block:
+        ge_list = api_block["gemini_keys"]
+        for k in ge_list:
+          if isinstance(k, str) and len(k.strip()) > 5:
+            if k.strip() not in gemini_keys:
+              gemini_keys.append(k.strip())
+  except Exception as e:
+    st.error(f"Secrets okunurken hata oluştu: {e}")
 
-  # Sistem Ortam Değişkenleri
-  for env_key, env_val in os.environ.items():
-    if env_val and isinstance(env_val, str) and len(env_val.strip()) > 5:
-      val = env_val.strip()
-      if val.startswith("gsk_") and val not in groq_keys:
-        groq_keys.append(val)
-      elif val not in gemini_keys and not val.startswith("gsk_"):
-        gemini_keys.append(val)
-
-  # Manuel eklenenler
+  # Yedek / Manuel Eklenenler (Session State)
   if "manual_gemini" in st.session_state and st.session_state["manual_gemini"]:
     if st.session_state["manual_gemini"] not in gemini_keys:
       gemini_keys.append(st.session_state["manual_gemini"])
@@ -97,7 +75,23 @@ except ImportError:
 
 
 def ai_generate_content(prompt_text):
-  """Gemini (gemini-3.6-flash dahil) ve Groq anahtarlarını sırayla dener."""
+  """Önce Groq (hızlı ve kararlı), ardından Gemini modellerini dener."""
+  # 1. Önce Groq dene (Groq anahtarları gsk_ ile başlar ve çok hızlıdır)
+  if has_groq and groq_keys:
+    for gr_key in groq_keys:
+      try:
+        client = Groq(api_key=gr_key)
+        completion = client.chat.completions.create(
+            model="llama-3.3-70b-versatile",
+            messages=[{"role": "user", "content": prompt_text}],
+            temperature=0.7,
+        )
+        if completion.choices[0].message.content:
+          return completion.choices[0].message.content
+      except Exception:
+        continue
+
+  # 2. Groq başarısız olursa Gemini dene
   if has_gemini and gemini_keys:
     for g_key in gemini_keys:
       try:
@@ -115,20 +109,6 @@ def ai_generate_content(prompt_text):
               return response.text
           except Exception:
             continue
-      except Exception:
-        continue
-
-  if has_groq and groq_keys:
-    for gr_key in groq_keys:
-      try:
-        client = Groq(api_key=gr_key)
-        completion = client.chat.completions.create(
-            model="llama-3.3-70b-versatile",
-            messages=[{"role": "user", "content": prompt_text}],
-            temperature=0.7,
-        )
-        if completion.choices[0].message.content:
-          return completion.choices[0].message.content
       except Exception:
         continue
 
