@@ -315,36 +315,36 @@ st.markdown(
 )
 
 
-# --- 6. TAMAMEN YAZISIZ, PÜRÜZSÜZ VE MODERN 3D SVG MOTORU ---
+# --- 6. DOĞRU YERDE MATEMATİKSEL DEĞERLER (AÇI VE ÇAP) İÇEREN 3D SVG MOTORU ---
 def render_question_visual(gorsel_tipi, param):
   if not gorsel_tipi or gorsel_tipi == "yok":
     return
 
   param_str = str(param).lower().strip()
 
-  # 1. MATEMATİK: AÇI VE GEOMETRİ MODELİ
+  # 1. MATEMATİK: AÇI VE ÜÇGEN MODELİ (Açı Değeri Doğru Yerinde)
   if gorsel_tipi in ["ucgen", "aci"]:
-    deg = 50
+    deg = 60
     try:
       deg = int(re.search(r"\d+", str(param)).group())
     except Exception:
       pass
 
-    Ax, Ay = 140, 40
-    Bx, By = 40, 150
-    Cx, Cy = 240, 150
+    Ax, Ay = 140, 35
+    Bx, By = 35, 150
+    Cx, Cy = 245, 150
 
-    arc_svg = '<path d="M 115 68 A 30 30 0 0 0 165 68" fill="none"' ' stroke="#facc15" stroke-width="3.5" stroke-linecap="round"/>'
+    arc_svg = '<path d="M 118 64 A 32 32 0 0 0 162 64" fill="none"' ' stroke="#facc15" stroke-width="4" stroke-linecap="round"/>'
     is_right_angle = "dik" in param_str or deg == 90
     if is_right_angle:
       arc_svg = (
-          '<polyline points="128,52 128,64 140,64" fill="none"'
+          '<polyline points="126,48 126,62 140,62" fill="none"'
           ' stroke="#ef4444" stroke-width="3"/>'
       )
 
     svg_html = f"""
         <div style="display: flex; justify-content: center; margin: 12px 0;">
-            <svg width="280" height="180" viewBox="0 0 280 180" style="background: linear-gradient(135deg, #0f172a, #1e293b); border-radius: 18px; border: 1.5px solid rgba(56, 189, 248, 0.4); box-shadow: 0 12px 30px rgba(0, 0, 0, 0.5);">
+            <svg width="280" height="185" viewBox="0 0 280 185" style="background: linear-gradient(135deg, #0f172a, #1e293b); border-radius: 18px; border: 1.5px solid rgba(56, 189, 248, 0.4); box-shadow: 0 12px 30px rgba(0, 0, 0, 0.5);">
                 <defs>
                     <linearGradient id="triGrad" x1="0%" y1="0%" x2="100%" y2="100%">
                         <stop offset="0%" stop-color="rgba(56, 189, 248, 0.4)" />
@@ -353,12 +353,38 @@ def render_question_visual(gorsel_tipi, param):
                 </defs>
                 <polygon points="{Ax},{Ay} {Bx},{By} {Cx},{Cy}" fill="url(#triGrad)" stroke="#38bdf8" stroke-width="4" stroke-linejoin="round"/>
                 {arc_svg}
+                <!-- Açı Değeri Doğrudan Açı Yayıncı Tam Üzerinde -->
+                <text x="140" y="85" fill="#facc15" font-size="13" font-weight="bold" text-anchor="middle">{deg}°</text>
             </svg>
         </div>
         """
-    st.components.v1.html(svg_html, height=195)
+    st.components.v1.html(svg_html, height=200)
 
-  # 2. FEN BİLİMLERİ: YAZISIZ VE GERÇEKÇİ 3D AY EVRELERİ
+  # 2. MATEMATİK: ÇEMBER VE ÇAP / YARIÇAP MODELİ (Çap/Yarıçap Değeri Çember Üzerinde)
+  elif gorsel_tipi == "cember":
+    val = "12"
+    try:
+      val = re.search(r"\d+", str(param)).group()
+    except Exception:
+      pass
+    is_cap = "cap" in param_str or "çap" in param_str
+
+    svg_html = f"""
+        <div style="display: flex; justify-content: center; margin: 12px 0;">
+            <svg width="280" height="185" viewBox="0 0 280 185" style="background: linear-gradient(135deg, #0f172a, #1e293b); border-radius: 18px; border: 1.5px solid rgba(56, 189, 248, 0.4); box-shadow: 0 12px 30px rgba(0, 0, 0, 0.5);">
+                <circle cx="140" cy="90" r="60" fill="none" stroke="#38bdf8" stroke-width="4"/>
+                <circle cx="140" cy="90" r="4" fill="#facc15"/>
+                <!-- Çap Çizgisi -->
+                <line x1="80" y1="90" x2="200" y2="90" stroke="#f43f5e" stroke-width="2.5" stroke-dasharray="5,3"/>
+                <!-- Çap / Değer Bilgisi Doğrudan Çizgi Üstünde -->
+                <rect x="112" y="75" width="56" height="22" fill="#0f172a" rx="5" stroke="#f43f5e" stroke-width="1.5"/>
+                <text x="140" y="91" fill="#f43f5e" font-size="12" font-weight="bold" text-anchor="middle">{val} cm</text>
+            </svg>
+        </div>
+        """
+    st.components.v1.html(svg_html, height=200)
+
+  # 3. FEN BİLİMLERİ: 3D AY EVRELERİ
   elif gorsel_tipi == "ay_evresi":
     if "ilk_dordun" in param_str or "ilk dördün" in param_str:
       moon_shadow = (
@@ -405,7 +431,6 @@ def render_question_visual(gorsel_tipi, param):
                 </defs>
                 <circle cx="30" cy="30" r="1.2" fill="#fff" opacity="0.9"/><circle cx="250" cy="40" r="1.8" fill="#fff" opacity="0.8"/><circle cx="220" cy="150" r="1" fill="#fff" opacity="0.7"/>
                 
-                <!-- 3D Ay Gövdesi -->
                 <circle cx="140" cy="80" r="50" fill="url(#3dMoon)" filter="url(#moonGlow)"/>
                 <circle cx="124" cy="66" r="10" fill="#475569" opacity="0.32"/>
                 <circle cx="156" cy="96" r="12" fill="#475569" opacity="0.32"/>
@@ -418,7 +443,7 @@ def render_question_visual(gorsel_tipi, param):
         """
     st.components.v1.html(svg_html, height=195)
 
-  # 3. FEN BİLİMLERİ: YAZISIZ REALİSTİK GÜNEŞ
+  # 4. FEN BİLİMLERİ: GÜNEŞ
   elif gorsel_tipi == "gunes":
     svg_html = """
         <div style="display: flex; justify-content: center; margin: 12px 0;">
@@ -446,7 +471,7 @@ def render_question_visual(gorsel_tipi, param):
         """
     st.components.v1.html(svg_html, height=195)
 
-  # 4. FEN BİLİMLERİ: YAZISIZ REALİSTİK DÜNYA
+  # 5. FEN BİLİMLERİ: DÜNYA
   elif gorsel_tipi == "dunya":
     svg_html = """
         <div style="display: flex; justify-content: center; margin: 12px 0;">
@@ -475,7 +500,7 @@ def render_question_visual(gorsel_tipi, param):
         """
     st.components.v1.html(svg_html, height=195)
 
-  # 5. FEN BİLİMLERİ: YAZISIZ BOYUT KARŞILAŞTIRMASI
+  # 6. FEN BİLİMLERİ: BOYUT KARŞILAŞTIRMASI
   elif gorsel_tipi == "karsilastirma":
     svg_html = """
         <div style="display: flex; justify-content: center; margin: 12px 0;">
@@ -490,7 +515,7 @@ def render_question_visual(gorsel_tipi, param):
         """
     st.components.v1.html(svg_html, height=195)
 
-  # 6. FEN BİLİMLERİ: YAZISIZ DİZİLİM MODELİ
+  # 7. FEN BİLİMLERİ: DİZİLİM
   elif gorsel_tipi == "tutulma":
     svg_html = """
         <div style="display: flex; justify-content: center; margin: 12px 0;">
@@ -505,7 +530,7 @@ def render_question_visual(gorsel_tipi, param):
         """
     st.components.v1.html(svg_html, height=195)
 
-  # 7. FİZİK: YAZISIZ HASSAS DİNAMOMETRE
+  # 8. FİZİK: DİNAMOMETRE (Newton Değeri Doğrudan Kutusunda)
   elif gorsel_tipi == "dinamometre":
     newton = 5
     try:
@@ -525,7 +550,9 @@ def render_question_visual(gorsel_tipi, param):
                 <line x1="60" y1="110" x2="70" y2="110" stroke="#94a3b8" stroke-width="2"/>
                 <line x1="60" y1="130" x2="70" y2="130" stroke="#94a3b8" stroke-width="2"/>
                 <path d="M 90 35 Q 65 {35+spring_y/4} 115 {35+spring_y/2} Q 65 {35+3*spring_y/4} 90 {35+spring_y}" fill="none" stroke="#facc15" stroke-width="3.5"/>
+                <!-- Newton Değeri Doğrudan Kancanın Üzerindeki Kutuda -->
                 <rect x="65" y="{35+spring_y}" width="50" height="20" fill="#f43f5e" rx="4"/>
+                <text x="90" y="{49+spring_y}" fill="#ffffff" font-size="11" font-weight="bold" text-anchor="middle">{newton} N</text>
                 <path d="M 90 {55+spring_y} L 90 {75+spring_y}" fill="none" stroke="#94a3b8" stroke-width="3"/>
                 <path d="M 85 {75+spring_y} Q 90 {85+spring_y} 95 {75+spring_y}" fill="none" stroke="#94a3b8" stroke-width="3"/>
             </svg>
@@ -814,15 +841,11 @@ else:
   # ZENGİN SORU VE KESİN GÖRSEL UYUMU PROMPT TALİMATI
   rand_seed = f"{time.time()}_{random.randint(100000, 999999)}"
   visual_prompt_instruction = f"""
-  (ZENGİN ÇEŞİTLİLİK VE SAF GÖRSEL TALİMATI - Seed: {rand_seed}):
-  1. YENİ NESİL KAZANIM DİNAMİĞİ: Soruları kalıplaşmış kalıplarla üretme! Günlük hayattan farklı isimler, gözlem deneyleri ve grafik/şekil okuma kurguları ekle.
-  2. SAF GÖRSEL EŞLEŞTİRMESİ: gorsel_tipi ve gorsel_parametre alanını sorunun temasına tam uygun seç:
-     - Sorudaki Ay evresine göre gorsel_tipi: 'ay_evresi' ve gorsel_parametre: 'ilk_dordun', 'son_dordun', 'yeni_ay', 'hilal', 'siskin_ay', 'dolunay' yap.
-     - Soruda Güneş için gorsel_tipi: 'gunes', Dünya için gorsel_tipi: 'dunya' ver.
-     - Dinamometre için gorsel_tipi: 'dinamometre' ve gorsel_parametre: '10N' ver.
-     - Geometri için gorsel_tipi: 'ucgen' ve gorsel_parametre: '60' ver.
-  3. GÖRSELDE HİÇBİR YAZI, ETİKET VEYA İPUCU BULUNMAYACAKTIR!
-  4. Görsel gerekmeyen konularda gorsel_tipi: 'yok' yazın.
+  (MATEMATİKSEL DEĞER VE GÖRSEL EŞLEŞTİRME TALİMATI - Seed: {rand_seed}):
+  1. Geometri ve açı sorularında gorsel_tipi: 'ucgen' ve gorsel_parametre alanına açının derecesini (örn: '60') yaz.
+  2. Çember sorularında gorsel_tipi: 'cember' ve gorsel_parametre alanına çap veya yarıçap değerini (örn: '12cm' veya 'cap 14') yaz.
+  3. Fen sorularında Ay evresi, Güneş, Dünya veya Dinamometre değerini parametre olarak ilet.
+  4. Görsellerde açıklama veya başlık yazısı olmayacak; sadece geometri/çember şekli ve üzerinde doğru konumdaki matematiksel değer (açı veya çap) yer alacaktır.
   """
 
   # 1. BALON PATLATMACA
@@ -849,8 +872,8 @@ else:
                     "secenekler": ["A) ...", "B) ...", "C) ...", "D) ..."],
                     "dogru_cevap": "A",
                     "aciklama": "Açıklama",
-                    "gorsel_tipi": "ay_evresi", 
-                    "gorsel_parametre": "dolunay"
+                    "gorsel_tipi": "ucgen", 
+                    "gorsel_parametre": "60"
                   }}
                 ]
                 """
@@ -966,8 +989,8 @@ else:
                     "secenekler": ["A)...", "B)...", "C)...", "D)..."], 
                     "dogru_cevap": "A", 
                     "aciklama": "...",
-                    "gorsel_tipi": "ay_evresi",
-                    "gorsel_parametre": "ilk_dordun"
+                    "gorsel_tipi": "ucgen",
+                    "gorsel_parametre": "60"
                   }}
                 ]
                 """
