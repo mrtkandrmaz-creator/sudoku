@@ -677,10 +677,9 @@ else:
           "Yapay zeka gerçek yaşamla tam uyumlu yepyeni sorular hazırlıyor..."
       ):
         prompt = f"""
-                Rastgelelik Kimliği: {random.randint(10000, 999999)} (Zaman damgası: {random.random()})
+                Rastgelelik Kimliği: {random.randint(10000, 999999)}
                 5. Sınıf MEB müfredatı, Ders: {curr_subj}, Ünite: {curr_unit}.
-                TAM 5 ADET daha önce üretilmemiş, tamamen farklı, özgün ve gerçek hayat senaryolu çoktan seçmeli (4 şıklı: A, B, C, D) soru üret.
-                Matematik için açı, çember, kesir problemleri; Fen için dinamometre veya Ay evresi gerçek yaşam problemleri kur.
+                TAM 5 ADET özgün ve gerçek hayat senaryolu çoktan seçmeli (4 şıklı: A, B, C, D) soru üret.
                 JSON formatında liste olarak ver:
                 [
                   {{
@@ -777,7 +776,7 @@ else:
         )
         st.components.v1.html(html_balloon_game, height=560)
 
-  # 2. 5 SORULUK MEB KAZANIM OYUNU (TEK SORU MODU)
+  # 2. 5 SORULUK MEB KAZANIM OYUNU (TEK SORU MODU + PAS GEÇME)
   elif curr_game == "sinav10":
     st.subheader(
         f"🧠 {curr_subj} — 5 Soruluk MEB Kazanım Yarışması (Tek Soru Modu)"
@@ -794,15 +793,11 @@ else:
       st.session_state["kazanim_answers"] = {}
 
     if st.button("🚀 Yepyeni Kazanım Sorularını Üret", key="gen_kazanim"):
-      with st.spinner(
-          "Yapay zeka gerçek hayat uyumlu yepyeni MEB kazanım sorularını"
-          " hazırlıyor..."
-      ):
+      with st.spinner("Yapay zeka kazanım sorularını hazırlıyor..."):
         prompt = f"""
-                Rastgelelik Kimliği: {random.randint(10000, 999999)} (Seed: {random.random()})
+                Rastgelelik Kimliği: {random.randint(10000, 999999)}
                 5. Sınıf MEB, Ders: {curr_subj}, Ünite: {curr_unit}.
-                TAM 5 ADET yepyeni, özgün ve daha önce üretilmemiş çoktan seçmeli (4 şıklı) soru üret. 
-                Gerçek hayat deneyimleri ve MEB beceri temelli soruları baz al.
+                TAM 5 ADET yepyeni çoktan seçmeli (4 şıklı) soru üret. 
                 JSON liste formatında şu yapıda ver:
                 [
                   {{
@@ -851,19 +846,23 @@ else:
           )
 
         selected_option = st.radio(
-            "Cevabınızı Seçin (Seçim sizin):",
+            "Cevabınızı Seçin:",
             q["secenekler"],
             index=None,
             key=f"kazanim_radio_{k_idx}",
         )
         st.markdown("<br>", unsafe_allow_html=True)
 
-        col_prev, col_next = st.columns(2)
+        col_prev, col_pass, col_next = st.columns(3)
         with col_prev:
           if k_idx > 0 and st.button(
-              "⬅️ Önceki Soruya Dön", use_container_width=True
+              "⬅️ Önceki Soru", use_container_width=True
           ):
             st.session_state["kazanim_idx"] -= 1
+            st.rerun()
+        with col_pass:
+          if st.button("⏭️ Pas Geç", use_container_width=True):
+            st.session_state["kazanim_idx"] += 1
             st.rerun()
         with col_next:
           if st.button(
@@ -900,7 +899,7 @@ else:
           st.session_state["kazanim_answers"] = {}
           st.rerun()
 
-  # 3. DOĞRU / YANLIŞ MEYDAN OKUMASI (TEK SORU MODU)
+  # 3. DOĞRU / YANLIŞ MEYDAN OKUMASI (TEK SORU MODU + PAS GEÇME)
   elif curr_game == "dogruyanlis":
     st.subheader(
         f"✅ {curr_subj} — Doğru / Yanlış Meydan Okuması (Tek Soru Modu)"
@@ -916,11 +915,11 @@ else:
       st.session_state["dy_feedback"] = ""
 
     if st.button("🚀 Yepyeni D/Y Yarışmasını Başlat", key="gen_dy"):
-      with st.spinner("Güncel önermeler hazırlanıyor..."):
+      with st.spinner("Önermeler hazırlanıyor..."):
         prompt = f"""
                 Rastgelelik Kimliği: {random.randint(10000, 999999)}
                 5. Sınıf MEB, Ders: {curr_subj}, Ünite: {curr_unit}.
-                TAM 5 ADET gerçek hayat olgularına ve MEB kazanımlarına uygun, tamamen taze Doğru veya Yanlış önermesi üret. JSON formatında liste ver:
+                TAM 5 ADET yepyeni Doğru veya Yanlış önermesi üret. JSON formatında liste ver:
                 [
                   {{"ifade": "...", "cevap": "D", "aciklama": "...", "gorsel_tipi": "yok", "gorsel_parametre": ""}}
                 ]
@@ -966,7 +965,7 @@ else:
             st.session_state["dy_current_q"] += 1
             st.rerun()
         else:
-          col_d, col_y = st.columns(2)
+          col_d, col_y, col_pass = st.columns(3)
           with col_d:
             if st.button("✅ DOĞRU (D)", use_container_width=True):
               if q_item["cevap"].upper() == "D":
@@ -995,6 +994,10 @@ else:
                     f" style='color:#f43f5e;'>{q_item['aciklama']}</span>"
                 )
               st.rerun()
+          with col_pass:
+            if st.button("⏭️ Pas Geç", use_container_width=True):
+              st.session_state["dy_current_q"] += 1
+              st.rerun()
       else:
         st.markdown(
             f"<h2>🏆 Yarışma Tamamlandı! Puan: {st.session_state['dy_score']} /"
@@ -1016,11 +1019,11 @@ else:
       st.session_state["f_unit_key"] = (curr_subj, curr_unit)
 
     if st.button("✨ Yepyeni Boşluk Doldurma Soruları Üret", key="gen_fill"):
-      with st.spinner("Güncel sorular hazırlanıyor..."):
+      with st.spinner("Sorular hazırlanıyor..."):
         prompt = f"""
                 Rastgelelik Kimliği: {random.randint(10000, 999999)}
                 5. Sınıf MEB, Ders: {curr_subj}, Ünite: {curr_unit}.
-                Cümle içinde boşluk bırakılmış, gerçek hayatla uyumlu 5 adet yepyeni soru üret. JSON liste formatında ver:
+                Cümle içinde boşluk bırakılmış 5 adet soru üret. JSON liste formatında ver:
                 [
                   {{"cumle": "...", "dogru_kelime": "...", "secenekler": ["...", "...", "...", "..."], "gorsel_tipi": "yok", "gorsel_parametre": ""}}
                 ]
@@ -1076,13 +1079,13 @@ else:
       st.session_state["fc_idx"] = 0
 
     if st.button("✨ Yepyeni Soru Kartları Dağıt", key="gen_fc"):
-      with st.spinner("Güncel kartlar hazırlanıyor..."):
+      with st.spinner("Kartlar hazırlanıyor..."):
         prompt = f"""
                 Rastgelelik Kimliği: {random.randint(10000, 999999)}
                 5. Sınıf MEB, Ders: {curr_subj}, Ünite: {curr_unit}.
-                Gerçek hayattan örneklerle zenginleştirilmiş, önemli kavram ve soruları içeren 5 adet yepyeni flashcard üret. JSON liste formatında ver:
+                5 adet yepyeni flashcard üret. JSON liste formatında ver:
                 [
-                  {{"on_yuz": "Kavram/Soru", "arka_yuz": "Açıklama/Cevap"}}
+                  {{"on_yuz": "...", "arka_yuz": "..."}}
                 ]
                 """
         res = ai_generate_content(prompt)
@@ -1112,12 +1115,16 @@ else:
             """,
             unsafe_allow_html=True,
         )
-        col_prev, col_next = st.columns(2)
+        col_prev, col_pass, col_next = st.columns(3)
         with col_prev:
           if f_idx > 0 and st.button(
               "⬅️ Önceki Kart", use_container_width=True
           ):
             st.session_state["fc_idx"] -= 1
+            st.rerun()
+        with col_pass:
+          if st.button("⏭️ Pas Geç", use_container_width=True):
+            st.session_state["fc_idx"] += 1
             st.rerun()
         with col_next:
           if f_idx < len(cards) - 1 and st.button(
@@ -1142,13 +1149,11 @@ else:
       st.session_state["iq_unit_key"] = (curr_subj, curr_unit)
 
     if st.button("🚀 Yepyeni İnteraktif Görev Başlat", key="gen_interactive_quest"):
-      with st.spinner(
-          "Yapay zeka gerçek yaşam uyumlu yepyeni bir macera hazırlıyor..."
-      ):
+      with st.spinner("Macera hazırlanıyor..."):
         prompt = f"""
                 Rastgelelik Kimliği: {random.randint(10000, 999999)}
                 5. Sınıf MEB müfredatı, Ders: {curr_subj}, Ünite: {curr_unit}.
-                Öğrencinin oynayarak öğreneceği, gerçek hayattan esinlenen karar verme senaryosu ve çoktan seçmeli mini görev üret. 
+                Gerçek hayattan esinlenen karar verme senaryosu ve çoktan seçmeli mini görev üret. 
                 JSON formatında şu yapıda ver:
                 {{
                   "senaryo": "...",
@@ -1213,13 +1218,13 @@ else:
         " adımları."
     )
     if st.button("🚀 Yepyeni Etkinlik Önerisi Getir"):
-      with st.spinner("Güncel etkinlik hazırlanıyor..."):
-        prompt = f"Rastgelelik Kimliği: {random.randint(10000, 999999)}. 5. Sınıf {curr_subj} {curr_unit} için evde veya sınıfta yapılabilecek gerçek hayat odaklı 3 adet yaratıcı öğrenme etkinliği öner."
+      with st.spinner("Etkinlik hazırlanıyor..."):
+        prompt = f"Rastgelelik Kimliği: {random.randint(10000, 999999)}. 5. Sınıf {curr_subj} {curr_unit} için evde veya sınıfta yapılabilecek 3 adet yaratıcı öğrenme etkinliği öner."
         res = ai_generate_content(prompt)
         if res:
           st.markdown(res)
 
-  # 8. KELİME AVI (KUSURSUZ HARF HAVUZU VE DİNAMİK RASTGELE ÜRETİM)
+  # 8. KELİME AVI (GERİ AL / SİL BUTONU + PAS GEÇME BUTONU EKLENDİ)
   elif curr_game == "kelime":
     st.subheader(f"🔤 {curr_subj} — Kelime Avı Bulmacası")
 
@@ -1234,13 +1239,10 @@ else:
       st.session_state["used_indices"] = []
 
     if st.button("🔍 Yepyeni Kelime Avını Başlat", key="gen_puz"):
-      with st.spinner(
-          "Yapay zeka gerçek yaşamla uyumlu yepyeni kelimeler üretiyor..."
-      ):
+      with st.spinner("Yepyeni bulmaca kelimeleri hazırlanıyor..."):
         prompt = f"""
-                Rastgelelik Kimliği: {random.randint(10000, 999999)} (Seed: {random.random()})
-                5. Sınıf {curr_subj} {curr_unit} için 5 adet tamamen taze, daha önce hiç üretilmemiş anahtar kelime ve tanım ipucu üret.
-                DİKKAT: Kelimeler tamamen Türkçe, gerçek hayatla ve MEB terimleriyle birebir uyumlu olsun.
+                Rastgelelik Kimliği: {random.randint(10000, 999999)}
+                5. Sınıf {curr_subj} {curr_unit} için 5 adet tamamen taze anahtar kelime ve tanım ipucu üret.
                 JSON liste formatında ver:
                 [
                   {{"kelime": "TERİM", "ipucu": "..."}}
@@ -1335,14 +1337,29 @@ else:
                   "✔️", key=f"char_btn_used_{p_idx}_{c_i}", disabled=True
               )
 
-        col_reset, col_check = st.columns(2)
-        with col_reset:
-          if st.button("🔄 Harfleri Sıfırla", use_container_width=True):
+        # Kontrol, Geri Al (Sil) ve Pas Geç Butonları
+        c_reset, c_backspace, c_pass, c_check = st.columns(4)
+        with c_reset:
+          if st.button("🔄 Sıfırla", use_container_width=True):
             st.session_state["user_guess"] = []
             st.session_state["used_indices"] = []
             st.rerun()
-        with col_check:
-          if st.button("✅ Kelimeyi Kontrol Et", use_container_width=True):
+        with c_backspace:
+          if st.button("↩️ Son Harfi Sil", use_container_width=True):
+            if st.session_state["user_guess"] and st.session_state[
+                "used_indices"
+            ]:
+              st.session_state["user_guess"].pop()
+              st.session_state["used_indices"].pop()
+              st.rerun()
+        with c_pass:
+          if st.button("⏭️ Pas Geç", use_container_width=True):
+            st.session_state["puz_idx"] += 1
+            st.session_state["user_guess"] = []
+            st.session_state["used_indices"] = []
+            st.rerun()
+        with c_check:
+          if st.button("✅ Kontrol Et", use_container_width=True):
             current_typed = "".join(st.session_state["user_guess"])
             if current_typed == t_word:
               st.success("🎉 Tebrikler, Doğru Kelime!")
@@ -1352,8 +1369,8 @@ else:
               st.rerun()
             else:
               st.error(
-                  "❌ Eksik veya yanlış harf kombinasyonu! Sıfırlayıp tekrar"
-                  " deneyin."
+                  "❌ Eksik veya yanlış harf kombinasyonu! 'Son Harfi Sil' veya"
+                  " 'Sıfırla' ile düzeltebilirsiniz."
               )
       else:
         st.markdown(
@@ -1384,11 +1401,11 @@ else:
       st.session_state["c_unit_key"] = (curr_subj, curr_unit)
 
     if st.button("✨ Yepyeni Yazılı Sınavını Başlat", key="gen_classic"):
-      with st.spinner("Güncel yazılı soruları hazırlanıyor..."):
+      with st.spinner("Yazılı soruları hazırlanıyor..."):
         prompt = f"""
                 Rastgelelik Kimliği: {random.randint(10000, 999999)}
                 5. Sınıf MEB, Ders: {curr_subj}, Ünite: {curr_unit}.
-                TAM 5 ADET gerçek hayat senaryolu ve daha önce üretilmemiş açık uçlu yazılı sorusu ve ideal cevapları JSON liste formatında ver:
+                TAM 5 ADET açık uçlu yazılı sorusu ve ideal cevapları JSON liste formatında ver:
                 [
                   {{"soru": "...", "beklenen_cevap": "..."}}
                 ]
