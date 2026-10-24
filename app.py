@@ -34,6 +34,29 @@ def deep_clean_json_data(data):
   return data
 
 
+# --- KESİN GÜVENLİ JSON PARSER (HATA RİSKİNİ SIFIRLAR) ---
+def safe_parse_json(raw_text):
+  if not raw_text:
+    return None
+  try:
+    # Markdown kod bloklarını temizle
+    cleaned = re.sub(r"```json|```", "", raw_text).strip()
+    # İlk '[' ile son ']' arasını veya ilk '{' ile son '}' arasını yakala
+    match = re.search(r"(\[.*\]|\{.*\})", cleaned, re.DOTALL)
+    if match:
+      cleaned = match.group(1)
+    data = json.loads(cleaned)
+    return deep_clean_json_data(data)
+  except Exception:
+    # Alternatif temizleme denemesi
+    try:
+      cleaned = raw_text.replace("'", '"')
+      data = json.loads(cleaned)
+      return deep_clean_json_data(data)
+    except Exception:
+      return None
+
+
 # --- 1. [api_keys] TOML YAPISINI DOĞRUDAN OKUYAN KESİN MOTOR ---
 
 
@@ -348,16 +371,13 @@ def render_question_visual(gorsel_tipi, param):
 
   param_str = clean_math_text(str(param)).strip()
 
-  # 1. ÜÇGEN ÇİZİMİ (Dinamik Köşe ve Açı Ayrıştırma)
   if gorsel_tipi == "ucgen":
     p_upper = param_str.upper()
-    # Örn parametre: "ABC, A:50°, B:60°" veya "KLM, K:70°, L:50°"
     match_letters = re.search(r"([A-Z]{3})", p_upper)
     k1, k2, k3 = (
         list(match_letters.group(1)) if match_letters else ["A", "B", "C"]
     )
 
-    # Açı değerlerini bulalım
     deg_matches = re.findall(r"([A-Z])\s*:\s*(\d+°)", param_str)
     deg_dict = {m[0].upper(): m[1] for m in deg_matches}
 
@@ -379,16 +399,13 @@ def render_question_visual(gorsel_tipi, param):
                 </defs>
                 <polygon points="{Ax},{Ay} {Bx},{By} {Cx},{Cy}" fill="url(#triGrad)" stroke="#38bdf8" stroke-width="4" stroke-linejoin="round"/>
                 
-                <!-- Köşe Harfleri -->
                 <text x="{Ax}" y="{Ay - 10}" fill="#38bdf8" font-size="15" font-weight="bold" text-anchor="middle">{k1}</text>
                 <text x="{Bx - 12}" y="{By + 15}" fill="#38bdf8" font-size="15" font-weight="bold" text-anchor="middle">{k2}</text>
                 <text x="{Cx + 12}" y="{By + 15}" fill="#38bdf8" font-size="15" font-weight="bold" text-anchor="middle">{k3}</text>
                 
-                <!-- 1. Köşe Açı Yayı ve Değeri -->
                 <path d="M 126 58 Q 140 73 154 58" fill="none" stroke="#facc15" stroke-width="3" stroke-linecap="round"/>
                 <text x="140" y="92" fill="#facc15" font-size="12" font-weight="bold" text-anchor="middle">{val1}</text>
 
-                <!-- 2. Köşe Açı Yayı ve Değeri -->
                 <path d="M 52 135 Q 68 142 62 124" fill="none" stroke="#facc15" stroke-width="3" stroke-linecap="round"/>
                 <text x="75" y="128" fill="#facc15" font-size="12" font-weight="bold" text-anchor="middle">{val2}</text>
             </svg>
@@ -396,7 +413,6 @@ def render_question_visual(gorsel_tipi, param):
         """
     st.components.v1.html(svg_html, height=205)
 
-  # 2. DÖRTGEN / DİKDÖRTGEN / KARE ÇİZİMİ
   elif gorsel_tipi in ["dortgen", "dikdortgen", "kare", "paralelkenar"]:
     p_upper = param_str.upper()
     match_letters = re.search(r"([A-Z]{4})", p_upper)
@@ -407,20 +423,17 @@ def render_question_visual(gorsel_tipi, param):
     deg_matches = re.findall(r"([A-Z])\s*:\s*(\d+°|[\d\.]+cm)", param_str)
     deg_dict = {m[0].upper(): m[1] for m in deg_matches}
     lbl1 = deg_dict.get(d_letters[0], "90°")
-    lbl2 = deg_dict.get(d_letters[1], "8 cm")
 
     svg_html = f"""
         <div style="display: flex; justify-content: center; margin: 12px 0;">
             <svg width="280" height="190" viewBox="0 0 280 190" style="background: linear-gradient(135deg, #0f172a, #1e293b); border-radius: 18px; border: 1.5px solid rgba(56, 189, 248, 0.4); box-shadow: 0 12px 30px rgba(0, 0, 0, 0.5);">
                 <rect x="50" y="45" width="180" height="100" fill="rgba(56, 189, 248, 0.1)" stroke="#38bdf8" stroke-width="4" rx="6"/>
                 
-                <!-- Köşe Harfleri -->
                 <text x="40" y="40" fill="#38bdf8" font-size="15" font-weight="bold" text-anchor="middle">{d_letters[0]}</text>
                 <text x="245" y="40" fill="#38bdf8" font-size="15" font-weight="bold" text-anchor="middle">{d_letters[1]}</text>
                 <text x="245" y="162" fill="#38bdf8" font-size="15" font-weight="bold" text-anchor="middle">{d_letters[2]}</text>
                 <text x="40" y="162" fill="#38bdf8" font-size="15" font-weight="bold" text-anchor="middle">{d_letters[3]}</text>
                 
-                <!-- Ölçü / Açı Etiketi -->
                 <rect x="105" y="84" width="70" height="24" fill="#0f172a" rx="6" stroke="#facc15" stroke-width="1.5"/>
                 <text x="140" y="101" fill="#facc15" font-size="13" font-weight="bold" text-anchor="middle">{lbl1}</text>
             </svg>
@@ -428,7 +441,6 @@ def render_question_visual(gorsel_tipi, param):
         """
     st.components.v1.html(svg_html, height=205)
 
-  # 3. ÇEMBER VE DAİRE ÇİZİMİ
   elif gorsel_tipi == "cember":
     val = "12 cm"
     try:
@@ -452,7 +464,6 @@ def render_question_visual(gorsel_tipi, param):
         """
     st.components.v1.html(svg_html, height=200)
 
-  # 4. FEN: AY EVRELERİ
   elif gorsel_tipi == "ay_evresi":
     svg_html = f"""
         <div style="display: flex; justify-content: center; margin: 12px 0;">
@@ -464,7 +475,6 @@ def render_question_visual(gorsel_tipi, param):
         """
     st.components.v1.html(svg_html, height=195)
 
-  # 5. FEN: GÜNEŞ
   elif gorsel_tipi == "gunes":
     svg_html = """
         <div style="display: flex; justify-content: center; margin: 12px 0;">
@@ -475,7 +485,6 @@ def render_question_visual(gorsel_tipi, param):
         """
     st.components.v1.html(svg_html, height=195)
 
-  # 6. FEN: DÜNYA
   elif gorsel_tipi == "dunya":
     svg_html = """
         <div style="display: flex; justify-content: center; margin: 12px 0;">
@@ -486,7 +495,6 @@ def render_question_visual(gorsel_tipi, param):
         """
     st.components.v1.html(svg_html, height=195)
 
-  # 7. FİZİK: DİNAMOMETRE
   elif gorsel_tipi == "dinamometre":
     newton = "5 N"
     try:
@@ -785,10 +793,10 @@ else:
 
   visual_prompt_instruction = """
   (KUSURSUZ GÖRSEL VE METİN SENKRONİZASYONU TALİMATI):
-  1. Soruda geçen tüm harfler (Örn: ABC üçgeni, ABCD dörtgeni, KLM üçgeni vb.) ve açı/uzunluk değerleri (Örn: A:50°, B:65°, |AB|=8 cm) görsel parametresine birebir aktarılacaktır.
-  2. 'circ' veya benzeri hatalı simgeler kesinlikle kullanılmayacak, yalnızca standart derece işareti (°) kullanılacaktır.
+  1. Soruda geçen tüm harfler ve açı/uzunluk değerleri görsel parametresine birebir aktarılacaktır.
+  2. Asla 'circ' kelimesi kullanılmayacak, yalnızca standart derece işareti (°) kullanılacaktır.
   3. Gorsel_parametre alanı şu formatta doldurulmalıdır: 
-     - Üçgenler için: "ABC, A:50°, B:65°"
+     - Üçgenler için: "ABC, A:50°, B:60°"
      - Dörtgenler için: "ABCD, A:90°, B:8cm"
      - Çemberler için: "O, 12cm"
   """
@@ -810,7 +818,7 @@ else:
                 5. Sınıf MEB, Ders: {curr_subj}, Ünite: {curr_unit}.
                 TAM 5 ADET benzersiz çoktan seçmeli soru üret.
                 {visual_prompt_instruction}
-                JSON formatında liste olarak ver:
+                JSON formatında geçerli bir liste olarak ver:
                 [
                   {{
                     "soru": "Soru metni",
@@ -823,16 +831,16 @@ else:
                 ]
                 """
         res = ai_generate_content(prompt)
-        if res:
-          try:
-            parsed = json.loads(re.sub(r"```json|```", "", res).strip())
-            st.session_state["balloon_5_questions"] = deep_clean_json_data(
-                parsed
-            )
-            st.session_state["game_started"] = False
-            st.rerun()
-          except Exception as e:
-            st.error(f"Hata: {e}")
+        parsed = safe_parse_json(res)
+        if parsed and isinstance(parsed, list):
+          st.session_state["balloon_5_questions"] = parsed
+          st.session_state["game_started"] = False
+          st.rerun()
+        else:
+          st.error(
+              "Sorular yüklenirken bir veri hatası oluştu. Lütfen tekrar"
+              " deneyin."
+          )
 
     if st.session_state["balloon_5_questions"]:
       if not st.session_state["game_started"]:
@@ -941,16 +949,15 @@ else:
                 ]
                 """
         res = ai_generate_content(prompt)
-        if res:
-          try:
-            parsed = json.loads(re.sub(r"```json|```", "", res).strip())
-            st.session_state["kazanim_list"] = deep_clean_json_data(parsed)
-            st.session_state["kazanim_idx"] = 0
-            st.session_state["kazanim_score"] = 0
-            st.session_state["kazanim_answers"] = {}
-            st.rerun()
-          except Exception:
-            pass
+        parsed = safe_parse_json(res)
+        if parsed and isinstance(parsed, list):
+          st.session_state["kazanim_list"] = parsed
+          st.session_state["kazanim_idx"] = 0
+          st.session_state["kazanim_score"] = 0
+          st.session_state["kazanim_answers"] = {}
+          st.rerun()
+        else:
+          st.error("Sorular üretilemedi. Lütfen tekrar deneyin.")
 
     if st.session_state["kazanim_list"]:
       k_list = st.session_state["kazanim_list"]
@@ -1054,16 +1061,15 @@ else:
                 ]
                 """
         res = ai_generate_content(prompt)
-        if res:
-          try:
-            parsed = json.loads(re.sub(r"```json|```", "", res).strip())
-            st.session_state["dy_questions"] = deep_clean_json_data(parsed)
-            st.session_state["dy_score"] = 0
-            st.session_state["dy_current_q"] = 0
-            st.session_state["dy_feedback"] = ""
-            st.rerun()
-          except Exception:
-            pass
+        parsed = safe_parse_json(res)
+        if parsed and isinstance(parsed, list):
+          st.session_state["dy_questions"] = parsed
+          st.session_state["dy_score"] = 0
+          st.session_state["dy_current_q"] = 0
+          st.session_state["dy_feedback"] = ""
+          st.rerun()
+        else:
+          st.error("Sorular üretilemedi.")
 
     if st.session_state["dy_questions"]:
       questions = st.session_state["dy_questions"]
@@ -1163,16 +1169,15 @@ else:
                 ]
                 """
         res = ai_generate_content(prompt)
-        if res:
-          try:
-            parsed = json.loads(re.sub(r"```json|```", "", res).strip())
-            st.session_state["fill_blanks"] = deep_clean_json_data(parsed)
-            st.session_state["fill_idx"] = 0
-            st.session_state["fill_score"] = 0
-            st.session_state["fill_feedback"] = ""
-            st.rerun()
-          except Exception:
-            pass
+        parsed = safe_parse_json(res)
+        if parsed and isinstance(parsed, list):
+          st.session_state["fill_blanks"] = parsed
+          st.session_state["fill_idx"] = 0
+          st.session_state["fill_score"] = 0
+          st.session_state["fill_feedback"] = ""
+          st.rerun()
+        else:
+          st.error("Sorular üretilemedi.")
 
     if st.session_state["fill_blanks"]:
       fdata = st.session_state["fill_blanks"]
@@ -1270,14 +1275,13 @@ else:
                 ]
                 """
         res = ai_generate_content(prompt)
-        if res:
-          try:
-            parsed = json.loads(re.sub(r"```json|```", "", res).strip())
-            st.session_state["flashcards"] = deep_clean_json_data(parsed)
-            st.session_state["fc_idx"] = 0
-            st.rerun()
-          except Exception:
-            pass
+        parsed = safe_parse_json(res)
+        if parsed and isinstance(parsed, list):
+          st.session_state["flashcards"] = parsed
+          st.session_state["fc_idx"] = 0
+          st.rerun()
+        else:
+          st.error("Kartlar üretilemedi.")
 
     if st.session_state["flashcards"]:
       cards = st.session_state["flashcards"]
@@ -1342,15 +1346,12 @@ else:
                 }}
                 """
         res = ai_generate_content(prompt)
-        if res:
-          try:
-            parsed = json.loads(re.sub(r"```json|```", "", res).strip())
-            st.session_state["interactive_quest"] = deep_clean_json_data(
-                parsed
-            )
-            st.rerun()
-          except Exception:
-            pass
+        parsed = safe_parse_json(res)
+        if parsed and isinstance(parsed, dict):
+          st.session_state["interactive_quest"] = parsed
+          st.rerun()
+        else:
+          st.error("Görev üretilemedi.")
 
     if st.session_state["interactive_quest"]:
       iq = st.session_state["interactive_quest"]
@@ -1428,21 +1429,20 @@ else:
                 ]
                 """
         res = ai_generate_content(prompt)
-        if res:
-          try:
-            parsed = json.loads(re.sub(r"```json|```", "", res).strip())
-            st.session_state["puz_items"] = deep_clean_json_data(parsed)
-            st.session_state["puz_idx"] = 0
-            st.session_state["user_guess"] = []
-            st.session_state["used_indices"] = []
-            keys_to_del = [
-                k for k in st.session_state.keys() if k.startswith("pool_")
-            ]
-            for k in keys_to_del:
-              del st.session_state[k]
-            st.rerun()
-          except Exception:
-            pass
+        parsed = safe_parse_json(res)
+        if parsed and isinstance(parsed, list):
+          st.session_state["puz_items"] = parsed
+          st.session_state["puz_idx"] = 0
+          st.session_state["user_guess"] = []
+          st.session_state["used_indices"] = []
+          keys_to_del = [
+              k for k in st.session_state.keys() if k.startswith("pool_")
+          ]
+          for k in keys_to_del:
+            del st.session_state[k]
+          st.rerun()
+        else:
+          st.error("Bulmaca üretilemedi.")
 
     if st.session_state["puz_items"]:
       items = st.session_state["puz_items"]
@@ -1587,13 +1587,12 @@ else:
                 ]
                 """
         res = ai_generate_content(prompt)
-        if res:
-          try:
-            parsed = json.loads(re.sub(r"```json|```", "", res).strip())
-            st.session_state["classic_exam"] = deep_clean_json_data(parsed)
-            st.rerun()
-          except Exception:
-            pass
+        parsed = safe_parse_json(res)
+        if parsed and isinstance(parsed, list):
+          st.session_state["classic_exam"] = parsed
+          st.rerun()
+        else:
+          st.error("Yazılı soruları üretilemedi.")
 
     if st.session_state["classic_exam"]:
       exam_list = st.session_state["classic_exam"]
