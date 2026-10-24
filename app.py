@@ -148,7 +148,7 @@ MEB_CURRICULUM = {
             "2. Ünite: Evimiz Dünya",
             "3. Ünite: Kültür ve Miras",
             "4. Ünite: Yaşayan Türkiye",
-            "5. Üreten Türkiye",
+            "5. Ünite: Üreten Türkiye",
             "6. Ünite: Yönetime Katılıyorum",
         ],
     },
@@ -201,13 +201,14 @@ if "game_started" not in st.session_state:
   st.session_state["game_started"] = False
 if "coach_theme" not in st.session_state:
   st.session_state["coach_theme"] = "Mavi-Beyaz"
+if "coach_open" not in st.session_state:
+  st.session_state["coach_open"] = False
 if "coach_messages" not in st.session_state:
   st.session_state["coach_messages"] = [
       {
           "role": "assistant",
           "content": (
-              "Merhaba! Ben senin yapay zeka koçun **AdenMind**. Bana"
-              " dilediğin zaman soru sorabilirsin! 🦊✨"
+              "Merhaba ben AdenMind, sana yardımcı olmak için buradayım! 🦊✨"
           ),
       }
   ]
@@ -301,16 +302,6 @@ st.markdown(
         opacity: 0.92;
         transform: scale(1.02);
     }}
-    /* Popover butonunu ikonik ve temiz hale getirme */
-    [data-testid="stPopover"] > button {{
-        background: {c_bg_gradient} !important;
-        color: white !important;
-        border-radius: 12px !important;
-        font-weight: bold !important;
-        border: none !important;
-        width: 100% !important;
-        box-shadow: 0 4px 12px rgba(0,0,0,0.15) !important;
-    }}
     </style>
     <div class="main-header">🎒 MEB 5. Sınıf Akıllı Eğitsel Oyun Merkezi & AdenMind Koçluk (Murat KANDIRMAZ)</div>
 """,
@@ -392,7 +383,7 @@ def render_question_visual(gorsel_tipi, param):
     st.markdown(svg_code, unsafe_allow_html=True)
 
 
-# --- 7. SOL MENÜ VE MODERN KOMPAKT ASİSTAN ---
+# --- 7. SOL MENÜ ---
 with st.sidebar:
   st.subheader("🦊 AdenMind Tema Tercihi")
   selected_theme = st.radio(
@@ -413,79 +404,170 @@ with st.sidebar:
     st.rerun()
 
   st.markdown("---")
-
-  # Modern Kompakt Popover Asistan (Ok simgesiz, saf Avatar ve İsim)
-  with st.popover("🦊 AdenMind", use_container_width=True):
-    st.markdown(
-        """
-        <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 8px;">
-            <span style="font-size: 22px;">🦊</span>
-            <b style="font-size: 14px; color: #1e293b;">AdenMind Asistan</b>
-        </div>
-        <hr style="margin: 0 0 8px 0; border-color: #eee;">
-        """,
-        unsafe_allow_html=True,
-    )
-
-    # Sohbet Geçmişi Alanı (Daha kompakt yükseklik)
-    chat_box_container = st.container(height=220)
-    with chat_box_container:
-      for msg in st.session_state["coach_messages"]:
-        if msg["role"] == "assistant":
-          st.markdown(
-              f"""
-                    <div style="background-color: {c_bubble_ai}; padding: 6px 8px; border-radius: 6px; margin-bottom: 5px; border-left: 3px solid {c_accent}; color: {c_text_color}; font-size: 11px;">
-                        <b>AdenMind:</b> {msg['content']}
-                    </div>
-                    """,
-              unsafe_allow_html=True,
-          )
-        else:
-          st.markdown(
-              f"""
-                    <div style="background-color: {c_bubble_user}; padding: 6px 8px; border-radius: 6px; margin-bottom: 5px; text-align: right; color: #1e293b; font-size: 11px;">
-                        <b>Sen:</b> {msg['content']}
-                    </div>
-                    """,
-              unsafe_allow_html=True,
-          )
-
-    # Asistana Soru Formu
-    with st.form("popover_coach_form", clear_on_submit=True):
-      lamp_input = st.text_input("Asistana soru sor...", key="lamp_query_input")
-      lamp_submitted = st.form_submit_button("Sor 🚀", use_container_width=True)
-      if lamp_submitted and lamp_input:
-        st.session_state["coach_messages"].append(
-            {"role": "user", "content": lamp_input}
-        )
-        curr_s = st.session_state.get("selected_subject", "Genel")
-        curr_u = st.session_state.get("selected_unit", "Genel Konu")
-        prompt = (
-            f"Sen 5. sınıf MEB müfredatı odaklı, sevimli ve bilgili akıllı koçsun."
-            f" Adın AdenMind. Öğrencinin dersi: {curr_s}, ünite: {curr_u}."
-            f" Öğrencinin sorusu: {lamp_input}. Kısa ve açıklayıcı rehberlik yap."
-        )
-        response = ai_generate_content(prompt)
-        if response:
-          st.session_state["coach_messages"].append(
-              {"role": "assistant", "content": response}
-          )
-        else:
-          st.session_state["coach_messages"].append(
-              {
-                  "role": "assistant",
-                  "content": "Yanıt oluşturulamadı, tekrar dene!",
-              }
-          )
-        st.rerun()
-
-  st.markdown("---")
   if st.button("🏠 Ana Sayfaya Dön", key="home_btn", use_container_width=True):
     st.session_state["selected_subject"] = None
     st.session_state["selected_unit"] = None
     st.session_state["selected_game"] = None
     st.session_state["game_started"] = False
     st.rerun()
+
+
+# --- 8. SAĞ ALT KÖŞE: 50 KURUŞ BOYUTUNDA SEVİMLİ AVATAR & DİKEY CANLI SOHBET ---
+
+# Avatar açma/kapama butonunu tetiklemek için özel CSS ve Container
+st.markdown(
+    f"""
+    <style>
+    /* 50 kuruş para boyutunda (yaklaşık 45-50px) yuvarlak sevimli avatar düğmesi */
+    .floating-avatar-btn {{
+        position: fixed;
+        bottom: 25px;
+        right: 25px;
+        width: 50px;
+        height: 50px;
+        background: {c_bg_gradient};
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 26px;
+        box-shadow: 0 4px 15px rgba(0,0,0,0.3);
+        cursor: pointer;
+        z-index: 99999;
+        transition: transform 0.2s ease;
+        border: 2px solid white;
+    }}
+    .floating-avatar-btn:hover {{
+        transform: scale(1.1);
+    }}
+    </style>
+""",
+    unsafe_allow_html=True,
+)
+
+# Sağ alt köşe etkileşimli butonu
+with st.container():
+  # Görünmez ama tıklanabilir Streamlit butonunu absolute konumlandırılmış şık bir avatarın altına konumlandırıyoruz
+  if st.session_state["coach_open"]:
+    if st.button("❌", key="close_avatar_float", help="Asistanı Kapat"):
+      st.session_state["coach_open"] = False
+      st.rerun()
+  else:
+    if st.button("🦊", key="open_avatar_float", help="AdenMind Canlı Asistan"):
+      st.session_state["coach_open"] = True
+      st.rerun()
+
+# Eğer asistan açıksa sağ altta dikey, modern mobil sohbet penceresi belirir
+if st.session_state["coach_open"]:
+  st.markdown(
+      f"""
+        <div style="
+            position: fixed; 
+            bottom: 85px; 
+            right: 20px; 
+            width: 330px; 
+            height: 440px; 
+            background: #ffffff; 
+            border: 2px solid {c_border}; 
+            border-radius: 20px; 
+            box-shadow: 0 10px 30px rgba(0,0,0,0.25); 
+            z-index: 99998; 
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        ">
+            <!-- Üst Modern Başlık -->
+            <div style="background: {c_bg_gradient}; padding: 10px 14px; color: white; display: flex; align-items: center; justify-content: space-between; font-weight: bold; font-size: 14px;">
+                <div style="display: flex; align-items: center; gap: 8px;">
+                    <span style="font-size: 20px;">🦊</span>
+                    <span>AdenMind</span>
+                </div>
+                <span style="font-size: 11px; opacity: 0.9; background: rgba(0,0,0,0.2); padding: 2px 6px; border-radius: 10px;">Çevrimiçi</span>
+            </div>
+        </div>
+    """,
+      unsafe_allow_html=True,
+  )
+
+  # Sohbet mesajları dikey akış alanı
+  chat_container = st.container()
+  with chat_container:
+    st.markdown(
+        """
+        <div style="position: fixed; bottom: 140px; right: 28px; width: 314px; height: 310px; overflow-y: auto; z-index: 99999; padding-right: 4px;">
+        """,
+        unsafe_allow_html=True,
+    )
+
+    for msg in st.session_state["coach_messages"]:
+      if msg["role"] == "assistant":
+        st.markdown(
+            f"""
+                <div style="display: flex; align-items: flex-start; gap: 6px; margin-bottom: 8px;">
+                    <div style="font-size: 16px;">🦊</div>
+                    <div style="background-color: {c_bubble_ai}; padding: 8px 10px; border-radius: 12px; border-top-left-radius: 2px; color: {c_text_color}; font-size: 12px; max-width: 85%; box-shadow: 0 1px 3px rgba(0,0,0,0.1);">
+                        {msg['content']}
+                    </div>
+                </div>
+                """,
+            unsafe_allow_html=True,
+        )
+      else:
+        st.markdown(
+            f"""
+                <div style="display: flex; justify-content: flex-end; margin-bottom: 8px;">
+                    <div style="background-color: {c_bubble_user}; padding: 8px 10px; border-radius: 12px; border-top-right-radius: 2px; color: #1e293b; font-size: 12px; max-width: 85%; box-shadow: 0 1px 3px rgba(0,0,0,0.1);">
+                        {msg['content']}
+                    </div>
+                </div>
+                """,
+            unsafe_allow_html=True,
+        )
+
+    st.markdown("</div>", unsafe_allow_html=True)
+
+  # Dikey sohbet alt form giriş alanı
+  st.markdown(
+      """
+        <div style="position: fixed; bottom: 90px; right: 28px; width: 314px; z-index: 99999; background: white; padding-top: 4px;">
+    """,
+      unsafe_allow_html=True,
+  )
+  with st.form("vertical_chat_form", clear_on_submit=True):
+    col_inp, col_btn = st.columns([4, 1])
+    with col_inp:
+      user_msg = st.text_input(
+          "Mesaj yaz...", label_visibility="collapsed", key="v_msg"
+      )
+    with col_btn:
+      submitted = st.form_submit_button("Gönder")
+
+    if submitted and user_msg:
+      st.session_state["coach_messages"].append(
+          {"role": "user", "content": user_msg}
+      )
+      curr_s = st.session_state.get("selected_subject", "Genel")
+      curr_u = st.session_state.get("selected_unit", "Genel Konu")
+      prompt = (
+          f"Sen 5. sınıf MEB müfredatı odaklı, sevimli ve bilgili akıllı koçsun."
+          f" Adın AdenMind. Öğrencinin dersi: {curr_s}, ünite: {curr_u}."
+          f" Öğrencinin sorusu: {user_msg}. Kısa ve sevimli rehberlik yap."
+      )
+      response = ai_generate_content(prompt)
+      if response:
+        st.session_state["coach_messages"].append(
+            {"role": "assistant", "content": response}
+        )
+      else:
+        st.session_state["coach_messages"].append(
+            {
+                "role": "assistant",
+                "content": "Yanıt oluşturulamadı, tekrar dene!",
+            }
+        )
+      st.rerun()
+
+  st.markdown("</div>", unsafe_allow_html=True)
 
 
 # --- AŞAMA 1: DERS SEÇİMİ (KARTLARA DİREKT TIKLAMA) ---
