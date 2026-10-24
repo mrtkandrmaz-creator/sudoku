@@ -25,59 +25,63 @@ def get_all_api_keys():
   # Streamlit Secrets (TOML) derinlemesine özyinelemeli tarama
   try:
     if hasattr(st, "secrets") and st.secrets:
-
-      def extract_values(data):
-        if isinstance(data, dict):
-          for k, v in data.items():
-            extract_values(v)
-        elif isinstance(data, (list, tuple)):
-          for item in data:
-            extract_values(item)
-        elif isinstance(data, str):
-          val = data.strip()
-          if len(val) > 5:
-            if (
-                val.startswith("AIza")
-                or "GEMINI" in val.upper()
-                or "GOOGLE" in val.upper()
-            ):
-              if val not in gemini_keys and not val.startswith("gsk_"):
-                gemini_keys.append(val)
-            elif val.startswith("gsk_") or "GROQ" in val.upper():
-              if val not in groq_keys:
-                groq_keys.append(val)
-
-      extract_values(st.secrets)
-
+      # 1. Doğrudan anahtarları kontrol et
       for top_key in st.secrets.keys():
-        tk_upper = str(top_key).upper()
+        tk_lower = str(top_key).lower()
         try:
           val = str(st.secrets[top_key]).strip()
           if len(val) > 5:
-            if "GEMINI" in tk_upper or "GOOGLE" in tk_upper or val.startswith("AIza"):
+            if (
+                "gemini" in tk_lower
+                or "google" in tk_lower
+                or val.startswith("AIza")
+            ):
               if val not in gemini_keys:
                 gemini_keys.append(val)
-            elif "GROQ" in tk_upper or val.startswith("gsk_"):
+            elif "groq" in tk_lower or val.startswith("gsk_"):
               if val not in groq_keys:
                 groq_keys.append(val)
         except Exception:
           pass
+
+      # 2. İç içe tabloları (nested dict) tarama
+      def recursive_search(data):
+        if isinstance(data, dict):
+          for k, v in data.items():
+            if isinstance(v, dict):
+              recursive_search(v)
+            elif isinstance(v, str):
+              val = v.strip()
+              k_lower = str(k).lower()
+              if len(val) > 5:
+                if (
+                    "gemini" in k_lower
+                    or "google" in k_lower
+                    or val.startswith("AIza")
+                ):
+                  if val not in gemini_keys and not val.startswith("gsk_"):
+                    gemini_keys.append(val)
+                elif "groq" in k_lower or val.startswith("gsk_"):
+                  if val not in groq_keys:
+                    groq_keys.append(val)
+
+      recursive_search(st.secrets)
   except Exception:
     pass
 
   # Sistem Ortam Değişkenleri Taraması
   for env_key, env_val in os.environ.items():
-    env_upper = env_key.upper()
+    env_lower = env_key.lower()
     if env_val and isinstance(env_val, str) and len(env_val.strip()) > 5:
       val = env_val.strip()
       if (
-          "GEMINI" in env_upper
-          or "GOOGLE" in env_upper
+          "gemini" in env_lower
+          or "google" in env_lower
           or val.startswith("AIza")
       ):
         if val not in gemini_keys:
           gemini_keys.append(val)
-      elif "GROQ" in env_upper or val.startswith("gsk_"):
+      elif "groq" in env_lower or val.startswith("gsk_"):
         if val not in groq_keys:
           groq_keys.append(val)
 
@@ -115,7 +119,7 @@ except ImportError:
 
 
 def ai_generate_content(prompt_text):
-  """Gemini (gemini-3.6-flash dahil) ve Groq modellerini dener."""
+  """Mutlaka gemini-3.6-flash ve Groq modellerini dener."""
   if has_gemini and gemini_keys:
     for g_key in gemini_keys:
       try:
@@ -255,19 +259,15 @@ st.markdown(
         margin-bottom: 25px;
         box-shadow: 0 4px 12px rgba(0,0,0,0.15);
     }
-    .stButton>button {
+    .card-box {
+        padding: 24px;
         border-radius: 14px;
+        color: white;
+        text-align: center;
         font-weight: bold;
-        border: none;
-        width: 100%;
-        height: 120px;
-        font-size: 22px !important;
-        color: white !important;
+        font-size: 22px;
+        margin-bottom: 10px;
         box-shadow: 0 4px 10px rgba(0,0,0,0.18);
-        transition: transform 0.2s;
-    }
-    .stButton>button:hover {
-        transform: scale(1.02);
     }
     </style>
     <div class="main-header">🎒 MEB 5. Sınıf Akıllı Eğitsel Oyun Merkezi (Murat KANDIRMAZ)</div>
@@ -277,12 +277,15 @@ st.markdown(
 
 # --- 4. SOL MENÜ (API DURUM GÖSTERGESİ) ---
 with st.sidebar:
-  st.subheader("⚙️ Sistem Durumu")
+  st.subheader("⚙️ Sistem & API Durumu")
   if gemini_keys or groq_keys:
-    st.success("✅ Yapay Zeka TOML'dan Aktif!")
+    st.success(
+        f"✅ Yapay Zeka Aktif!\n(Gemini: {len(gemini_keys)}, Groq:"
+        f" {len(groq_keys)})"
+    )
   else:
-    st.warning("⚠️ API anahtarı algılanamadı. Buraya geçici girebilirsiniz:")
-    m_key = st.text_input("API Key:", type="password")
+    st.warning("⚠️ TOML'dan anahtar okunamadı. Geçici girebilirsiniz:")
+    m_key = st.text_input("API Key Girin:", type="password")
     if m_key:
       if m_key.startswith("AIza"):
         st.session_state["manual_gemini"] = m_key
@@ -294,7 +297,7 @@ with st.sidebar:
         st.rerun()
 
   st.markdown("---")
-  if st.button("🏠 Ana Sayfaya Dön", key="home_btn"):
+  if st.button("🏠 Ana Sayfaya Dön", key="home_btn", use_container_width=True):
     st.session_state["selected_subject"] = None
     st.session_state["selected_unit"] = None
     st.session_state["selected_game"] = None
@@ -308,9 +311,11 @@ if "selected_unit" not in st.session_state:
 if "selected_game" not in st.session_state:
   st.session_state["selected_game"] = None
 
-# --- AŞAMA 1: DERS SEÇİMİ ---
+# --- AŞAMA 1: DERS SEÇİMİ (BÜYÜK RENKLİ KARTLAR) ---
 if st.session_state["selected_subject"] is None:
-  st.markdown("### 🌟 Lütfen Çalışmak İstediğiniz MEB Ders Kartına Tıklayın")
+  st.markdown(
+      "### 🌟 Lütfen Çalışmak İstediğiniz MEB Ders Kartına Tıklayın"
+  )
 
   subjects = list(MEB_CURRICULUM.keys())
   cols = st.columns(3)
@@ -321,23 +326,22 @@ if st.session_state["selected_subject"] is None:
     with cols[col_idx]:
       st.markdown(
           f"""
-            <style>
-            div.stButton > button[data-testid="baseButton-sub_{subj}"] {{
-                background-color: {data['renk']} !important;
-            }}
-            </style>
+            <div class="card-box" style="background-color: {data['renk']};">
+                <div style="font-size: 38px;">{data['ikon']}</div>
+                <div style="margin-top: 8px;">{subj}</div>
+            </div>
             """,
           unsafe_allow_html=True,
       )
       if st.button(
-          f"{data['ikon']} {subj}",
+          f"🚀 {subj} Dersine Gir",
           key=f"sub_{subj}",
           use_container_width=True,
       ):
         st.session_state["selected_subject"] = subj
         st.rerun()
 
-# --- AŞAMA 2: ÜNİTE SEÇİMİ ---
+# --- AŞAMA 2: ÜNİTE SEÇİMİ (BÜYÜK RENKLİ KARTLAR) ---
 elif (
     st.session_state["selected_subject"] is not None
     and st.session_state["selected_unit"] is None
@@ -362,22 +366,19 @@ elif (
     with u_col:
       st.markdown(
           f"""
-            <style>
-            div.stButton > button[data-testid="baseButton-unit_{idx}"] {{
-                background-color: {curr_data['renk']} !important;
-                opacity: 0.95;
-            }}
-            </style>
+            <div class="card-box" style="background-color: {curr_data['renk']}; opacity: 0.95;">
+                <div style="font-size: 20px;">📖 {unit_name}</div>
+            </div>
             """,
           unsafe_allow_html=True,
       )
       if st.button(
-          f"📖 {unit_name}", key=f"unit_{idx}", use_container_width=True
+          f"Seç: {unit_name}", key=f"unit_{idx}", use_container_width=True
       ):
         st.session_state["selected_unit"] = unit_name
         st.rerun()
 
-# --- AŞAMA 3: OYUN VE SORU MODELLERİ ---
+# --- AŞAMA 3: OYUN VE SORU MODELLERİ (BÜYÜK RENKLİ KARTLAR) ---
 elif (
     st.session_state["selected_subject"] is not None
     and st.session_state["selected_unit"] is not None
@@ -389,7 +390,7 @@ elif (
 
   st.markdown(
       f"""
-        <div style="background-color: {curr_data['renk']}; padding: 14px; border-radius: 10px; color: white; margin-bottom: 20px;">
+        <div style="background-color: {curr_data['renk']}; padding: 14px; border-radius: 10px; color: white; margin-bottom: 20px; font-weight: bold; font-size: 18px;">
             <b>Seçilen Ders:</b> {curr_subj} &nbsp;|&nbsp; <b>Ünite:</b> {curr_unit}
         </div>
     """,
@@ -415,16 +416,14 @@ elif (
     with g_cols[g_idx % 3]:
       st.markdown(
           f"""
-            <style>
-            div.stButton > button[data-testid="baseButton-game_{g_item['id']}"] {{
-                background-color: {g_item['renk']} !important;
-            }}
-            </style>
+            <div class="card-box" style="background-color: {g_item['renk']};">
+                <div>{g_item['isim']}</div>
+            </div>
             """,
           unsafe_allow_html=True,
       )
       if st.button(
-          g_item["isim"],
+          f"Seç: {g_item['isim'].split(' ')[1]}",
           key=f"game_{g_item['id']}",
           use_container_width=True,
       ):
@@ -651,3 +650,5 @@ else:
           )
           if ans:
             st.success(ans)
+
+<FollowUp/>
