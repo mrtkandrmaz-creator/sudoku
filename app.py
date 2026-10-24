@@ -1155,23 +1155,17 @@ else:
         st.markdown("#### Kelime Kutucukları:")
         user_guess = st.session_state["user_guess"]
 
-        # Kutucuklar (Tek bir temiz st.markdown bloğunda güvenli şekilde oluşturulur)
+        # Tamamen temizlenmiş, tek satırlık ve hatasız HTML yapısı
         boxes_html = '<div style="display: flex; gap: 8px; justify-content: center; margin-bottom: 20px;">'
         for b_i in range(len(target_word)):
           char_in_box = user_guess[b_i] if b_i < len(user_guess) else ""
-          boxes_html += f"""
-                <div style="
-                    width: 48px; height: 52px;
-                    border: 3px solid #6366f1;
-                    border-radius: 10px;
-                    display: flex; align-items: center; justify-content: center;
-                    font-size: 24px; font-weight: bold;
-                    background: #1e1b4b;
-                    color: #38bdf8;
-                    box-shadow: 0 4px 12px rgba(0,0,0,0.3);">
-                    {char_in_box}
-                </div>
-                """
+          boxes_html += (
+              '<div style="width: 48px; height: 52px; border: 3px solid #6366f1;'
+              " border-radius: 10px; display: flex; align-items: center;"
+              " justify-content: center; font-size: 24px; font-weight: bold;"
+              ' background: #1e1b4b; color: #38bdf8; box-shadow: 0 4px 12px'
+              f' rgba(0,0,0,0.3);">{char_in_box}</div>'
+          )
         boxes_html += "</div>"
         st.markdown(boxes_html, unsafe_allow_html=True)
 
