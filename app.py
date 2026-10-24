@@ -377,19 +377,24 @@ elif (
           "renk": "linear-gradient(135deg, #2193b0, #6dd5ed)",
       },
       {
-          "id": "acik",
-          "isim": "✍️ Klasik Yazılı Simülatörü",
-          "renk": "linear-gradient(135deg, #11998e, #38ef7d)",
+          "id": "dogruyanlis",
+          "isim": "✅ Doğru / Yanlış Meydan Okuması",
+          "renk": "linear-gradient(135deg, #38ef7d, #11998e)",
       },
       {
           "id": "kelime",
-          "isim": "🔤 Kelime Avı & Bulmaca",
+          "isim": "🔤 Kelime Avı (Harf Seçmeli Bulmaca)",
           "renk": "linear-gradient(135deg, #f2994a, #f2c94c)",
+      },
+      {
+          "id": "acik",
+          "isim": "✍️ Klasik Yazılı Simülatörü",
+          "renk": "linear-gradient(135deg, #834d9b, #d04ed6)",
       },
       {
           "id": "koc",
           "isim": "🤖 Yapay Zeka Koçum",
-          "renk": "linear-gradient(135deg, #834d9b, #d04ed6)",
+          "renk": "linear-gradient(135deg, #4e54c8, #8f94fb)",
       },
   ]
 
@@ -483,7 +488,6 @@ else:
         questions_json = json.dumps(
             st.session_state["balloon_5_questions"], ensure_ascii=False
         )
-
         html_balloon_game = (
             """
             <!DOCTYPE html>
@@ -759,7 +763,6 @@ else:
         st.components.v1.html(html_balloon_game, height=580)
         st.markdown("<br>", unsafe_allow_html=True)
 
-        # Yan yana Tekrar Oyna ve Ana Ekrana Dön Butonları
         b_col1, b_col2 = st.columns(2)
         with b_col1:
           if st.button(
@@ -1026,7 +1029,187 @@ else:
             st.session_state["game_started"] = False
             st.rerun()
 
-  # 3. KLASİK YAZILI SİMÜLATÖRÜ
+  # 3. DOĞRU / YANLIŞ MEYDAN OKUMASI
+  elif curr_game == "dogruyanlis":
+    st.subheader(f"✅ {curr_subj} — Doğru / Yanlış Meydan Okuması")
+
+    if (
+        "dy_questions" not in st.session_state
+        or st.session_state.get("dy_unit_key") != (curr_subj, curr_unit)
+    ):
+      st.session_state["dy_questions"] = None
+      st.session_state["dy_unit_key"] = (curr_subj, curr_unit)
+
+    if st.button("🚀 Doğru/Yanlış Sorularını Üret", key="gen_dy"):
+      with st.spinner("Yapay zeka 5 adet Doğru/Yanlış önermesi hazırlıyor..."):
+        prompt = f"""
+                5. Sınıf MEB müfredatı, Ders: {curr_subj}, Ünite: {curr_unit}.
+                Bu ünite için TAM 5 ADET Doğru veya Yanlış önermesi üret.
+                JSON formatında liste olarak ver:
+                [
+                  {{"ifade": "Önerme metni", "cevap": "D", "aciklama": "Açıklama"}}
+                ]
+                (Not: cevap alanı sadece "D" veya "Y" olsun.)
+                """
+        res = ai_generate_content(prompt)
+        if res:
+          try:
+            st.session_state["dy_questions"] = json.loads(
+                re.sub(r"```json|```", "", res).strip()
+            )
+            st.rerun()
+          except Exception:
+            st.error("Biçim hatası.")
+
+    if st.session_state["dy_questions"]:
+      with st.form("dy_form"):
+        dy_answers = {}
+        for idx, item in enumerate(st.session_state["dy_questions"]):
+          st.markdown(f"**Önerme {idx+1}:** {item['ifade']}")
+          dy_answers[idx] = st.radio(
+              f"Seçiminiz ({idx+1}):", ["Doğru (D)", "Yanlış (Y)"], key=f"dy_{idx}"
+          )
+          st.markdown("---")
+
+        if st.form_submit_button("Cevapları Kontrol Et"):
+          score = 0
+          for idx, item in enumerate(st.session_state["dy_questions"]):
+            user_choice = dy_answers[idx][0]  # 'D' veya 'Y'
+            correct_choice = item["cevap"].upper()
+            if user_choice == correct_choice:
+              st.success(
+                  f"✅ Önerme {idx+1} Doğru! — Açıklama: {item['aciklama']}"
+              )
+              score += 20
+            else:
+              st.error(
+                  f"❌ Önerme {idx+1} Yanlış. Doğru Cevap: **{correct_choice}** —"
+                  f" Açıklama: {item['aciklama']}"
+              )
+          st.balloons()
+          st.info(f"🏆 Toplam Puanınız: {score} / 100")
+      st.markdown("<br>", unsafe_allow_html=True)
+      if st.button("🏠 Ana Ekrana Dön", key="back_home_dy"):
+        st.session_state["selected_subject"] = None
+        st.session_state["selected_unit"] = None
+        st.session_state["selected_game"] = None
+        st.rerun()
+
+  # 4. KELİME AVI (GERÇEK HARF SEÇMELİ BULMACA)
+  elif curr_game == "kelime":
+    st.subheader(f"🔤 {curr_subj} — Kelime Avı (Harf Seçmeli Bulmaca)")
+
+    if (
+        "puz_items" not in st.session_state
+        or st.session_state.get("p_unit_key") != (curr_subj, curr_unit)
+    ):
+      st.session_state["puz_items"] = None
+      st.session_state["p_unit_key"] = (curr_subj, curr_unit)
+      st.session_state["puz_idx"] = 0
+      st.session_state["puz_score"] = 0
+      st.session_state["user_guess"] = ""
+
+    if st.button("🔍 Kelime Avını Başlat", key="gen_puz"):
+      with st.spinner("Yapay zeka bulmaca kelimelerini hazırlıyor..."):
+        prompt = f"""
+                5. Sınıf {curr_subj} {curr_unit} için TAM 5 ADET önemli anahtar kelime (en fazla 10 harfli Türkçe) ve tanım ipucu üret.
+                JSON formatında liste olarak ver:
+                [
+                  {{"kelime": "TERİM", "ipucu": "Tanımı"}}
+                ]
+                """
+        res = ai_generate_content(prompt)
+        if res:
+          try:
+            st.session_state["puz_items"] = json.loads(
+                re.sub(r"```json|```", "", res).strip()
+            )
+            st.session_state["puz_idx"] = 0
+            st.session_state["puz_score"] = 0
+            st.session_state["user_guess"] = ""
+            st.rerun()
+          except Exception:
+            pass
+
+    if st.session_state["puz_items"]:
+      items = st.session_state["puz_items"]
+      p_idx = st.session_state["puz_idx"]
+
+      if p_idx < len(items):
+        current_item = items[p_idx]
+        target_word = current_item["kelime"].upper()
+
+        st.markdown(
+            f"### Bulmaca {p_idx+1} / {len(items)}"
+        )
+        st.info(f"💡 **İpucu / Tanım:** {current_item['ipucu']}")
+
+        # Harf havuzu için kelimenin harflerini ve rastgele harfleri karıştır
+        if f"pool_{p_idx}" not in st.session_state:
+          alphabet = "ABCÇDEFGĞHIİJKLMNOÖPRSŞTUÜVYZ"
+          pool = list(target_word)
+          while len(pool) < max(8, len(target_word) + 3):
+            pool.append(random.choice(alphabet))
+          random.shuffle(pool)
+          st.session_state[f"pool_{p_idx}"] = pool
+
+        letter_pool = st.session_state[f"pool_{p_idx}"]
+
+        st.markdown(
+            f"**Oluşturulan Kelime:** `{st.session_state['user_guess']}`"
+        )
+        st.write("Aşağıdaki harf kutucuklarına tıklayarak kelimeyi oluşturun:")
+
+        # Harf butonları havuzu
+        cols = st.columns(len(letter_pool))
+        for l_i, l_char in enumerate(letter_pool):
+          with cols[l_i % len(cols)]:
+            if st.button(l_char, key=f"l_btn_{p_idx}_{l_i}_{l_char}"):
+              st.session_state["user_guess"] += l_char
+              st.rerun()
+
+        col_a, col_b = st.columns(2)
+        with col_a:
+          if st.button("⬅️ Son Harfi Sil", key=f"del_{p_idx}"):
+            st.session_state["user_guess"] = st.session_state["user_guess"][:-1]
+            st.rerun()
+        with col_b:
+          if st.button("🔄 Sıfırla", key=f"reset_{p_idx}"):
+            st.session_state["user_guess"] = ""
+            st.rerun()
+
+        st.markdown("---")
+        if st.button("✨ Tahmini Kontrol Et", key=f"check_{p_idx}"):
+          if st.session_state["user_guess"] == target_word:
+            st.success(f"🎉 Tebrikler! Doğru Kelime: {target_word}")
+            st.session_state["puz_score"] += 20
+            st.session_state["puz_idx"] += 1
+            st.session_state["user_guess"] = ""
+            st.balloons()
+            st.rerun()
+          else:
+            st.error(
+                f"❌ Yanlış tahmin! (Seçtiğiniz:"
+                f" {st.session_state['user_guess']}). Tekrar deneyin."
+            )
+      else:
+        st.markdown("## 🏆 Kelime Avı Tamamlandı!")
+        st.markdown(
+            f"Toplam Puanınız: **{st.session_state['puz_score']} / 100**"
+        )
+        st.markdown("<br>", unsafe_allow_html=True)
+        if st.button("🔄 Tekrar Oyna", key="replay_puz"):
+          st.session_state["puz_items"] = None
+          st.rerun()
+
+      st.markdown("<br>", unsafe_allow_html=True)
+      if st.button("🏠 Ana Ekrana Dön", key="back_home_puz"):
+        st.session_state["selected_subject"] = None
+        st.session_state["selected_unit"] = None
+        st.session_state["selected_game"] = None
+        st.rerun()
+
+  # 5. KLASİK YAZILI SİMÜLATÖRÜ
   elif curr_game == "acik":
     st.subheader(f"✍️ {curr_subj} — 5 Soruluk Klasik Yazılı Sınavı")
 
@@ -1087,68 +1270,7 @@ else:
         st.session_state["selected_game"] = None
         st.rerun()
 
-  # 4. KELİME AVI & BULMACA
-  elif curr_game == "kelime":
-    st.subheader(f"🔤 {curr_subj} — 5 Soruluk Kelime Avı & Bulmaca")
-
-    if (
-        "puz_5_data" not in st.session_state
-        or st.session_state.get("p_unit_key") != (curr_subj, curr_unit)
-    ):
-      st.session_state["puz_5_data"] = None
-      st.session_state["p_unit_key"] = (curr_subj, curr_unit)
-
-    if st.button("🔍 Kelime Bulmacasını Başlat", key="gen_puz5"):
-      with st.spinner("Yapay zeka 5 önemli kavram bulmacası hazırlıyor..."):
-        prompt = f"""
-                5. Sınıf {curr_subj} {curr_unit} için TAM 5 ADET önemli anahtar kelime ve tanım ipucu üret.
-                JSON formatında liste olarak ver:
-                [
-                  {{"kelime": "TERİM", "ipucu": "Tanımı"}}
-                ]
-                """
-        res = ai_generate_content(prompt)
-        if res:
-          try:
-            st.session_state["puz_5_data"] = json.loads(
-                re.sub(r"```json|```", "", res).strip()
-            )
-            st.rerun()
-          except Exception:
-            pass
-
-    if st.session_state["puz_5_data"]:
-      with st.form("puz_5_form"):
-        p_res = {}
-        for idx, item in enumerate(st.session_state["puz_5_data"]):
-          st.markdown(f"**Bulmaca İpucu {idx+1}:** {item['ipucu']}")
-          p_res[idx] = st.text_input(
-              f"Kelime {idx+1} Tahmini:", key=f"puz_in_{idx}"
-          )
-          st.markdown("---")
-
-        if st.form_submit_button("Bulmacaları Kontrol Et"):
-          correct_count = 0
-          for idx, item in enumerate(st.session_state["puz_5_data"]):
-            user_input = p_res.get(idx, "").strip().upper()
-            target = item["kelime"].upper()
-            if user_input == target:
-              st.success(f"✅ Soru {idx+1} Doğru! ({target})")
-              correct_count += 20
-            else:
-              st.error(
-                  f"❌ Soru {idx+1} Yanlış. Doğru Cevap: **{item['kelime']}**"
-              )
-          st.balloons()
-          st.info(f"🏆 Toplam Kelime Avı Puanı: {correct_count} / 100")
-      st.markdown("<br>", unsafe_allow_html=True)
-      if st.button("🏠 Ana Ekrana Dön", key="back_home_puz"):
-        st.session_state["selected_subject"] = None
-        st.session_state["selected_unit"] = None
-        st.session_state["selected_game"] = None
-        st.rerun()
-
-  # 5. YAPAY ZEKA KOÇUM
+  # 6. YAPAY ZEKA KOÇUM
   elif curr_game == "koc":
     st.subheader(f"🤖 {curr_subj} Canlı Yapay Zeka Öğretmen Koçu")
     user_q = st.text_input("Aklına takılan soruyu sor:")
