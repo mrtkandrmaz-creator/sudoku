@@ -148,7 +148,7 @@ MEB_CURRICULUM = {
             "2. Ünite: Evimiz Dünya",
             "3. Ünite: Kültür ve Miras",
             "4. Ünite: Yaşayan Türkiye",
-            "5. Ünite: Üreten Türkiye",
+            "5. Üreten Türkiye",
             "6. Ünite: Yönetime Katılıyorum",
         ],
     },
@@ -301,6 +301,16 @@ st.markdown(
         opacity: 0.92;
         transform: scale(1.02);
     }}
+    /* Popover butonunu ikonik ve temiz hale getirme */
+    [data-testid="stPopover"] > button {{
+        background: {c_bg_gradient} !important;
+        color: white !important;
+        border-radius: 12px !important;
+        font-weight: bold !important;
+        border: none !important;
+        width: 100% !important;
+        box-shadow: 0 4px 12px rgba(0,0,0,0.15) !important;
+    }}
     </style>
     <div class="main-header">🎒 MEB 5. Sınıf Akıllı Eğitsel Oyun Merkezi & AdenMind Koçluk (Murat KANDIRMAZ)</div>
 """,
@@ -382,7 +392,7 @@ def render_question_visual(gorsel_tipi, param):
     st.markdown(svg_code, unsafe_allow_html=True)
 
 
-# --- 7. SOL MENÜ VE KARARLI YERLEŞİK POPOVER ASİSTAN ---
+# --- 7. SOL MENÜ VE MODERN KOMPAKT ASİSTAN ---
 with st.sidebar:
   st.subheader("🦊 AdenMind Tema Tercihi")
   selected_theme = st.radio(
@@ -404,22 +414,27 @@ with st.sidebar:
 
   st.markdown("---")
 
-  # Streamlit Yerleşik Kararlı Popover Asistanı (Sidebar içinde küçük şık pencere)
-  with st.popover("🦊 AdenMind Canlı Asistan 💬", use_container_width=True):
-    st.markdown("##### Canlı Koçluk Penceresi")
+  # Modern Kompakt Popover Asistan (Ok simgesiz, saf Avatar ve İsim)
+  with st.popover("🦊 AdenMind", use_container_width=True):
     st.markdown(
-        "<hr style='margin: 5px 0 10px 0; border-color: #ddd;'>",
+        """
+        <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 8px;">
+            <span style="font-size: 22px;">🦊</span>
+            <b style="font-size: 14px; color: #1e293b;">AdenMind Asistan</b>
+        </div>
+        <hr style="margin: 0 0 8px 0; border-color: #eee;">
+        """,
         unsafe_allow_html=True,
     )
 
-    # Sohbet Geçmişini Göster
-    chat_box_container = st.container(height=280)
+    # Sohbet Geçmişi Alanı (Daha kompakt yükseklik)
+    chat_box_container = st.container(height=220)
     with chat_box_container:
       for msg in st.session_state["coach_messages"]:
         if msg["role"] == "assistant":
           st.markdown(
               f"""
-                    <div style="background-color: {c_bubble_ai}; padding: 8px 10px; border-radius: 8px; margin-bottom: 6px; border-left: 3px solid {c_accent}; color: {c_text_color}; font-size: 12px;">
+                    <div style="background-color: {c_bubble_ai}; padding: 6px 8px; border-radius: 6px; margin-bottom: 5px; border-left: 3px solid {c_accent}; color: {c_text_color}; font-size: 11px;">
                         <b>AdenMind:</b> {msg['content']}
                     </div>
                     """,
@@ -428,7 +443,7 @@ with st.sidebar:
         else:
           st.markdown(
               f"""
-                    <div style="background-color: {c_bubble_user}; padding: 8px 10px; border-radius: 8px; margin-bottom: 6px; text-align: right; color: #1e293b; font-size: 12px;">
+                    <div style="background-color: {c_bubble_user}; padding: 6px 8px; border-radius: 6px; margin-bottom: 5px; text-align: right; color: #1e293b; font-size: 11px;">
                         <b>Sen:</b> {msg['content']}
                     </div>
                     """,
@@ -437,9 +452,7 @@ with st.sidebar:
 
     # Asistana Soru Formu
     with st.form("popover_coach_form", clear_on_submit=True):
-      lamp_input = st.text_input(
-          "Asistana soru sor...", key="lamp_query_input"
-      )
+      lamp_input = st.text_input("Asistana soru sor...", key="lamp_query_input")
       lamp_submitted = st.form_submit_button("Sor 🚀", use_container_width=True)
       if lamp_submitted and lamp_input:
         st.session_state["coach_messages"].append(
