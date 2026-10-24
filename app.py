@@ -36,7 +36,6 @@ def get_all_api_keys():
         elif isinstance(data, str):
           val = data.strip()
           if len(val) > 5:
-            # Gemini anahtarı formatı veya ismi geçiyorsa
             if (
                 val.startswith("AIza")
                 or "GEMINI" in val.upper()
@@ -44,14 +43,12 @@ def get_all_api_keys():
             ):
               if val not in gemini_keys and not val.startswith("gsk_"):
                 gemini_keys.append(val)
-            # Groq anahtarı formatı veya ismi geçiyorsa
             elif val.startswith("gsk_") or "GROQ" in val.upper():
               if val not in groq_keys:
                 groq_keys.append(val)
 
       extract_values(st.secrets)
 
-      # Ekstra Güvence: Anahtar isimlerine göre doğrudan okuma denemeleri
       for top_key in st.secrets.keys():
         tk_upper = str(top_key).upper()
         try:
@@ -258,7 +255,6 @@ st.markdown(
         margin-bottom: 25px;
         box-shadow: 0 4px 12px rgba(0,0,0,0.15);
     }
-    /* Büyük, okunaklı, renkli EBA tarzı kart butonlar */
     .stButton>button {
         border-radius: 14px;
         font-weight: bold;
@@ -312,11 +308,9 @@ if "selected_unit" not in st.session_state:
 if "selected_game" not in st.session_state:
   st.session_state["selected_game"] = None
 
-# --- AŞAMA 1: DERS SEÇİMİ (BÜYÜK RENKLİ KARTLAR) ---
+# --- AŞAMA 1: DERS SEÇİMİ ---
 if st.session_state["selected_subject"] is None:
-  st.markdown(
-      "### 🌟 Lütfen Çalışmak İstediğiniz MEB Dersine Kartına Tıklayın"
-  )
+  st.markdown("### 🌟 Lütfen Çalışmak İstediğiniz MEB Ders Kartına Tıklayın")
 
   subjects = list(MEB_CURRICULUM.keys())
   cols = st.columns(3)
@@ -343,7 +337,7 @@ if st.session_state["selected_subject"] is None:
         st.session_state["selected_subject"] = subj
         st.rerun()
 
-# --- AŞAMA 2: ÜNİTE SEÇİMİ (BÜYÜK RENKLİ KARTLAR) ---
+# --- AŞAMA 2: ÜNİTE SEÇİMİ ---
 elif (
     st.session_state["selected_subject"] is not None
     and st.session_state["selected_unit"] is None
@@ -383,7 +377,7 @@ elif (
         st.session_state["selected_unit"] = unit_name
         st.rerun()
 
-# --- AŞAMA 3: OYUN VE SORU MODELLERİ (BÜYÜK RENKLİ KARTLAR) ---
+# --- AŞAMA 3: OYUN VE SORU MODELLERİ ---
 elif (
     st.session_state["selected_subject"] is not None
     and st.session_state["selected_unit"] is not None
@@ -657,5 +651,3 @@ else:
           )
           if ans:
             st.success(ans)
-
-<FollowUp/>
