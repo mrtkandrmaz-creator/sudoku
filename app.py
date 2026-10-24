@@ -537,7 +537,6 @@ else:
                 </div>
 
                 <script>
-                    // Otomatik Tam Ekran Başlatma
                     function goFullScreen() {
                         let elem = document.documentElement;
                         if (elem.requestFullscreen) {
@@ -548,7 +547,6 @@ else:
                             elem.msRequestFullscreen();
                         }
                     }
-                    // Oyuna girer girmez tam ekrana geç
                     window.onload = () => { setTimeout(goFullScreen, 500); };
 
                     function exitFullScreen() {
@@ -688,7 +686,7 @@ else:
                     }
 
                     function endGame() {
-                        exitFullScreen(); // Oyun bittiğinde tam ekrandan çık
+                        exitFullScreen();
                         let area = document.getElementById('game-container');
                         area.innerHTML = `
                             <div style="padding: 60px; font-size: 28px;">
@@ -1041,5 +1039,3 @@ else:
           )
           if ans:
             st.success(ans)
-
-<FollowUp/>
