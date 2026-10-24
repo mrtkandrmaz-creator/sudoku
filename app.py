@@ -387,7 +387,7 @@ else:
 
   st.markdown("---")
 
-  # 1. BALON PATLATMACA
+  # 1. BALON PATLATMACA (Tam Ekran Özellikli)
   if curr_game == "balon":
     st.subheader(f"🎈 {curr_subj} — Klasik Balon Patlatmaca Oyunu")
 
@@ -537,6 +537,30 @@ else:
                 </div>
 
                 <script>
+                    // Otomatik Tam Ekran Başlatma
+                    function goFullScreen() {
+                        let elem = document.documentElement;
+                        if (elem.requestFullscreen) {
+                            elem.requestFullscreen().catch(() => {});
+                        } else if (elem.webkitRequestFullscreen) {
+                            elem.webkitRequestFullscreen();
+                        } else if (elem.msRequestFullscreen) {
+                            elem.msRequestFullscreen();
+                        }
+                    }
+                    // Oyuna girer girmez tam ekrana geç
+                    window.onload = () => { setTimeout(goFullScreen, 500); };
+
+                    function exitFullScreen() {
+                        if (document.exitFullscreen) {
+                            document.exitFullscreen().catch(() => {});
+                        } else if (document.webkitExitFullscreen) {
+                            document.webkitExitFullscreen();
+                        } else if (document.msExitFullscreen) {
+                            document.msExitFullscreen();
+                        }
+                    }
+
                     const questions = """
           + questions_json
           + """;
@@ -664,6 +688,7 @@ else:
                     }
 
                     function endGame() {
+                        exitFullScreen(); // Oyun bittiğinde tam ekrandan çık
                         let area = document.getElementById('game-container');
                         area.innerHTML = `
                             <div style="padding: 60px; font-size: 28px;">
@@ -682,7 +707,7 @@ else:
       )
       st.components.v1.html(html_balloon_game, height=535)
 
-  # 2. 5 SORULUK MEB KAZANIM OYUNU
+  # 2. 5 SORULUK MEB KAZANIM OYUNU (Tam Ekran Özellikli)
   elif curr_game == "sinav10":
     st.subheader(f"🧠 {curr_subj} — 5 Soruluk MEB Kazanım Yarışması")
 
@@ -772,6 +797,28 @@ else:
                 </div>
 
                 <script>
+                    function goFullScreen() {
+                        let elem = document.documentElement;
+                        if (elem.requestFullscreen) {
+                            elem.requestFullscreen().catch(() => {});
+                        } else if (elem.webkitRequestFullscreen) {
+                            elem.webkitRequestFullscreen();
+                        } else if (elem.msRequestFullscreen) {
+                            elem.msRequestFullscreen();
+                        }
+                    }
+                    window.onload = () => { setTimeout(goFullScreen, 500); };
+
+                    function exitFullScreen() {
+                        if (document.exitFullscreen) {
+                            document.exitFullscreen().catch(() => {});
+                        } else if (document.webkitExitFullscreen) {
+                            document.webkitExitFullscreen();
+                        } else if (document.msExitFullscreen) {
+                            document.msExitFullscreen();
+                        }
+                    }
+
                     const quizData = """
           + q_json
           + """;
@@ -798,6 +845,7 @@ else:
 
                     function loadQ() {
                         if (qIdx >= quizData.length || qIdx >= 5) {
+                            exitFullScreen();
                             document.querySelector('.quiz-card').innerHTML = `
                                 <h2>🏆 Yarışma Tamamlandı!</h2>
                                 <p style="font-size: 24px;">Toplam Puanınız: <span style="color: #00cc96;">${totalScore} / 100</span></p>
@@ -993,3 +1041,5 @@ else:
           )
           if ans:
             st.success(ans)
+
+<FollowUp/>
