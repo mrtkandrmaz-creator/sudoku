@@ -117,7 +117,7 @@ def ai_generate_content(prompt_text):
         completion = client.chat.completions.create(
             model="llama-3.3-70b-versatile",
             messages=[{"role": "user", "content": prompt_text}],
-            temperature=0.7,
+            temperature=0.95,  # Yüksek çeşitlilik ve yaratıcılık için
         )
         if completion.choices[0].message.content:
           raw_res = completion.choices[0].message.content
@@ -361,14 +361,14 @@ st.markdown(
 )
 
 
-# --- 6. KUSURSUZ GEOMETRİ VE ŞEKİL MOTORU (YAYSIZ, DOĞRU AÇI YERLEŞİMİ) ---
+# --- 6. ÇEŞİTLENDİRİLMİŞ GEOMETRİ VE ŞEKİL ÇİZİM MOTORU ---
 def render_question_visual(gorsel_tipi, param):
   if not gorsel_tipi or gorsel_tipi == "yok":
     return
 
   param_str = clean_math_text(str(param)).strip()
 
-  # 1. ÜÇGEN ÇİZİMİ (Yaylı & Köşelerde Açı Değerleri)
+  # 1. ÜÇGEN ÇİZİMLERİ (Dik, Eşkenar, İkizkenar, Çeşitkenar)
   if gorsel_tipi == "ucgen":
     p_upper = param_str.upper()
     match_letters = re.search(r"([A-Z]{3})", p_upper)
@@ -376,7 +376,9 @@ def render_question_visual(gorsel_tipi, param):
         list(match_letters.group(1)) if match_letters else ["A", "B", "C"]
     )
 
-    deg_matches = re.findall(r"([A-Z])\s*:\s*(\d+°)", param_str)
+    deg_matches = re.findall(
+        r"([A-Z])\s*:\s*(\d+°|[\d\.]+cm|\d+°?\s*x?\+?\d*)", param_str
+    )
     deg_dict = {m[0].upper(): m[1] for m in deg_matches}
 
     val1 = deg_dict.get(k1, "50°")
@@ -401,18 +403,15 @@ def render_question_visual(gorsel_tipi, param):
                 <text x="{Bx - 12}" y="{By + 15}" fill="#38bdf8" font-size="15" font-weight="bold" text-anchor="middle">{k2}</text>
                 <text x="{Cx + 12}" y="{By + 15}" fill="#38bdf8" font-size="15" font-weight="bold" text-anchor="middle">{k3}</text>
                 
-                <path d="M 126 58 Q 140 73 154 58" fill="none" stroke="#facc15" stroke-width="3" stroke-linecap="round"/>
-                <text x="140" y="92" fill="#facc15" font-size="12" font-weight="bold" text-anchor="middle">{val1}</text>
-
-                <path d="M 52 135 Q 68 142 62 124" fill="none" stroke="#facc15" stroke-width="3" stroke-linecap="round"/>
-                <text x="75" y="128" fill="#facc15" font-size="12" font-weight="bold" text-anchor="middle">{val2}</text>
+                <text x="140" y="85" fill="#facc15" font-size="13" font-weight="bold" text-anchor="middle">{val1}</text>
+                <text x="75" y="128" fill="#facc15" font-size="13" font-weight="bold" text-anchor="middle">{val2}</text>
             </svg>
         </div>
         """
     st.components.v1.html(svg_html, height=205)
 
-  # 2. DÖRTGEN / DİKDÖRTGEN / KARE ÇİZİMİ (Yaysız, Köşe İçlerinde Doğrudan Açı/Kenar Değeri)
-  elif gorsel_tipi in ["dortgen", "dikdortgen", "kare", "paralelkenar"]:
+  # 2. DÖRTGEN ÇİZİMLERİ (Kare, Dikdörtgen, Paralelkenar, Eşkenar Dörtgen, Yamuk, Çeşitkenar Dörtgen)
+  elif gorsel_tipi in ["dortgen", "dikdortgen", "kare", "paralelkenar", "yamuk"]:
     p_upper = param_str.upper()
     match_letters = re.search(r"([A-Z]{4})", p_upper)
     d = (
@@ -434,13 +433,11 @@ def render_question_visual(gorsel_tipi, param):
             <svg width="280" height="190" viewBox="0 0 280 190" style="background: linear-gradient(135deg, #0f172a, #1e293b); border-radius: 18px; border: 1.5px solid rgba(56, 189, 248, 0.4); box-shadow: 0 12px 30px rgba(0, 0, 0, 0.5);">
                 <rect x="50" y="45" width="180" height="100" fill="rgba(56, 189, 248, 0.1)" stroke="#38bdf8" stroke-width="4" rx="6"/>
                 
-                <!-- Köşe Harfleri -->
                 <text x="38" y="38" fill="#38bdf8" font-size="15" font-weight="bold" text-anchor="middle">{d[0]}</text>
                 <text x="242" y="38" fill="#38bdf8" font-size="15" font-weight="bold" text-anchor="middle">{d[1]}</text>
                 <text x="242" y="162" fill="#38bdf8" font-size="15" font-weight="bold" text-anchor="middle">{d[2]}</text>
                 <text x="38" y="162" fill="#38bdf8" font-size="15" font-weight="bold" text-anchor="middle">{d[3]}</text>
                 
-                <!-- Köşelerin İçinde Tam Konumlandırılmış Açı/Değer Etiketleri (Yaysız) -->
                 <text x="75" y="68" fill="#facc15" font-size="12" font-weight="bold" text-anchor="middle">{vA}</text>
                 <text x="212" y="68" fill="#facc15" font-size="12" font-weight="bold" text-anchor="middle">{vB}</text>
                 <text x="212" y="132" fill="#facc15" font-size="12" font-weight="bold" text-anchor="middle">{vC}</text>
@@ -450,7 +447,19 @@ def render_question_visual(gorsel_tipi, param):
         """
     st.components.v1.html(svg_html, height=205)
 
-  # 3. ÇEMBER VE DAİRE ÇİZİMİ
+  # 3. ÇOKGENLER (Beşgen, Altıgen vb.)
+  elif gorsel_tipi in ["besgen", "altıgen", "cokgen"]:
+    svg_html = """
+        <div style="display: flex; justify-content: center; margin: 12px 0;">
+            <svg width="280" height="190" viewBox="0 0 280 190" style="background: linear-gradient(135deg, #0f172a, #1e293b); border-radius: 18px; border: 1.5px solid rgba(56, 189, 248, 0.4); box-shadow: 0 12px 30px rgba(0, 0, 0, 0.5);">
+                <polygon points="140,25 220,65 200,150 80,150 60,65" fill="rgba(56, 189, 248, 0.1)" stroke="#38bdf8" stroke-width="4" stroke-linejoin="round"/>
+                <text x="140" y="100" fill="#facc15" font-size="14" font-weight="bold" text-anchor="middle">Çokgen / Açı Analizi</text>
+            </svg>
+        </div>
+        """
+    st.components.v1.html(svg_html, height=205)
+
+  # 4. ÇEMBER VE DAİRE (Yarıçap, Çap)
   elif gorsel_tipi == "cember":
     val = "12 cm"
     try:
@@ -467,14 +476,14 @@ def render_question_visual(gorsel_tipi, param):
                 <circle cx="140" cy="90" r="4" fill="#facc15"/>
                 <text x="148" y="85" fill="#facc15" font-size="13" font-weight="bold">O</text>
                 <line x1="80" y1="90" x2="200" y2="90" stroke="#f43f5e" stroke-width="2.5" stroke-dasharray="5,3"/>
-                <rect x="105" y="75" width="70" height="22" fill="#0f172a" rx="5" stroke="#f43f5e" stroke-width="1.5"/>
+                <rect x="100" y="75" width="80" height="22" fill="#0f172a" rx="5" stroke="#f43f5e" stroke-width="1.5"/>
                 <text x="140" y="91" fill="#f43f5e" font-size="12" font-weight="bold" text-anchor="middle">{val}</text>
             </svg>
         </div>
         """
     st.components.v1.html(svg_html, height=200)
 
-  # 4. FEN: AY EVRELERİ
+  # 5. FEN: AY EVRELERİ
   elif gorsel_tipi == "ay_evresi":
     svg_html = f"""
         <div style="display: flex; justify-content: center; margin: 12px 0;">
@@ -486,7 +495,7 @@ def render_question_visual(gorsel_tipi, param):
         """
     st.components.v1.html(svg_html, height=195)
 
-  # 5. FEN: GÜNEŞ
+  # 6. FEN: GÜNEŞ
   elif gorsel_tipi == "gunes":
     svg_html = """
         <div style="display: flex; justify-content: center; margin: 12px 0;">
@@ -497,7 +506,7 @@ def render_question_visual(gorsel_tipi, param):
         """
     st.components.v1.html(svg_html, height=195)
 
-  # 6. FEN: DÜNYA
+  # 7. FEN: DÜNYA
   elif gorsel_tipi == "dunya":
     svg_html = """
         <div style="display: flex; justify-content: center; margin: 12px 0;">
@@ -508,7 +517,7 @@ def render_question_visual(gorsel_tipi, param):
         """
     st.components.v1.html(svg_html, height=195)
 
-  # 7. FİZİK: DİNAMOMETRE
+  # 8. FİZİK: DİNAMOMETRE
   elif gorsel_tipi == "dinamometre":
     newton = "5 N"
     try:
@@ -805,14 +814,17 @@ else:
 
   st.markdown("---")
 
+  # ÇEŞİTLİLİK VE ZENGİNLİK SAĞLAYAN TALİMAT SETİ
   visual_prompt_instruction = """
-  (KUSURSUZ GÖRSEL VE METİN SENKRONİZASYONU TALİMATI):
-  1. Soruda geçen tüm harfler ve açı/uzunluk değerleri görsel parametresine birebir aktarılacaktır.
-  2. Asla 'circ' kelimesi kullanılmayacak, yalnızca standart derece işareti (°) kullanılacaktır.
-  3. Gorsel_parametre alanı şu formatta doldurulmalıdır: 
-     - Üçgenler için: "ABC, A:50°, B:60°"
-     - Dörtgenler için: "ABCD, A:90°, B:80°, C:100°, D:90°"
-     - Çemberler için: "O, 12cm"
+  (MAKSİMUM ÇEŞİTLİLİK VE GEOMETRİ ZENGİNLİĞİ TALİMATI):
+  1. Asla birbirinin tıpkısı veya aynı kalıpta sorular üretme! Her soruda farklı bir geometrik şekil veya alt konu seç.
+  2. Eğer konu geometri / üçgenler / dörtgenler ise soruları şu çeşitlerden harmanlayarak üret:
+     - Üçgen çeşitleri: Dik üçgen, eşkenar üçgen, ikizkenar üçgen, çeşitkenar üçgen, dar açılı/geniş açılı üçgenler.
+     - Dörtgen çeşitleri: Kare, dikdörtgen, paralelkenar, eşkenar dörtgen, yamuk, çeşitkenar dörtgen.
+     - Çember / Daire: Merkez, yarıçap, çap hesaplamaları.
+     - Çokgenler: Beşgen, altıgen iç açılar toplamı ve özellikleri.
+  3. Asla 'circ' kelimesi kullanma, yalnızca standart derece işareti (°) kullan.
+  4. Gorsel_parametre alanını şekle göre esnek ve doğru doldur (Örn: "ABC, A:90°, B:45°" veya "ABCD, A:90°, B:90°, C:90°, D:90°" veya "O, 12cm").
   """
 
   # 1. BALON PATLATMACA
@@ -826,11 +838,11 @@ else:
       st.session_state["b_unit_key"] = (curr_subj, curr_unit)
       st.session_state["game_started"] = False
 
-    if st.button("🚀 Yepyeni Balon Sorularını Üret", key="gen_5_balloons"):
-      with st.spinner("Yapay zeka soruları hazırlıyor..."):
+    if st.button("🚀 Yepyeni ve Çeşitli Soruları Üret", key="gen_5_balloons"):
+      with st.spinner("Yapay zeka zengin soru havuzunu hazırlıyor..."):
         prompt = f"""
                 5. Sınıf MEB, Ders: {curr_subj}, Ünite: {curr_unit}.
-                TAM 5 ADET benzersiz çoktan seçmeli soru üret.
+                TAM 5 ADET tamamen birbirinden farklı, özgün ve çeşitli çoktan seçmeli soru üret.
                 {visual_prompt_instruction}
                 JSON formatında geçerli bir liste olarak ver:
                 [
@@ -839,8 +851,8 @@ else:
                     "secenekler": ["A) ...", "B) ...", "C) ...", "D) ..."],
                     "dogru_cevap": "A",
                     "aciklama": "Açıklama",
-                    "gorsel_tipi": "dortgen", 
-                    "gorsel_parametre": "ABCD, A:90°, B:80°, C:100°, D:90°"
+                    "gorsel_tipi": "ucgen", 
+                    "gorsel_parametre": "ABC, A:90°, B:45°"
                   }}
                 ]
                 """
@@ -944,11 +956,11 @@ else:
       st.session_state["kazanim_score"] = 0
       st.session_state["kazanim_answers"] = {}
 
-    if st.button("🚀 Yepyeni Kazanım Sorularını Üret", key="gen_kazanim"):
+    if st.button("🚀 Farklı ve Çeşitli Kazanım Soruları Üret", key="gen_kazanim"):
       with st.spinner("Sorular oluşturuluyor..."):
         prompt = f"""
                 5. Sınıf MEB, Ders: {curr_subj}, Ünite: {curr_unit}.
-                TAM 5 ADET çoktan seçmeli soru üret. 
+                TAM 5 ADET birbirini tekrar etmeyen, farklı şekil ve konulardan çoktan seçmeli soru üret. 
                 {visual_prompt_instruction}
                 JSON liste formatında şu yapıda ver:
                 [
@@ -958,7 +970,7 @@ else:
                     "dogru_cevap": "A", 
                     "aciklama": "...",
                     "gorsel_tipi": "dortgen",
-                    "gorsel_parametre": "ABCD, A:90°, B:80°, C:100°, D:90°"
+                    "gorsel_parametre": "ABCD, A:90°, B:90°, C:90°, D:90°"
                   }}
                 ]
                 """
@@ -1063,15 +1075,15 @@ else:
       st.session_state["dy_current_q"] = 0
       st.session_state["dy_feedback"] = ""
 
-    if st.button("🚀 Yepyeni D/Y Yarışmasını Başlat", key="gen_dy"):
+    if st.button("🚀 Farklı ve Çeşitli D/Y Soruları Üret", key="gen_dy"):
       with st.spinner("Önermeler hazırlanıyor..."):
         prompt = f"""
                 5. Sınıf MEB, Ders: {curr_subj}, Ünite: {curr_unit}.
-                TAM 5 ADET Doğru veya Yanlış önermesi üret. 
+                TAM 5 ADET birbirinden farklı özgün Doğru veya Yanlış önermesi üret. 
                 {visual_prompt_instruction}
                 JSON liste formatında ver:
                 [
-                  {{"ifade": "...", "cevap": "D", "aciklama": "...", "gorsel_tipi": "gunes", "gorsel_parametre": "gunes"}}
+                  {{"ifade": "...", "cevap": "D", "aciklama": "...", "gorsel_tipi": "cember", "gorsel_parametre": "O, 10cm"}}
                 ]
                 """
         res = ai_generate_content(prompt)
@@ -1171,15 +1183,15 @@ else:
       st.session_state["fill_score"] = 0
       st.session_state["fill_feedback"] = ""
 
-    if st.button("✨ Yepyeni Boşluk Doldurma Soruları Üret", key="gen_fill"):
+    if st.button("✨ Çeşitli Boşluk Doldurma Soruları Üret", key="gen_fill"):
       with st.spinner("Sorular hazırlanıyor..."):
         prompt = f"""
                 5. Sınıf MEB, Ders: {curr_subj}, Ünite: {curr_unit}.
-                Cümle içinde boşluk bırakılmış 5 adet soru üret. 
+                Cümle içinde boşluk bırakılmış, birbirinden farklı 5 adet soru üret. 
                 {visual_prompt_instruction}
                 JSON liste formatında ver:
                 [
-                  {{"cumle": "...", "dogru_kelime": "...", "secenekler": ["...", "...", "...", "..."], "gorsel_tipi": "dunya", "gorsel_parametre": "dunya"}}
+                  {{"cumle": "...", "dogru_kelime": "...", "secenekler": ["...", "...", "...", "..."], "gorsel_tipi": "cember", "gorsel_parametre": "O, 8cm"}}
                 ]
                 """
         res = ai_generate_content(prompt)
@@ -1283,7 +1295,7 @@ else:
       with st.spinner("Kartlar hazırlanıyor..."):
         prompt = f"""
                 5. Sınıf MEB, Ders: {curr_subj}, Ünite: {curr_unit}.
-                5 adet flashcard üret. JSON liste formatında ver:
+                5 adet birbirinden farklı konsepti içeren flashcard üret. JSON liste formatında ver:
                 [
                   {{"on_yuz": "...", "arka_yuz": "..."}}
                 ]
@@ -1350,7 +1362,7 @@ else:
       with st.spinner("Macera hazırlanıyor..."):
         prompt = f"""
                 5. Sınıf MEB müfredatı, Ders: {curr_subj}, Ünite: {curr_unit}.
-                Gerçek hayattan esinlenen karar verme senaryosu ve çoktan seçmeli mini görev üret. 
+                Gerçek hayattan esinlenen, farklı bir senaryo ve çoktan seçmeli mini görev üret. 
                 JSON formatında şu yapıda ver:
                 {{
                   "senaryo": "...",
@@ -1414,7 +1426,7 @@ else:
     )
     if st.button("🚀 Yepyeni Etkinlik Önerisi Getir"):
       with st.spinner("Etkinlik hazırlanıyor..."):
-        prompt = f"5. Sınıf {curr_subj} {curr_unit} için evde veya sınıfta yapılabilecek 3 adet yaratıcı öğrenme etkinliği öner."
+        prompt = f"5. Sınıf {curr_subj} {curr_unit} için evde veya sınıfta yapılabilecek 3 adet yaratıcı ve farklı öğrenme etkinliği öner."
         res = ai_generate_content(prompt)
         if res:
           st.markdown(res)
@@ -1436,7 +1448,7 @@ else:
     if st.button("🔍 Yepyeni Kelime Avını Başlat", key="gen_puz"):
       with st.spinner("Bulmaca kelimeleri hazırlanıyor..."):
         prompt = f"""
-                5. Sınıf {curr_subj} {curr_unit} için 5 adet anahtar kelime ve tanım ipucu üret.
+                5. Sınıf {curr_subj} {curr_unit} için farklı terimlerden oluşan 5 adet anahtar kelime ve tanım ipucu üret.
                 JSON liste formatında ver:
                 [
                   {{"kelime": "TERİM", "ipucu": "..."}}
@@ -1595,7 +1607,7 @@ else:
       with st.spinner("Yazılı soruları hazırlanıyor..."):
         prompt = f"""
                 5. Sınıf MEB, Ders: {curr_subj}, Ünite: {curr_unit}.
-                TAM 5 ADET açık uçlu yazılı sorusu ve ideal cevapları JSON liste formatında ver:
+                TAM 5 ADET farklı konulardan açık uçlu yazılı sorusu ve ideal cevapları JSON liste formatında ver:
                 [
                   {{"soru": "...", "beklenen_cevap": "..."}}
                 ]
