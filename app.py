@@ -1142,7 +1142,6 @@ else:
         st.markdown(f"### 🎯 Bulmaca {p_idx+1} / {len(items)}")
         st.info(f"💡 **İpucu / Tanım:** {current_item['ipucu']}")
 
-        # Harf havuzunu ilk kez oluştur
         if f"pool_{p_idx}" not in st.session_state:
           alphabet = "ABCÇDEFGĞHIİJKLMNOÖPRSŞTUÜVYZ"
           pool = list(target_word)
@@ -1153,40 +1152,40 @@ else:
 
         letter_pool = st.session_state[f"pool_{p_idx}"]
 
-        st.markdown(
-            "#### Kelime Kutucukları:"
-        )  # Her harf için şık boş kutucuklar
-        box_cols = st.columns(len(target_word))
+        st.markdown("#### Kelime Kutucukları:")
         user_guess = st.session_state["user_guess"]
 
+        # Kutucukların birbirine yakın ve düzenli durması için HTML container
+        boxes_html = '<div style="display: flex; gap: 8px; justify-content: center; margin-bottom: 20px;">'
         for b_i in range(len(target_word)):
-          char_in_box = user_guess[b_i] if b_i < len(user_guess) else " "
-          with box_cols[b_i]:
-            st.markdown(
-                f"""
+          char_in_box = user_guess[b_i] if b_i < len(user_guess) else ""
+          boxes_html += f"""
                 <div style="
-                    width: 55px; height: 60px;
+                    width: 48px; height: 52px;
                     border: 3px solid #6366f1;
-                    border-radius: 12px;
+                    border-radius: 10px;
                     display: flex; align-items: center; justify-content: center;
-                    font-size: 26px; font-weight: bold;
-                    background: rgba(99, 102, 241, 0.15);
-                    color: white; margin: 0 auto;
-                    box-shadow: 0 4px 10px rgba(0,0,0,0.2);">
+                    font-size: 24px; font-weight: bold;
+                    background: #1e1b4b;
+                    color: #38bdf8;
+                    box-shadow: 0 4px 12px rgba(0,0,0,0.3);">
                     {char_in_box}
                 </div>
-                """,
-                unsafe_allow_html=True,
-            )
+                """
+        boxes_html += "</div>"
+        st.markdown(boxes_html, unsafe_allow_html=True)
 
-        st.markdown("<br>", unsafe_allow_html=True)
-        st.markdown("#### 🔠 Harf Havuzu (Seçmek İçin Tıklayın):")
+        st.markdown(
+            "#### 🔠 Harf Havuzu (Seçmek İçin Harflere Tıklayın):"
+        )
 
-        # Harf butonları havuzu
+        # Harf butonları için özel kompakt yerleşim
         pool_cols = st.columns(len(letter_pool))
         for l_i, l_char in enumerate(letter_pool):
-          with pool_cols[l_i % len(pool_cols)]:
-            if st.button(l_char, key=f"l_btn_{p_idx}_{l_i}_{l_char}"):
+          with pool_cols[l_i]:
+            if st.button(
+                l_char, key=f"l_btn_{p_idx}_{l_i}_{l_char}", use_container_width=True
+            ):
               if len(st.session_state["user_guess"]) < len(target_word):
                 st.session_state["user_guess"].append(l_char)
                 st.rerun()
@@ -1194,17 +1193,17 @@ else:
         st.markdown("<br>", unsafe_allow_html=True)
         col_a, col_b = st.columns(2)
         with col_a:
-          if st.button("⬅️ Son Harfi Sil", key=f"del_{p_idx}"):
+          if st.button("⬅️ Son Harfi Sil", key=f"del_{p_idx}", use_container_width=True):
             if st.session_state["user_guess"]:
               st.session_state["user_guess"].pop()
               st.rerun()
         with col_b:
-          if st.button("🔄 Tümünü Temizle", key=f"reset_{p_idx}"):
+          if st.button("🔄 Tümünü Temizle", key=f"reset_{p_idx}", use_container_width=True):
             st.session_state["user_guess"] = []
             st.rerun()
 
         st.markdown("---")
-        if st.button("✨ Tahmini Kontrol Et", key=f"check_{p_idx}"):
+        if st.button("✨ Tahmini Kontrol Et", key=f"check_{p_idx}", use_container_width=True):
           formed_word = "".join(st.session_state["user_guess"])
           if formed_word == target_word:
             st.success(f"🎉 Tebrikler! Doğru Kelime: {target_word}")
@@ -1224,13 +1223,13 @@ else:
             f"Toplam Puanınız: **{st.session_state['puz_score']} / 100**"
         )
         st.markdown("<br>", unsafe_allow_html=True)
-        if st.button("🔄 Tekrar Oyna", key="replay_puz"):
+        if st.button("🔄 Tekrar Oyna", key="replay_puz", use_container_width=True):
           st.session_state["puz_items"] = None
           st.session_state["user_guess"] = []
           st.rerun()
 
       st.markdown("<br>", unsafe_allow_html=True)
-      if st.button("🏠 Ana Ekrana Dön", key="back_home_puz"):
+      if st.button("🏠 Ana Ekrana Dön", key="back_home_puz", use_container_width=True):
         st.session_state["selected_subject"] = None
         st.session_state["selected_unit"] = None
         st.session_state["selected_game"] = None
