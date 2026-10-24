@@ -314,11 +314,14 @@ st.markdown(
 )
 
 
-# --- 6. TAM DOĞRULUKTA DÜZELTİLMİŞ SVG GEOMETRİ MOTORU ---
+# --- 6. ÇOK YÖNLÜ DİNAMİK VE MODERN SVG GÖRSEL MOTORU ---
 def render_question_visual(gorsel_tipi, param):
   if not gorsel_tipi or gorsel_tipi == "yok":
     return
 
+  param_str = str(param).lower()
+
+  # 1. MATEMATİK: ÜÇGEN VE AÇI MOTORU
   if gorsel_tipi in ["ucgen", "aci"]:
     deg = 50
     try:
@@ -326,22 +329,17 @@ def render_question_visual(gorsel_tipi, param):
     except Exception:
       pass
 
-    # Üçgen Köşe Koordinatları (A Tepe Köşesi, B Sol Taban, C Sağ Taban)
-    # m(A) Açısı A Köşesinde Doğru İki Kenar Arasında İçe Bakacak Şekilde Hesaplanır
     Ax, Ay = 125, 45
     Bx, By = 35, 145
     Cx, Cy = 215, 145
 
-    # A Köşesinden Çıkan Kenarların Açı Hesaplaması
-    # AB kenarı vektör açısı ve AC kenarı vektör açısı
-    # Yay çiziminin iç kısma tam oturması için kavis A noktasının altına yönlendirilir
-    arc_svg = f"""
-        <path d="M 103 69 A 28 28 0 0 0 147 69" fill="none" stroke="#facc15" stroke-width="3" stroke-linecap="round"/>
-        """
-
-    is_right_angle = "dik" in str(param).lower() or deg == 90
+    arc_svg = '<path d="M 103 69 A 28 28 0 0 0 147 69" fill="none"' ' stroke="#facc15" stroke-width="3" stroke-linecap="round"/>'
+    is_right_angle = "dik" in param_str or deg == 90
     if is_right_angle:
-      arc_svg = '<polyline points="115,55 115,65 125,65" fill="none" stroke="#ef4444" stroke-width="2.5"/>'
+      arc_svg = (
+          '<polyline points="115,55 115,65 125,65" fill="none"'
+          ' stroke="#ef4444" stroke-width="2.5"/>'
+      )
 
     svg_html = f"""
         <div style="display: flex; justify-content: center; margin: 10px 0;">
@@ -356,25 +354,15 @@ def render_question_visual(gorsel_tipi, param):
                     </linearGradient>
                 </defs>
                 <rect width="100%" height="100%" fill="url(#grid)" rx="16"/>
-                
-                <!-- ABC Üçgeni Çizimi -->
                 <polygon points="{Ax},{Ay} {Bx},{By} {Cx},{Cy}" fill="url(#triangleGrad)" stroke="#38bdf8" stroke-width="3.5" stroke-linejoin="round"/>
-                
-                <!-- Düzeltilmiş Açı Yayı (A Köşesinin İç Tarafı) -->
                 {arc_svg}
-                
-                <!-- Köşe İsimlendirmeleri -->
                 <text x="{Ax}" y="{Ay - 10}" fill="#38bdf8" font-size="15" font-weight="800" text-anchor="middle">A</text>
                 <text x="{Bx - 12}" y="{By + 5}" fill="#38bdf8" font-size="15" font-weight="800">B</text>
                 <text x="{Cx + 5}" y="{Cy + 5}" fill="#38bdf8" font-size="15" font-weight="800">C</text>
-                
-                <!-- A Açısı Değer Etiketi (A Köşesinin İç Tarafında Ortalanmış) -->
                 <g transform="translate({Ax - 18}, {Ay + 35})">
                     <rect x="0" y="0" width="36" height="18" fill="#0f172a" rx="5" stroke="#facc15" stroke-width="1.5"/>
                     <text x="18" y="13" fill="#facc15" font-size="11" font-weight="bold" text-anchor="middle">{deg}°</text>
                 </g>
-                
-                <!-- Alt Bilgilendirme Çubuğu -->
                 <rect x="0" y="155" width="260" height="25" fill="rgba(0,0,0,0.3)" rx="0 0 16 16"/>
                 <text x="130" y="171" fill="#94a3b8" font-size="11" font-weight="600" text-anchor="middle">📐 m(A) = {deg}° | Dinamik Geometri Modeli</text>
             </svg>
@@ -382,6 +370,142 @@ def render_question_visual(gorsel_tipi, param):
         """
     st.components.v1.html(svg_html, height=195)
 
+  # 2. FEN BİLİMLERİ: AY EVRELERİ MOTORU
+  elif gorsel_tipi == "ay_evresi":
+    # Parametreye Göre Ay Evresini Dinamik Çizme
+    if "ilk dördün" in param_str:
+      moon_path = (
+          '<path d="M 130 45 A 35 35 0 0 1 130 115 Z" fill="#f8fafc"/> <circle'
+          ' cx="130" cy="80" r="35" fill="none" stroke="#94a3b8"'
+          ' stroke-width="2"/>'
+      )
+      phase_title = "İlk Dördün (D Şekli)"
+    elif "son dördün" in param_str:
+      moon_path = (
+          '<path d="M 130 45 A 35 35 0 0 0 130 115 Z" fill="#f8fafc"/> <circle'
+          ' cx="130" cy="80" r="35" fill="none" stroke="#94a3b8"'
+          ' stroke-width="2"/>'
+      )
+      phase_title = "Son Dördün (Ters D)"
+    elif "dolunay" in param_str:
+      moon_path = (
+          '<circle cx="130" cy="80" r="35" fill="#fef08a" stroke="#facc15"'
+          ' stroke-width="2"/>'
+      )
+      phase_title = "Dolunay Evresi"
+    elif "yeni ay" in param_str:
+      moon_path = (
+          '<circle cx="130" cy="80" r="35" fill="#1e293b" stroke="#64748b"'
+          ' stroke-width="2"/>'
+      )
+      phase_title = "Yeni Ay Evresi"
+    elif "hilal" in param_str:
+      moon_path = (
+          '<circle cx="130" cy="80" r="35" fill="#334155"/> <path d="M 130 45'
+          ' A 35 35 0 0 1 130 115 A 25 25 0 0 0 130 45 Z" fill="#f8fafc"/>'
+      )
+      phase_title = "Hilal Evresi"
+    else:  # Şişkin Ay veya Genel Ay
+      moon_path = (
+          '<circle cx="130" cy="80" r="35" fill="#cbd5e1" stroke="#94a3b8"'
+          ' stroke-width="2"/>'
+      )
+      phase_title = str(param).title() if param else "Ay Evresi Model"
+
+    svg_html = f"""
+        <div style="display: flex; justify-content: center; margin: 10px 0;">
+            <svg width="260" height="180" viewBox="0 0 260 180" style="background: linear-gradient(135deg, #0b1329, #1c2541); border-radius: 16px; border: 1px solid #38bdf8;">
+                <circle cx="30" cy="30" r="1" fill="#fff"/><circle cx="220" cy="40" r="1.5" fill="#fff"/><circle cx="200" cy="130" r="1" fill="#fff"/>
+                {moon_path}
+                <rect x="0" y="150" width="260" height="30" fill="rgba(0,0,0,0.4)" rx="0 0 16 16"/>
+                <text x="130" y="170" fill="#38bdf8" font-size="12" font-weight="bold" text-anchor="middle">🌙 {phase_title}</text>
+            </svg>
+        </div>
+        """
+    st.components.v1.html(svg_html, height=195)
+
+  # 3. FEN BİLİMLERİ: GÜNEŞ MODELİ MOTORU
+  elif gorsel_tipi == "gunes":
+    svg_html = """
+        <div style="display: flex; justify-content: center; margin: 10px 0;">
+            <svg width="260" height="180" viewBox="0 0 260 180" style="background: linear-gradient(135deg, #0f172a, #1e112a); border-radius: 16px; border: 1px solid #f59e0b;">
+                <defs>
+                    <radialGradient id="sunGrad" cx="50%" cy="50%" r="50%">
+                        <stop offset="0%" stop-color="#fef08a" />
+                        <stop offset="60%" stop-color="#f59e0b" />
+                        <stop offset="100%" stop-color="#dc2626" />
+                    </radialGradient>
+                </defs>
+                <!-- Güneş Işınları / Korona -->
+                <circle cx="130" cy="80" r="52" fill="none" stroke="#fde047" stroke-width="2" stroke-dasharray="6,6" opacity="0.6"/>
+                <circle cx="130" cy="80" r="42" fill="url(#sunGrad)"/>
+                <!-- Çekirdek ve Katman Detayı -->
+                <circle cx="130" cy="80" r="20" fill="none" stroke="#ffffff" stroke-width="1.5" stroke-dasharray="3,3" opacity="0.8"/>
+                <rect x="0" y="150" width="260" height="30" fill="rgba(0,0,0,0.4)" rx="0 0 16 16"/>
+                <text x="130" y="170" fill="#facc15" font-size="12" font-weight="bold" text-anchor="middle">☀️ Güneş'in Katmanları & Isı-Işık Kaynağı</text>
+            </svg>
+        </div>
+        """
+    st.components.v1.html(svg_html, height=195)
+
+  # 4. FEN BİLİMLERİ: DÜNYA MODELİ MOTORU
+  elif gorsel_tipi == "dunya":
+    svg_html = """
+        <div style="display: flex; justify-content: center; margin: 10px 0;">
+            <svg width="260" height="180" viewBox="0 0 260 180" style="background: linear-gradient(135deg, #0284c7, #0f172a); border-radius: 16px; border: 1px solid #38bdf8;">
+                <circle cx="130" cy="80" r="40" fill="#0284c7" stroke="#38bdf8" stroke-width="2"/>
+                <!-- Karalar Simülasyonu -->
+                <path d="M 105 60 Q 120 50 135 65 Q 125 80 110 75 Z" fill="#22c55e" opacity="0.85"/>
+                <path d="M 130 90 Q 150 85 155 105 Q 135 110 125 95 Z" fill="#22c55e" opacity="0.85"/>
+                <!-- Dönme Ekseni Eğikliği -->
+                <line x1="115" y1="30" x2="145" y2="130" stroke="#facc15" stroke-width="2" stroke-dasharray="4,4"/>
+                <rect x="0" y="150" width="260" height="30" fill="rgba(0,0,0,0.4)" rx="0 0 16 16"/>
+                <text x="130" y="170" fill="#38bdf8" font-size="12" font-weight="bold" text-anchor="middle">🌍 Dünya'nın Ekseni ve Katmanları</text>
+            </svg>
+        </div>
+        """
+    st.components.v1.html(svg_html, height=195)
+
+  # 5. FEN BİLİMLERİ: BOYUT KARŞILAŞTIRMASI (GÜNEŞ - DÜNYA - AY)
+  elif gorsel_tipi == "karsilastirma":
+    svg_html = """
+        <div style="display: flex; justify-content: center; margin: 10px 0;">
+            <svg width="260" height="180" viewBox="0 0 260 180" style="background: linear-gradient(135deg, #0b1329, #1c2541); border-radius: 16px; border: 1px solid #a855f7;">
+                <!-- Güneş (Büyük) -->
+                <circle cx="50" cy="80" r="38" fill="#f59e0b" stroke="#facc15" stroke-width="2"/>
+                <text x="50" y="85" fill="#000" font-size="10" font-weight="bold" text-anchor="middle">GÜNEŞ</text>
+                <!-- Dünya (Orta) -->
+                <circle cx="150" cy="80" r="16" fill="#0284c7" stroke="#38bdf8" stroke-width="1.5"/>
+                <text x="150" y="112" fill="#38bdf8" font-size="10" font-weight="bold" text-anchor="middle">Dünya</text>
+                <!-- Ay (Küçük) -->
+                <circle cx="215" cy="80" r="6" fill="#cbd5e1"/>
+                <text x="215" y="102" fill="#cbd5e1" font-size="10" font-weight="bold" text-anchor="middle">Ay</text>
+                <rect x="0" y="150" width="260" height="30" fill="rgba(0,0,0,0.4)" rx="0 0 16 16"/>
+                <text x="130" y="170" fill="#c084fc" font-size="11" font-weight="bold" text-anchor="middle">🏀 Güneş > 🏈 Dünya > 🎾 Ay (Boyut Ölçeği)</text>
+            </svg>
+        </div>
+        """
+    st.components.v1.html(svg_html, height=195)
+
+  # 6. FEN BİLİMLERİ: TUTULMALAR VEYA YÖRÜNGE HİZALANMASI
+  elif gorsel_tipi == "tutulma":
+    svg_html = """
+        <div style="display: flex; justify-content: center; margin: 10px 0;">
+            <svg width="260" height="180" viewBox="0 0 260 180" style="background: linear-gradient(135deg, #0f172a, #030712); border-radius: 16px; border: 1px solid #ef4444;">
+                <!-- Işık Konisi -->
+                <polygon points="40,80 140,68 140,92" fill="rgba(250, 204, 21, 0.15)"/>
+                <!-- Hizalanma -->
+                <circle cx="40" cy="80" r="22" fill="#f59e0b"/>
+                <circle cx="140" cy="80" r="8" fill="#334155" stroke="#94a3b8"/>
+                <circle cx="210" cy="80" r="14" fill="#0284c7"/>
+                <rect x="0" y="150" width="260" height="30" fill="rgba(0,0,0,0.4)" rx="0 0 16 16"/>
+                <text x="130" y="170" fill="#f87171" font-size="11" font-weight="bold" text-anchor="middle">🌑 Güneş - Ay - Dünya Hizalanması (Tutulma)</text>
+            </svg>
+        </div>
+        """
+    st.components.v1.html(svg_html, height=195)
+
+  # 7. FİZİK: DİNAMOMETRE MOTORU
   elif gorsel_tipi == "dinamometre":
     newton = 5
     try:
@@ -402,21 +526,6 @@ def render_question_visual(gorsel_tipi, param):
         </div>
         """
     st.components.v1.html(svg_html, height=235)
-
-  elif gorsel_tipi in ["ay_evresi", "cember"]:
-    phase_name = str(param)
-    svg_html = f"""
-        <div style="display: flex; justify-content: center; margin: 10px 0;">
-            <svg width="220" height="160" viewBox="0 0 220 160" style="background:#0f172a; border-radius:12px; border: 2px solid #38bdf8;">
-                <circle cx="45" cy="80" r="28" fill="#f59e0b"/>
-                <text x="25" y="84" fill="#000000" font-size="10" font-weight="bold">GÜNEŞ</text>
-                <circle cx="170" cy="80" r="26" fill="#334155" stroke="#94a3b8" stroke-width="2"/>
-                <path d="M 170 54 A 26 26 0 0 1 170 106 Z" fill="#f8fafc"/>
-                <text x="125" y="135" fill="#38bdf8" font-size="13" font-weight="bold">{phase_name}</text>
-            </svg>
-        </div>
-        """
-    st.components.v1.html(svg_html, height=175)
 
 
 # --- 7. SOL MENÜ VE ADENMİND YAPAY ZEKA ROBOTU ---
@@ -447,7 +556,6 @@ with st.sidebar:
     st.session_state["game_started"] = False
     st.rerun()
 
-  # --- SOL PANELDE COMPACT ADENMİND SOHBET MOTORU ---
   st.markdown("---")
   st.markdown(
       f"""
@@ -518,15 +626,13 @@ with st.sidebar:
       st.rerun()
 
 
-# --- AŞAMA 1: DERS SEÇİMİ (KARTLARA DİREKT TIKLAMA) ---
+# --- AŞAMA 1: DERS SEÇİMİ ---
 if st.session_state["selected_subject"] is None:
   st.markdown(
       "### 🌟 Lütfen Çalışmak İstediğiniz MEB Dersine Doğrudan Tıklayın"
   )
-
   subjects = list(MEB_CURRICULUM.keys())
   cols = st.columns(3)
-
   for i, subj in enumerate(subjects):
     col_idx = i % 3
     data = MEB_CURRICULUM[subj]
@@ -549,7 +655,7 @@ if st.session_state["selected_subject"] is None:
         st.session_state["game_started"] = False
         st.rerun()
 
-# --- AŞAMA 2: ÜNİTE SEÇİMİ (KARTLARA DİREKT TIKLAMA) ---
+# --- AŞAMA 2: ÜNİTE SEÇİMİ ---
 elif (
     st.session_state["selected_subject"] is not None
     and st.session_state["selected_unit"] is None
@@ -590,7 +696,7 @@ elif (
         st.session_state["game_started"] = False
         st.rerun()
 
-# --- AŞAMA 3: OYUN, ETKİNLİK VE SORU MODELLERİ ---
+# --- AŞAMA 3: OYUN / ETKİNLİK MODÜLÜ SEÇİMİ ---
 elif (
     st.session_state["selected_subject"] is not None
     and st.session_state["selected_unit"] is not None
@@ -699,6 +805,19 @@ else:
 
   st.markdown("---")
 
+  # PROMPT İÇİN ZENGİN GÖRSEL TİPİ PROMPT TALİMATI
+  visual_prompt_instruction = """
+  (ÖNEMLİ GÖRSEL SEÇİMİ TALİMATI: 
+   Eğer ders Matematik ise gorsel_tipi 'ucgen' veya 'aci' seç ve gorsel_parametre olarak '50 derece' vb ver.
+   Eğer ders Fen Bilimleri ve 'Güneş, Dünya ve Ay' ünitesi ise soru konusuna tam uyumlu olarak gorsel_tipi değerini şu seçeneklerden BİRİSİ yap:
+   - 'ay_evresi' (gorsel_parametre: 'ilk dördün', 'son dördün', 'dolunay', 'yeni ay' veya 'hilal')
+   - 'gunes' (gorsel_parametre: 'gunes katmanlari')
+   - 'dunya' (gorsel_parametre: 'dunya katmanlari')
+   - 'karsilastirma' (gorsel_parametre: 'boyut karsilastirmasi')
+   - 'tutulma' (gorsel_parametre: 'gunes veya ay tutulmasi')
+   Eğer görsel gerekmiyorsa gorsel_tipi: 'yok' yap.)
+  """
+
   # 1. BALON PATLATMACA
   if curr_game == "balon":
     st.subheader(f"🎈 {curr_subj} — Klasik Balon Patlatmaca Oyunu")
@@ -716,6 +835,7 @@ else:
                 Rastgelelik Kimliği: {random.randint(10000, 999999)}
                 5. Sınıf MEB müfredatı, Ders: {curr_subj}, Ünite: {curr_unit}.
                 TAM 5 ADET özgün ve gerçek hayat senaryolu çoktan seçmeli (4 şıklı: A, B, C, D) soru üret.
+                {visual_prompt_instruction}
                 JSON formatında liste olarak ver:
                 [
                   {{
@@ -723,11 +843,10 @@ else:
                     "secenekler": ["A) ...", "B) ...", "C) ...", "D) ..."],
                     "dogru_cevap": "A",
                     "aciklama": "Açıklama",
-                    "gorsel_tipi": "aci", 
-                    "gorsel_parametre": "50 derece"
+                    "gorsel_tipi": "ay_evresi", 
+                    "gorsel_parametre": "ilk dördün"
                   }}
                 ]
-                (gorsel_tipi: 'aci', 'ucgen', 'dinamometre', 'ay_evresi', 'cember' veya 'yok')
                 """
         res = ai_generate_content(prompt)
         if res:
@@ -812,7 +931,7 @@ else:
         )
         st.components.v1.html(html_balloon_game, height=560)
 
-  # 2. 5 SORULUK MEB KAZANIM OYUNU (TEK SORU MODU)
+  # 2. 5 SORULUK MEB KAZANIM OYUNU
   elif curr_game == "sinav10":
     st.subheader(
         f"🧠 {curr_subj} — 5 Soruluk MEB Kazanım Yarışması (Tek Soru Modu)"
@@ -834,6 +953,7 @@ else:
                 Rastgelelik Kimliği: {random.randint(10000, 999999)}
                 5. Sınıf MEB, Ders: {curr_subj}, Ünite: {curr_unit}.
                 TAM 5 ADET yepyeni çoktan seçmeli (4 şıklı) soru üret. 
+                {visual_prompt_instruction}
                 JSON liste formatında şu yapıda ver:
                 [
                   {{
@@ -841,11 +961,10 @@ else:
                     "secenekler": ["A)...", "B)...", "C)...", "D)..."], 
                     "dogru_cevap": "A", 
                     "aciklama": "...",
-                    "gorsel_tipi": "aci",
-                    "gorsel_parametre": "50 derece"
+                    "gorsel_tipi": "karsilastirma",
+                    "gorsel_parametre": "boyut karsilastirmasi"
                   }}
                 ]
-                (gorsel_tipi: 'aci', 'ucgen', 'dinamometre', 'ay_evresi' veya 'yok')
                 """
         res = ai_generate_content(prompt)
         if res:
@@ -935,7 +1054,7 @@ else:
           st.session_state["kazanim_answers"] = {}
           st.rerun()
 
-  # 3. DOĞRU / YANLIŞ MEYDAN OKUMASI (TEK SORU MODU)
+  # 3. DOĞRU / YANLIŞ MEYDAN OKUMASI
   elif curr_game == "dogruyanlis":
     st.subheader(
         f"✅ {curr_subj} — Doğru / Yanlış Meydan Okuması (Tek Soru Modu)"
@@ -955,9 +1074,11 @@ else:
         prompt = f"""
                 Rastgelelik Kimliği: {random.randint(10000, 999999)}
                 5. Sınıf MEB, Ders: {curr_subj}, Ünite: {curr_unit}.
-                TAM 5 ADET yepyeni Doğru veya Yanlış önermesi üret. JSON liste formatında ver:
+                TAM 5 ADET yepyeni Doğru veya Yanlış önermesi üret. 
+                {visual_prompt_instruction}
+                JSON liste formatında ver:
                 [
-                  {{"ifade": "...", "cevap": "D", "aciklama": "...", "gorsel_tipi": "yok", "gorsel_parametre": ""}}
+                  {{"ifade": "...", "cevap": "D", "aciklama": "...", "gorsel_tipi": "gunes", "gorsel_parametre": ""}}
                 ]
                 """
         res = ai_generate_content(prompt)
@@ -1044,7 +1165,7 @@ else:
           st.session_state["dy_questions"] = None
           st.rerun()
 
-  # 4. BOŞLUK DOLDURMA YARIŞMASI (HER SAYFADA TEK SORU + BUTONLU CEVAPLAR)
+  # 4. BOŞLUK DOLDURMA YARIŞMASI
   elif curr_game == "bosluk":
     st.subheader(
         f"📝 {curr_subj} — Boşluk Doldurma Yarışması (Tek Soru Modu)"
@@ -1064,9 +1185,11 @@ else:
         prompt = f"""
                 Rastgelelik Kimliği: {random.randint(10000, 999999)}
                 5. Sınıf MEB, Ders: {curr_subj}, Ünite: {curr_unit}.
-                Cümle içinde boşluk bırakılmış 5 adet soru üret. JSON liste formatında ver:
+                Cümle içinde boşluk bırakılmış 5 adet soru üret. 
+                {visual_prompt_instruction}
+                JSON liste formatında ver:
                 [
-                  {{"cumle": "...", "dogru_kelime": "...", "secenekler": ["...", "...", "...", "..."], "gorsel_tipi": "yok", "gorsel_parametre": ""}}
+                  {{"cumle": "...", "dogru_kelime": "...", "secenekler": ["...", "...", "...", "..."], "gorsel_tipi": "dunya", "gorsel_parametre": ""}}
                 ]
                 """
         res = ai_generate_content(prompt)
@@ -1314,7 +1437,7 @@ else:
         if res:
           st.markdown(res)
 
-  # 8. KELİME AVI (GERİ AL / SİL BUTONU + PAS GEÇME BUTONU)
+  # 8. KELİME AVI BULMACASI
   elif curr_game == "kelime":
     st.subheader(f"🔤 {curr_subj} — Kelime Avı Bulmacası")
 
