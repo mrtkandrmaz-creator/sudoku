@@ -308,19 +308,19 @@ st.markdown(
         transform: scale(1.02);
     }}
     </style>
-    <div class="main-header">🎒 MEB 5. Sınıf Akıllı Eğitsel Oyun Merkezi & AdenMind Koçluk (Murat KANDIRMAZ)</div>
+    .main-header">🎒 MEB 5. Sınıf Akıllı Eğitsel Oyun Merkezi & AdenMind Koçluk (Murat KANDIRMAZ)</div>
 """,
     unsafe_allow_html=True,
 )
 
 
-# --- 6. SORUYA BİREBİR UYUMLU AKILLI SVG GÖRSEL MOTORU ---
+# --- 6. MODERNLEŞTİRİLMİŞ SVG GEOMETRİ VE GÖRSEL MOTORU ---
 def render_question_visual(gorsel_tipi, param):
   if not gorsel_tipi or gorsel_tipi == "yok":
     return
 
   if gorsel_tipi in ["ucgen", "aci"]:
-    deg = 60
+    deg = 50
     try:
       deg = int(re.search(r"\d+", str(param)).group())
     except Exception:
@@ -329,28 +329,47 @@ def render_question_visual(gorsel_tipi, param):
     import math
 
     rad = math.radians(deg)
-    x_top = int(30 + 140 * math.cos(rad))
-    y_top = int(140 - 120 * math.sin(rad))
-    if x_top < 50:
-      x_top = 50
-    if x_top > 190:
-      x_top = 190
+    x_top = int(40 + 130 * math.cos(rad))
+    y_top = int(140 - 110 * math.sin(rad))
+    x_top = max(50, min(x_top, 190))
 
     is_right_angle = "dik" in str(param).lower() or deg == 90
     right_angle_svg = (
-        '<polyline points="170,130 170,110 190,110" fill="none" stroke="#f43f5e"'
-        ' stroke-width="3"/>'
+        '<path d="M 170,140 L 170,125 L 185,125" fill="none"'
+        ' stroke="#ef4444" stroke-width="2.5" stroke-linecap="round"/>'
         if is_right_angle
         else ""
     )
 
     svg_code = f"""
-        <svg width="240" height="160" viewBox="0 0 240 160" style="background:#0f172a; border-radius:12px; display:block; margin: 10px auto; border: 2px solid #38bdf8;">
-            <polygon points="30,140 {x_top},{y_top} 210,140" fill="none" stroke="#38bdf8" stroke-width="4"/>
+        <svg width="260" height="175" viewBox="0 0 260 175" style="background: linear-gradient(135deg, #1e293b, #0f172a); border-radius: 16px; display: block; margin: 12px auto; border: 1px solid rgba(56, 189, 248, 0.3); box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.4);">
+            <defs>
+                <pattern id="grid" width="20" height="20" patternUnits="userSpaceOnUse">
+                    <path d="M 20 0 L 0 0 0 20" fill="none" stroke="rgba(255,255,255,0.03)" stroke-width="1"/>
+                </pattern>
+                <linearGradient id="triangleGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+                    <stop offset="0%" stop-color="rgba(56, 189, 248, 0.2)" />
+                    <stop offset="100%" stop-color="rgba(99, 102, 241, 0.05)" />
+                </linearGradient>
+            </defs>
+            <rect width="100%" height="100%" fill="url(#grid)" rx="16"/>
+            
+            <polygon points="35,140 {x_top},{y_top} 215,140" fill="url(#triangleGrad)" stroke="#38bdf8" stroke-width="3.5" stroke-linejoin="round"/>
+            
+            <path d="M 60 140 A 25 25 0 0 1 70 118" fill="none" stroke="#facc15" stroke-width="3" stroke-linecap="round"/>
             {right_angle_svg}
-            <path d="M 55 140 A 25 25 0 0 1 65 115" fill="none" stroke="#facc15" stroke-width="3"/>
-            <text x="75" y="125" fill="#facc15" font-size="15" font-weight="bold">{deg}°</text>
-            <text x="100" y="155" fill="#ffffff" font-size="12">Açı Değeri: {deg}°</text>
+            
+            <text x="{x_top}" y="{y_top - 10}" fill="#38bdf8" font-size="14" font-weight="800" text-anchor="middle">A</text>
+            <text x="20" y="148" fill="#38bdf8" font-size="14" font-weight="800">B</text>
+            <text x="225" y="148" fill="#38bdf8" font-size="14" font-weight="800">C</text>
+            
+            <g transform="translate(80, 122)">
+                <rect x="-6" y="-14" width="42" height="20" fill="#0f172a" rx="6" stroke="#facc15" stroke-width="1.5"/>
+                <text x="15" y="0" fill="#facc15" font-size="12" font-weight="bold" text-anchor="middle">{deg}°</text>
+            </g>
+            
+            <rect x="0" y="150" width="260" height="25" fill="rgba(0,0,0,0.3)" rx="0 0 16 16"/>
+            <text x="130" y="166" fill="#94a3b8" font-size="11" font-weight="600" text-anchor="middle">📐 m(A) = {deg}° | Modern Geometri Görseli</text>
         </svg>
         """
     st.markdown(svg_code, unsafe_allow_html=True)
@@ -680,9 +699,7 @@ else:
       st.session_state["game_started"] = False
 
     if st.button("🚀 Yepyeni Balon Sorularını Üret", key="gen_5_balloons"):
-      with st.spinner(
-          "Yapay zeka gerçek yaşamla tam uyumlu yepyeni sorular hazırlıyor..."
-      ):
+      with st.spinner("Yapay zeka yepyeni sorular hazırlıyor..."):
         prompt = f"""
                 Rastgelelik Kimliği: {random.randint(10000, 999999)}
                 5. Sınıf MEB müfredatı, Ders: {curr_subj}, Ünite: {curr_unit}.
@@ -926,7 +943,7 @@ else:
         prompt = f"""
                 Rastgelelik Kimliği: {random.randint(10000, 999999)}
                 5. Sınıf MEB, Ders: {curr_subj}, Ünite: {curr_unit}.
-                TAM 5 ADET yepyeni Doğru veya Yanlış önermesi üret. JSON formatında liste ver:
+                TAM 5 ADET yepyeni Doğru veya Yanlış önermesi üret. JSON liste formatında ver:
                 [
                   {{"ifade": "...", "cevap": "D", "aciklama": "...", "gorsel_tipi": "yok", "gorsel_parametre": ""}}
                 ]
