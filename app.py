@@ -302,7 +302,64 @@ st.markdown(
     unsafe_allow_html=True,
 )
 
-# --- 6. SOL MENÜ ---
+
+# --- 6. AKILLI GÖRSEL ÜRETİCİ FONKSİYON (SVG - GLOBAL) ---
+def render_question_visual(gorsel_tipi, param):
+  if not gorsel_tipi or gorsel_tipi == "yok":
+    return
+
+  if gorsel_tipi in ["ucgen", "aci"]:
+    deg = 60
+    try:
+      deg = int(re.search(r"\d+", str(param)).group())
+    except Exception:
+      pass
+    svg_code = f"""
+        <svg width="220" height="150" viewBox="0 0 220 150" style="background:#0f172a; border-radius:12px; display:block; margin: 10px auto;">
+            <polygon points="30,130 190,130 190,30" fill="none" stroke="#38bdf8" stroke-width="4"/>
+            <polyline points="170,130 170,110 190,110" fill="none" stroke="#f43f5e" stroke-width="3"/>
+            <path d="M 60 130 A 30 30 0 0 1 75 105" fill="none" stroke="#facc15" stroke-width="3"/>
+            <text x="80" y="120" fill="#facc15" font-size="14" font-weight="bold">{deg}°</text>
+            <text x="100" y="145" fill="#ffffff" font-size="12">Taban Kenar</text>
+            <text x="195" y="80" fill="#ffffff" font-size="12">Dik Kenar</text>
+        </svg>
+        """
+    st.markdown(svg_code, unsafe_allow_html=True)
+
+  elif gorsel_tipi == "dinamometre":
+    newton = 5
+    try:
+      newton = int(re.search(r"\d+", str(param)).group())
+    except Exception:
+      pass
+    spring_y = 50 + min(newton * 8, 70)
+    svg_code = f"""
+        <svg width="180" height="220" viewBox="0 0 180 220" style="background:#0f172a; border-radius:12px; display:block; margin: 10px auto;">
+            <rect x="75" y="10" width="30" height="20" fill="#94a3b8" rx="5"/>
+            <rect x="60" y="30" width="60" height="140" fill="none" stroke="#38bdf8" stroke-width="4" rx="10"/>
+            <path d="M 90 30 Q 70 {30+spring_y/4} 110 {30+spring_y/2} Q 70 {30+3*spring_y/4} 90 {30+spring_y}" fill="none" stroke="#facc15" stroke-width="3"/>
+            <rect x="70" y="{30+spring_y}" width="40" height="25" fill="#f43f5e" rx="4"/>
+            <text x="78" y="{47+spring_y}" fill="#ffffff" font-size="14" font-weight="bold">{newton} N</text>
+            <text x="35" y="200" fill="#38bdf8" font-size="12">Dinamometre Ölçüm</text>
+        </svg>
+        """
+    st.markdown(svg_code, unsafe_allow_html=True)
+
+  elif gorsel_tipi in ["ay_evresi", "cember"]:
+    phase_name = str(param)
+    svg_code = f"""
+        <svg width="220" height="160" viewBox="0 0 220 160" style="background:#0f172a; border-radius:12px; display:block; margin: 10px auto;">
+            <circle cx="50" cy="80" r="30" fill="#f59e0b"/>
+            <text x="35" y="85" fill="#000000" font-size="11" font-weight="bold">GÜNEŞ</text>
+            <circle cx="170" cy="80" r="25" fill="#334155" stroke="#94a3b8" stroke-width="2"/>
+            <path d="M 170 55 A 25 25 0 0 1 170 105 Z" fill="#f8fafc"/>
+            <text x="135" y="125" fill="#38bdf8" font-size="12" font-weight="bold">{phase_name}</text>
+        </svg>
+        """
+    st.markdown(svg_code, unsafe_allow_html=True)
+
+
+# --- 7. SOL MENÜ ---
 with st.sidebar:
   st.subheader("🦊 AdenMind Tema Tercihi")
   selected_theme = st.radio(
@@ -330,29 +387,27 @@ with st.sidebar:
     st.session_state["game_started"] = False
     st.rerun()
 
-# --- 7. SAĞ ALT KÖŞE: ADENMİND CANLI ASİSTAN BALONCUĞU ---
+# --- 8. SAĞ ALT KÖŞE: ADENMİND CANLI ASİSTAN BALONCUĞU ---
 st.markdown("<br><br><br>", unsafe_allow_html=True)
 
 with st.container():
-  col_bos, col_btn = [st.container(), st.container()]
-  with col_btn:
-    st.markdown(
-        """
+  st.markdown(
+      """
         <div style="position: fixed; bottom: 20px; right: 20px; z-index: 99999; text-align: right;">
         """,
-        unsafe_allow_html=True,
-    )
+      unsafe_allow_html=True,
+  )
 
-    coach_btn_text = (
-        "❌ Asistanı Kapat"
-        if st.session_state["coach_open"]
-        else "🦊 AdenMind Canlı Asistan 💬"
-    )
-    if st.button(coach_btn_text, key="floating_lamp_btn"):
-      st.session_state["coach_open"] = not st.session_state["coach_open"]
-      st.rerun()
+  coach_btn_text = (
+      "❌ Asistanı Kapat"
+      if st.session_state["coach_open"]
+      else "🦊 AdenMind Canlı Asistan 💬"
+  )
+  if st.button(coach_btn_text, key="floating_lamp_btn"):
+    st.session_state["coach_open"] = not st.session_state["coach_open"]
+    st.rerun()
 
-    st.markdown("</div>", unsafe_allow_html=True)
+  st.markdown("</div>", unsafe_allow_html=True)
 
 if st.session_state["coach_open"]:
   st.markdown(
@@ -634,8 +689,7 @@ else:
                 5. Sınıf MEB müfredatı, Ders: {curr_subj}, Ünite: {curr_unit}.
                 TAM 5 ADET çoktan seçmeli (4 şıklı: A, B, C, D) soru üret.
                 Matematik için dik üçgen, açı, çember; Fen için dinamometre, Dünya-Güneş-Ay evreleri gibi konularda sorular üret.
-                Her sorunun içinde görsel anlatım gerekiyorsa, soru metninde svg veya şekil detaylarını belirt.
-                Kesinlikle şu JSON formatında bir liste olarak ver:
+                JSON formatında liste olarak ver:
                 [
                   {{
                     "soru": "Soru metni",
@@ -646,7 +700,7 @@ else:
                     "gorsel_parametre": 60
                   }}
                 ]
-                (Not: gorsel_tipi şu değerlerden biri olabilir: 'aci', 'ucgen', 'dinamometre', 'ay_evresi', 'cember' veya 'yok'. gorsel_parametre ise açı derecesi, dinamometre Newton değeri veya ay evresi adı olabilir).
+                (gorsel_tipi: 'aci', 'ucgen', 'dinamometre', 'ay_evresi', 'cember' veya 'yok')
                 """
         res = ai_generate_content(prompt)
         if res:
@@ -731,66 +785,6 @@ else:
         )
         st.components.v1.html(html_balloon_game, height=560)
 
-
-  # --- AKILLI GÖRSEL ÜRETİCİ FONKSİYON (SVG) ---
-  def render_question_visual(gorsel_tipi, param):
-    if not gorsel_tipi or gorsel_tipi == "yok":
-      return
-
-    # 1. DİK ÜÇGEN / AÇI ÇİZİMİ
-    if gorsel_tipi in ["ucgen", "aci"]:
-      deg = 60
-      try:
-        deg = int(re.search(r"\d+", str(param)).group())
-      except Exception:
-        pass
-      svg_code = f"""
-            <svg width="220" height="150" viewBox="0 0 220 150" style="background:#0f172a; border-radius:12px; display:block; margin: 10px auto;">
-                <polygon points="30,130 190,130 190,30" fill="none" stroke="#38bdf8" stroke-width="4"/>
-                <polyline points="170,130 170,110 190,110" fill="none" stroke="#f43f5e" stroke-width="3"/>
-                <path d="M 60 130 A 30 30 0 0 1 75 105" fill="none" stroke="#facc15" stroke-width="3"/>
-                <text x="80" y="120" fill="#facc15" font-size="14" font-weight="bold">{deg}°</text>
-                <text x="100" y="145" fill="#ffffff" font-size="12">Taban Kenar</text>
-                <text x="195" y="80" fill="#ffffff" font-size="12">Dik Kenar</text>
-            </svg>
-            """
-      st.markdown(svg_code, unsafe_allow_html=True)
-
-    # 2. DİNAMOMETRE ÇİZİMİ
-    elif gorsel_tipi == "dinamometre":
-      newton = 5
-      try:
-        newton = int(re.search(r"\d+", str(param)).group())
-      except Exception:
-        pass
-      spring_y = 50 + min(newton * 8, 70)
-      svg_code = f"""
-            <svg width="180" height="220" viewBox="0 0 180 220" style="background:#0f172a; border-radius:12px; display:block; margin: 10px auto;">
-                <rect x="75" y="10" width="30" height="20" fill="#94a3b8" rx="5"/>
-                <rect x="60" y="30" width="60" height="140" fill="none" stroke="#38bdf8" stroke-width="4" rx="10"/>
-                <path d="M 90 30 Q 70 {30+spring_y/4} 110 {30+spring_y/2} Q 70 {30+3*spring_y/4} 90 {30+spring_y}" fill="none" stroke="#facc15" stroke-width="3"/>
-                <rect x="70" y="{30+spring_y}" width="40" height="25" fill="#f43f5e" rx="4"/>
-                <text x="78" y="{47+spring_y}" fill="#ffffff" font-size="14" font-weight="bold">{newton} N</text>
-                <text x="35" y="200" fill="#38bdf8" font-size="12">Dinamometre Ölçüm</text>
-            </svg>
-            """
-      st.markdown(svg_code, unsafe_allow_html=True)
-
-    # 3. DÜNYA - GÜNEŞ - AY EVRELERİ ÇİZİMİ
-    elif gorsel_tipi in ["ay_evresi", "cember"]:
-      phase_name = str(param)
-      svg_code = f"""
-            <svg width="220" height="160" viewBox="0 0 220 160" style="background:#0f172a; border-radius:12px; display:block; margin: 10px auto;">
-                <circle cx="50" cy="80" r="30" fill="#f59e0b"/>
-                <text x="35" y="85" fill="#000000" font-size="11" font-weight="bold">GÜNEŞ</text>
-                <circle cx="170" cy="80" r="25" fill="#334155" stroke="#94a3b8" stroke-width="2"/>
-                <path d="M 170 55 A 25 25 0 0 1 170 105 Z" fill="#f8fafc"/>
-                <text x="135" y="125" fill="#38bdf8" font-size="12" font-weight="bold">{phase_name}</text>
-            </svg>
-            """
-      st.markdown(svg_code, unsafe_allow_html=True)
-
-
   # 2. 5 SORULUK MEB KAZANIM OYUNU
   elif curr_game == "sinav10":
     st.subheader(f"🧠 {curr_subj} — 5 Soruluk MEB Kazanım Yarışması")
@@ -806,7 +800,7 @@ else:
         prompt = f"""
                 5. Sınıf MEB, Ders: {curr_subj}, Ünite: {curr_unit}.
                 TAM 5 ADET çoktan seçmeli (4 şıklı) soru üret. 
-                Matematik soruları için açı (örn: 60 derece, dik açı) veya üçgen; Fen soruları için dinamometre (örn: 8 N) veya Ay evresi (örn: İlk Dördün) içersin.
+                Matematik soruları için açı veya üçgen; Fen soruları için dinamometre veya Ay evresi içersin.
                 JSON liste formatında şu yapıda ver:
                 [
                   {{
@@ -836,7 +830,6 @@ else:
         ans_dict = {}
         for idx, q in enumerate(qdata):
           st.markdown(f"**Soru {idx+1}:** {q['soru']}")
-          # Soruya uygun dinamik görseli çizdir
           if "gorsel_tipi" in q and q["gorsel_tipi"] != "yok":
             render_question_visual(
                 q.get("gorsel_tipi"), q.get("gorsel_parametre", "")
