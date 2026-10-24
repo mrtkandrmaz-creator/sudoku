@@ -148,7 +148,7 @@ MEB_CURRICULUM = {
             "2. Ünite: Evimiz Dünya",
             "3. Ünite: Kültür ve Miras",
             "4. Ünite: Yaşayan Türkiye",
-            "5. Ünite: Üreten Türkiye",
+            "5. Üreten Türkiye",
             "6. Ünite: Yönetime Katılıyorum",
         ],
     },
@@ -268,6 +268,85 @@ if "selected_game" not in st.session_state:
   st.session_state["selected_game"] = None
 if "game_started" not in st.session_state:
   st.session_state["game_started"] = False
+if "coach_open" not in st.session_state:
+  st.session_state["coach_open"] = False
+if "coach_messages" not in st.session_state:
+  st.session_state["coach_messages"] = [
+      {
+          "role": "assistant",
+          "content": (
+              "Merhaba! Ben senin Yapay Zeka Öğretmen Koçunum. Takıldığın bir"
+              " soru ya da anlamadığın bir konu olursa bana her zaman"
+              " sorabilirsin! 🤖"
+          ),
+      }
+  ]
+
+# --- 6. GLOBAL SAĞ ALT KÖŞE: AKILLI ASİSTAN (YAPAY ZEKA KOÇU) ---
+st.markdown("---")
+with st.container():
+  col_space, col_trigger = st.columns([10, 2])
+  with col_trigger:
+    coach_btn_label = (
+        "🤖 Koçu Kapat ❌"
+        if st.session_state["coach_open"]
+        else "🤖 Yapay Zeka Koçum 💬"
+    )
+    if st.button(coach_btn_label, key="toggle_coach_floating"):
+      st.session_state["coach_open"] = not st.session_state["coach_open"]
+      st.rerun()
+
+if st.session_state["coach_open"]:
+  with st.container():
+    st.markdown(
+        """
+        <div style="background: linear-gradient(135deg, #1e1b4b, #312e81); padding: 20px; border-radius: 16px; border: 2px solid #6366f1; box-shadow: 0 10px 30px rgba(0,0,0,0.4); margin-bottom: 25px;">
+            <h3 style="color: #38bdf8; margin-top: 0;">🤖 Canlı Yapay Zeka Öğretmen Koçu</h3>
+            <p style="color: #cbd5e1; font-size: 14px;">Hangi sayfada veya oyunda olursan ol, aklına takılanları bana sorabilirsin.</p>
+        </div>
+        """,
+        unsafe_allow_html=True,
+    )
+
+    # Sohbet Geçmişini Göster
+    for msg in st.session_state["coach_messages"]:
+      if msg["role"] == "assistant":
+        st.markdown(f"🤖 **Koç:** {msg['content']}")
+      else:
+        st.markdown(f"👤 **Sen:** {msg['content']}")
+
+    # Soru Gönderme Formu
+    with st.form("coach_chat_form", clear_on_submit=True):
+      user_input = st.text_input("Koçuna bir şey sor:")
+      submitted = st.form_submit_button("Gönder 🚀")
+      if submitted and user_input:
+        st.session_state["coach_messages"].append(
+            {"role": "user", "content": user_input}
+        )
+        curr_s = st.session_state.get("selected_subject", "Genel")
+        curr_u = st.session_state.get("selected_unit", "Genel Konu")
+        prompt = (
+            f"Sen 5. sınıf MEB müfredatı odaklı samimi ve bilgili bir öğretmen"
+            f" koçusun. Öğrencinin seçtiği ders: {curr_s}, ünite: {curr_u}."
+            f" Öğrencinin sorusu: {user_input}"
+        )
+        with st.spinner("Koçun düşünüyor..."):
+          response = ai_generate_content(prompt)
+          if response:
+            st.session_state["coach_messages"].append(
+                {"role": "assistant", "content": response}
+            )
+          else:
+            st.session_state["coach_messages"].append(
+                {
+                    "role": "assistant",
+                    "content": (
+                        "Üzgünüm, şu anda yanıt oluşturamadım. Lütfen tekrar"
+                        " dene."
+                    ),
+                }
+            )
+        st.rerun()
 
 # --- AŞAMA 1: DERS SEÇİMİ ---
 if st.session_state["selected_subject"] is None:
@@ -390,11 +469,6 @@ elif (
           "id": "acik",
           "isim": "✍️ Klasik Yazılı Simülatörü",
           "renk": "linear-gradient(135deg, #834d9b, #d04ed6)",
-      },
-      {
-          "id": "koc",
-          "isim": "🤖 Yapay Zeka Koçum",
-          "renk": "linear-gradient(135deg, #4e54c8, #8f94fb)",
       },
   ]
 
@@ -1155,7 +1229,6 @@ else:
         st.markdown("#### Kelime Kutucukları:")
         user_guess = st.session_state["user_guess"]
 
-        # Tamamen temizlenmiş, tek satırlık ve hatasız HTML yapısı
         boxes_html = '<div style="display: flex; gap: 8px; justify-content: center; margin-bottom: 20px;">'
         for b_i in range(len(target_word)):
           char_in_box = user_guess[b_i] if b_i < len(user_guess) else ""
@@ -1288,23 +1361,3 @@ else:
         st.session_state["selected_unit"] = None
         st.session_state["selected_game"] = None
         st.rerun()
-
-  # 6. YAPAY ZEKA KOÇUM
-  elif curr_game == "koc":
-    st.subheader(f"🤖 {curr_subj} Canlı Yapay Zeka Öğretmen Koçu")
-    user_q = st.text_input("Aklına takılan soruyu sor:")
-    if st.button("Koçuma Sor", key="ask_coach"):
-      if user_q:
-        with st.spinner("Öğretmeniniz yanıtlıyor..."):
-          ans = ai_generate_content(
-              f"Sen 5. sınıf öğretmenisin. Ders: {curr_subj}, Ünite:"
-              f" {curr_unit}. Öğrencinin Sorusu: {user_q}"
-          )
-          if ans:
-            st.success(ans)
-    st.markdown("<br>", unsafe_allow_html=True)
-    if st.button("🏠 Ana Ekrana Dön", key="back_home_coach"):
-      st.session_state["selected_subject"] = None
-      st.session_state["selected_unit"] = None
-      st.session_state["selected_game"] = None
-      st.rerun()
