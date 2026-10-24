@@ -221,7 +221,6 @@ if "dy_current_q" not in st.session_state:
 if "dy_feedback" not in st.session_state:
   st.session_state["dy_feedback"] = ""
 
-# Kazanım Sınavı Tek Soru Navigasyon State'leri
 if "kazanim_idx" not in st.session_state:
   st.session_state["kazanim_idx"] = 0
 if "kazanim_score" not in st.session_state:
@@ -277,13 +276,13 @@ st.markdown(
         letter-spacing: 0.5px;
     }}
     .card-box {{
-        padding: 26px;
+        padding: 24px;
         border-radius: 16px;
         color: white;
         text-align: center;
         font-weight: bold;
-        font-size: 22px;
-        margin-bottom: 12px;
+        font-size: 20px;
+        margin-bottom: 8px;
         box-shadow: 0 6px 20px rgba(0,0,0,0.2);
         transition: transform 0.3s ease;
     }}
@@ -316,7 +315,6 @@ def render_question_visual(gorsel_tipi, param):
   if not gorsel_tipi or gorsel_tipi == "yok":
     return
 
-  # 1. ÜÇGEN VE AÇI ÇİZİMLERİ (Örn: 50 derece, dik üçgen, çeşitkenar vb.)
   if gorsel_tipi in ["ucgen", "aci"]:
     deg = 60
     try:
@@ -324,7 +322,6 @@ def render_question_visual(gorsel_tipi, param):
     except Exception:
       pass
 
-    # Açı değerine göre dinamik üst köşe hesaplama (geometrik orantı)
     import math
 
     rad = math.radians(deg)
@@ -335,15 +332,13 @@ def render_question_visual(gorsel_tipi, param):
     if x_top > 190:
       x_top = 190
 
-    # Dik üçgen mi kontrolü
     is_right_angle = "dik" in str(param).lower() or deg == 90
-
-    right_angle_svg = ""
-    if is_right_angle:
-      right_angle_svg = (
-          '<polyline points="170,130 170,110 190,110" fill="none" stroke="#f43f5e"'
-          ' stroke-width="3"/>'
-      )
+    right_angle_svg = (
+        '<polyline points="170,130 170,110 190,110" fill="none" stroke="#f43f5e"'
+        ' stroke-width="3"/>'
+        if is_right_angle
+        else ""
+    )
 
     svg_code = f"""
         <svg width="240" height="160" viewBox="0 0 240 160" style="background:#0f172a; border-radius:12px; display:block; margin: 10px auto; border: 2px solid #38bdf8;">
@@ -356,7 +351,6 @@ def render_question_visual(gorsel_tipi, param):
         """
     st.markdown(svg_code, unsafe_allow_html=True)
 
-  # 2. DİNAMOMETRE ÇİZİMİ (Gerçek Newton değerine göre yay esnemesi)
   elif gorsel_tipi == "dinamometre":
     newton = 5
     try:
@@ -376,7 +370,6 @@ def render_question_visual(gorsel_tipi, param):
         """
     st.markdown(svg_code, unsafe_allow_html=True)
 
-  # 3. DÜNYA - GÜNEŞ - AY EVRELERİ ÇİZİMİ
   elif gorsel_tipi in ["ay_evresi", "cember"]:
     phase_name = str(param)
     svg_code = f"""
@@ -525,10 +518,10 @@ if st.session_state["coach_open"]:
 
   st.markdown("</div>", unsafe_allow_html=True)
 
-# --- AŞAMA 1: DERS SEÇİMİ ---
+# --- AŞAMA 1: DERS SEÇİMİ (KARTLARA DİREKT TIKLAMA) ---
 if st.session_state["selected_subject"] is None:
   st.markdown(
-      "### 🌟 Lütfen Çalışmak İstediğiniz MEB Ders Kartına Tıklayın"
+      "### 🌟 Lütfen Çalışmak İstediğiniz MEB Dersine Doğrudan Tıklayın"
   )
 
   subjects = list(MEB_CURRICULUM.keys())
@@ -540,9 +533,9 @@ if st.session_state["selected_subject"] is None:
     with cols[col_idx]:
       st.markdown(
           f"""
-            <div class="card-box" style="background: {data['renk']};">
-                <div style="font-size: 40px;">{data['ikon']}</div>
-                <div style="margin-top: 10px;">{subj}</div>
+            <div class="card-box" style="background: {data['renk']}; margin-bottom: 8px;">
+                <div style="font-size: 38px;">{data['ikon']}</div>
+                <div style="margin-top: 5px; font-size: 19px;">{subj}</div>
             </div>
             """,
           unsafe_allow_html=True,
@@ -556,7 +549,7 @@ if st.session_state["selected_subject"] is None:
         st.session_state["game_started"] = False
         st.rerun()
 
-# --- AŞAMA 2: ÜNİTE SEÇİMİ ---
+# --- AŞAMA 2: ÜNİTE SEÇİMİ (KARTLARA DİREKT TIKLAMA) ---
 elif (
     st.session_state["selected_subject"] is not None
     and st.session_state["selected_unit"] is None
@@ -567,7 +560,7 @@ elif (
   st.markdown(
       f"### {curr_data['ikon']} {curr_subj} — Ünite / Konu Seçim Ekranı"
   )
-  st.write("Çalışmak istediğiniz alt ünite kartına tıklayın:")
+  st.write("Çalışmak istediğiniz alt üniteye doğrudan tıklayın:")
 
   if st.button("⬅️ Ders Seçimine Geri Dön", key="back_subj"):
     st.session_state["selected_subject"] = None
@@ -582,14 +575,16 @@ elif (
     with u_col:
       st.markdown(
           f"""
-            <div class="card-box" style="background: {curr_data['renk']}; opacity: 0.95;">
-                <div style="font-size: 20px;">📖 {unit_name}</div>
+            <div class="card-box" style="background: {curr_data['renk']}; opacity: 0.95; margin-bottom: 8px;">
+                <div style="font-size: 18px;">📖 {unit_name}</div>
             </div>
             """,
           unsafe_allow_html=True,
       )
       if st.button(
-          f"Seç: {unit_name}", key=f"unit_{idx}", use_container_width=True
+          f"Seç: {unit_name[:25]}...",
+          key=f"unit_{idx}",
+          use_container_width=True,
       ):
         st.session_state["selected_unit"] = unit_name
         st.session_state["game_started"] = False
@@ -676,8 +671,8 @@ elif (
     with g_cols[g_idx % 3]:
       st.markdown(
           f"""
-            <div class="card-box" style="background: {g_item['renk']};">
-                <div>{g_item['isim']}</div>
+            <div class="card-box" style="background: {g_item['renk']}; margin-bottom: 8px;">
+                <div style="font-size: 18px;">{g_item['isim']}</div>
             </div>
             """,
           unsafe_allow_html=True,
@@ -884,7 +879,6 @@ else:
             unsafe_allow_html=True,
         )
 
-        # Soruya uygun gerçek açı/dinamometre/evra görselini çizdir
         if "gorsel_tipi" in q and q["gorsel_tipi"] != "yok":
           render_question_visual(
               q.get("gorsel_tipi"), q.get("gorsel_parametre", "")
@@ -916,7 +910,11 @@ else:
           ):
             if selected_option:
               st.session_state["kazanim_answers"][k_idx] = selected_option
-              chosen_letter = selected_option.charAt(0).upper() if hasattr(selected_option, "charAt") else selected_option[0].upper()
+              chosen_letter = (
+                  selected_option.charAt(0).upper()
+                  if hasattr(selected_option, "charAt")
+                  else selected_option[0].upper()
+              )
               correct_letter = q["dogru_cevap"].upper()
               if chosen_letter == correct_letter:
                 st.session_state["kazanim_score"] += 20
