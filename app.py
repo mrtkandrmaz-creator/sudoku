@@ -1,4 +1,5 @@
 import json
+import os
 import random
 import re
 import streamlit as st
@@ -10,27 +11,42 @@ st.set_page_config(
     layout="wide",
 )
 
-# --- 1. ESNEK TOML / SECRETS API TARAMA MOTORU ---
+# --- 1. KUSURSUZ VE GARANTİLİ API ANAHTARI TARAMA MOTORU ---
 
 
 def get_all_api_keys():
-  """Streamlit secrets içindeki anahtarları isimlendirme bağımsız tarar."""
+  """Streamlit secrets, ortam değişkenleri (environment variables) ve
+
+  yerel os üzerinden anahtarları esnek ve garantili toplar.
+  """
   gemini_keys = []
   groq_keys = []
 
+  # 1. YÖNTEM: Streamlit Secrets kontrolü
   try:
-    # Tüm secrets anahtarlarını tarayıp içinde gemini veya groq geçenleri ayıklarız
-    for key, val in st.secrets.items():
-      key_upper = key.upper()
-      if val and isinstance(val, str) and len(val.strip()) > 5:
-        if "GEMINI" in key_upper:
-          if val not in gemini_keys:
-            gemini_keys.append(val.strip())
-        elif "GROQ" in key_upper:
-          if val not in groq_keys:
-            groq_keys.append(val.strip())
+    if hasattr(st, "secrets") and st.secrets:
+      for key, val in st.secrets.items():
+        key_upper = str(key).upper()
+        if val and isinstance(val, str) and len(val.strip()) > 5:
+          if "GEMINI" in key_upper or "GOOGLE" in key_upper:
+            if val.strip() not in gemini_keys:
+              gemini_keys.append(val.strip())
+          elif "GROQ" in key_upper:
+            if val.strip() not in groq_keys:
+              groq_keys.append(val.strip())
   except Exception:
     pass
+
+  # 2. YÖNTEM: Sistem Ortam Değişkenleri (Environment Variables / .env) kontrolü
+  for env_key, env_val in os.environ.items():
+    env_upper = env_key.upper()
+    if env_val and isinstance(env_val, str) and len(env_val.strip()) > 5:
+      if (
+          "GEMINI" in env_upper or "GOOGLE" in env_upper
+      ) and env_val.strip() not in gemini_keys:
+        gemini_keys.append(env_val.strip())
+      elif "GROQ" in env_upper and env_val.strip() not in groq_keys:
+        groq_keys.append(env_val.strip())
 
   return gemini_keys, groq_keys
 
@@ -174,13 +190,6 @@ st.markdown(
         margin-bottom: 20px;
         box-shadow: 0 4px 6px rgba(0,0,0,0.1);
     }
-    .game-box {
-        background-color: #f8f9fa;
-        padding: 20px;
-        border-radius: 10px;
-        border: 2px solid #e9ecef;
-        margin-bottom: 15px;
-    }
     .stButton>button {
         background-color: #2a5298;
         color: white;
@@ -199,31 +208,47 @@ st.markdown(
     unsafe_allow_html=True,
 )
 
-# API Durumu Uyarısı
-if not gemini_keys and not groq_keys:
-  st.warning(
-      "⚠️ Hiçbir API anahtarı algılanamadı! Sistem yerel yedek modda"
-      " çalışacaktır. `secrets.toml` yapılandırmanızı kontrol edebilirsiniz."
+# Sidebar Üzerinden Canlı API Durum Bilgisi ve Manuel Giriş Seçeneği
+with st.sidebar:
+  st.title("📌 Menü ve Ayarlar")
+
+  # Eğer secrets veya environment'ta anahtar yoksa kullanıcıya arayüzden geçici anahtar girme imkanı sunalım
+  if not gemini_keys and not groq_keys:
+    st.error(
+        "⚠️ Sistemde otomatik API anahtarı bulunamadı! Test edebilmek için"
+        " aşağıya anahtar girebilirsiniz:"
+    )
+    manual_key = st.text_input(
+        "Gemini veya Groq API Key Girin:", type="password"
+    )
+    if manual_key:
+      if manual_key.startswith("AIza"):
+        gemini_keys.append(manual_key)
+        has_gemini = True
+        st.success("Gemini API Anahtarı eklendi!")
+      elif manual_key.startswith("gsk_"):
+        groq_keys.append(manual_key)
+        has_groq = True
+        st.success("Groq API Anahtarı eklendi!")
+  else:
+    st.success("✅ Yapay Zeka API Bağlantısı Aktif!")
+
+  selected_subject = st.selectbox(
+      "📚 Ders Seçiniz", list(MEB_CURRICULUM.keys())
+  )
+  selected_unit = st.selectbox(
+      "📖 Ünite Seçiniz", MEB_CURRICULUM[selected_subject]
   )
 
-# Kenar Çubuğu: Ders, Ünite ve Oyun Modu Seçimi
-st.sidebar.title("📌 Menü ve Ayarlar")
-selected_subject = st.sidebar.selectbox(
-    "📚 Ders Seçiniz", list(MEB_CURRICULUM.keys())
-)
-selected_unit = st.sidebar.selectbox(
-    "📖 Ünite Seçiniz", MEB_CURRICULUM[selected_subject]
-)
-
-game_mode = st.sidebar.selectbox(
-    "🎯 İnteraktif Oyun Modu:",
-    [
-        "🔤 Kelime Avı & Bulmaca",
-        "⚖️ Doğru / Yanlış Bulmaca",
-        "🧠 Çoktan Seçmeli Meb Sınavı",
-        "🤖 Yapay Zeka Eğitmenimle Soru-Cevap",
-    ],
-)
+  game_mode = st.selectbox(
+      "🎯 İnteraktif Oyun Modu:",
+      [
+          "🔤 Kelime Avı & Bulmaca",
+          "⚖️ Doğru / Yanlış Bulmaca",
+          "🧠 Çoktan Seçmeli Meb Sınavı",
+          "🤖 Yapay Zeka Eğitmenimle Soru-Cevap",
+      ],
+  )
 
 # --- OYUN MODU 1: KELİME AVI & BULMACA ---
 if game_mode == "🔤 Kelime Avı & Bulmaca":
@@ -241,44 +266,46 @@ if game_mode == "🔤 Kelime Avı & Bulmaca":
     st.session_state["puzzle_unit"] = (selected_subject, selected_unit)
 
   if st.button("🔍 Bulmaca Kelimelerini Üret"):
-    with st.spinner("Yapay zeka MEB müfredatına uygun kelime avı hazırlıyor..."):
-      prompt = f"""
-            Sen uzman bir 5. Sınıf MEB müfredat öğretmenisin.
-            Ders: {selected_subject}
-            Ünite: {selected_unit}
-            
-            Bu üniteyle ilgili tam 4 adet önemli anahtar kelime ve bu kelimelerin kısa tanımlarını seç.
-            Yanıtı sadece aşağıdaki JSON formatında ver, başka hiçbir metin ekleme:
-            [
-              {{"kelime": "TERİM", "ipucu": "Tanımı veya bulmaca ipucu cümlesi"}}
-            ]
-            """
-      res = ai_generate_content(prompt)
-      if res:
-        try:
-          cleaned = re.sub(r"```json|```", "", res).strip()
-          st.session_state["puzzle_data"] = json.loads(cleaned)
-          st.success("Bulmaca başarıyla oluşturuldu!")
-        except Exception:
-          st.error("Veri işlenirken hata oluştu. Lütfen tekrar deneyin.")
-      else:
-        st.error("Yapay zeka yanıt veremedi.")
+    if not gemini_keys and not groq_keys:
+      st.warning(
+          "Lütfen sol menüden API anahtarı girin veya secrets.toml"
+          " yapılandırmanızı tamamlayın."
+      )
+    else:
+      with st.spinner(
+          "Yapay zeka MEB müfredatına uygun kelime avı hazırlıyor..."
+      ):
+        prompt = f"""
+                Sen uzman bir 5. Sınıf MEB müfredat öğretmenisin.
+                Ders: {selected_subject}
+                Ünite: {selected_unit}
+                
+                Bu üniteyle ilgili tam 4 adet önemli anahtar kelime ve bu kelimelerin kısa tanımlarını seç.
+                Yanıtı sadece aşağıdaki JSON formatında ver, başka hiçbir metin ekleme:
+                [
+                  {{"kelime": "TERİM", "ipucu": "Tanımı veya bulmaca ipucu cümlesi"}}
+                ]
+                """
+        res = ai_generate_content(prompt)
+        if res:
+          try:
+            cleaned = re.sub(r"```json|```", "", res).strip()
+            st.session_state["puzzle_data"] = json.loads(cleaned)
+            st.rerun()
+          except Exception:
+            st.error("Veri işlenirken hata oluştu. Lütfen tekrar deneyin.")
+        else:
+          st.error(
+              "Yapay zeka yanıt veremedi. API anahtarınızın kotasını kontrol"
+              " edin."
+          )
 
   if st.session_state["puzzle_data"]:
     items = st.session_state["puzzle_data"]
     with st.form("puzzle_form"):
-      score = 0
       user_guesses = {}
       for i, item in enumerate(items):
         st.markdown(f"**İpucu {i+1}:** {item['ipucu']}")
-        # Harf sayısı ipucu
-        hidden_word = (
-            item["kelime"][0]
-            + " _ " * (len(item["kelime"]) - 2)
-            + item["kelime"][-1]
-            if len(item["kelime"]) > 2
-            else "_ * "
-        )
         st.caption(f"Karakter Sayısı: {len(item['kelime'])} harfli")
         user_guesses[i] = st.text_input(
             f"Cevabınız (İpucu {i+1}):", key=f"puz_{i}"
@@ -317,29 +344,32 @@ elif game_mode == "⚖️ Doğru / Yanlış Bulmaca":
     st.session_state["dw_unit"] = (selected_subject, selected_unit)
 
   if st.button("⚡ D/Y Sorularını Üret"):
-    with st.spinner("Doğru/Yanlış bulmaca soruları hazırlanıyor..."):
-      prompt = f"""
-            Sen uzman bir 5. Sınıf MEB öğretmenisin. 
-            Ders: {selected_subject}
-            Ünite: {selected_unit}
-            
-            Bu konuyla ilgili 5 adet Doğru veya Yanlış türünde cümle hazırla.
-            Yanıtı sadece şu JSON formatında ver:
-            [
-              {{"ifade": "Cümle buraya", "cevap": "Doğru", "aciklama": "Neden doğru/yanlış olduğu açıklaması"}},
-              {{"ifade": "Cümle buraya", "cevap": "Yanlış", "aciklama": "Açıklama"}}
-            ]
-            """
-      res = ai_generate_content(prompt)
-      if res:
-        try:
-          cleaned = re.sub(r"```json|```", "", res).strip()
-          st.session_state["dw_data"] = json.loads(cleaned)
-          st.success("Sorular yüklendi!")
-        except Exception:
-          st.error("Biçim hatası oluştu.")
-      else:
-        st.error("Yapay zeka yanıt veremedi.")
+    if not gemini_keys and not groq_keys:
+      st.warning("Lütfen sol menüden API anahtarı girin.")
+    else:
+      with st.spinner("Doğru/Yanlış bulmaca soruları hazırlanıyor..."):
+        prompt = f"""
+                Sen uzman bir 5. Sınıf MEB öğretmenisin. 
+                Ders: {selected_subject}
+                Ünite: {selected_unit}
+                
+                Bu konuyla ilgili 5 adet Doğru veya Yanlış türünde cümle hazırla.
+                Yanıtı sadece şu JSON formatında ver:
+                [
+                  {{"ifade": "Cümle buraya", "cevap": "Doğru", "aciklama": "Neden doğru/yanlış olduğu açıklaması"}},
+                  {{"ifade": "Cümle buraya", "cevap": "Yanlış", "aciklama": "Açıklama"}}
+                ]
+                """
+        res = ai_generate_content(prompt)
+        if res:
+          try:
+            cleaned = re.sub(r"```json|```", "", res).strip()
+            st.session_state["dw_data"] = json.loads(cleaned)
+            st.rerun()
+          except Exception:
+            st.error("Biçim hatası oluştu.")
+        else:
+          st.error("Yapay zeka yanıt veremedi.")
 
   if st.session_state["dw_data"]:
     dw_list = st.session_state["dw_data"]
@@ -352,12 +382,10 @@ elif game_mode == "⚖️ Doğru / Yanlış Bulmaca":
         )
         st.markdown("---")
 
-      dw_sub = st.form_submit_button("Sonuçları Değerlendir")
-      if dw_sub:
+      if st.form_submit_button("Sonuçları Değerlendir"):
         corrects = 0
         for idx, item in enumerate(dw_list):
-          user_choice = dw_answers.get(idx)
-          if user_choice == item["cevap"]:
+          if dw_answers.get(idx) == item["cevap"]:
             corrects += 1
             st.success(
                 f"Soru {idx+1}: Doğru Bildiniz! 👏 Açıklama: {item['aciklama']}"
@@ -382,23 +410,26 @@ elif game_mode == "🧠 Çoktan Seçmeli Meb Sınavı":
     st.session_state["q_unit"] = (selected_subject, selected_unit)
 
   if st.button("🚀 Test Sorularını Getir"):
-    with st.spinner("Sorular üretiliyor..."):
-      prompt = f"""
-            5. Sınıf MEB müfredatı, Ders: {selected_subject}, Ünite: {selected_unit}.
-            4 şıklı (A, B, C, D) 4 adet çoktan seçmeli soru hazırla.
-            JSON formatında ver:
-            [
-              {{"soru": "Soru?", "secenekler": ["A) ...", "B) ...", "C) ...", "D) ..."], "dogru_cevap": "A", "aciklama": "..."}}
-            ]
-            """
-      res = ai_generate_content(prompt)
-      if res:
-        try:
-          cleaned = re.sub(r"```json|```", "", res).strip()
-          st.session_state["quiz_data"] = json.loads(cleaned)
-          st.success("Test hazır!")
-        except Exception:
-          st.error("Hata oluştu.")
+    if not gemini_keys and not groq_keys:
+      st.warning("Lütfen sol menüden API anahtarı girin.")
+    else:
+      with st.spinner("Sorular üretiliyor..."):
+        prompt = f"""
+                5. Sınıf MEB müfredatı, Ders: {selected_subject}, Ünite: {selected_unit}.
+                4 şıklı (A, B, C, D) 4 adet çoktan seçmeli soru hazırla.
+                JSON formatında ver:
+                [
+                  {{"soru": "Soru?", "secenekler": ["A) ...", "B) ...", "C) ...", "D) ..."], "dogru_cevap": "A", "aciklama": "..."}}
+                ]
+                """
+        res = ai_generate_content(prompt)
+        if res:
+          try:
+            cleaned = re.sub(r"```json|```", "", res).strip()
+            st.session_state["quiz_data"] = json.loads(cleaned)
+            st.rerun()
+          except Exception:
+            st.error("Hata oluştu.")
 
   if st.session_state["quiz_data"]:
     quiz = st.session_state["quiz_data"]
@@ -414,8 +445,9 @@ elif game_mode == "🧠 Çoktan Seçmeli Meb Sınavı":
       if st.form_submit_button("Testi Bitir"):
         score_c = 0
         for idx, q in enumerate(quiz):
-          ans = user_q_ans.get(idx)
-          if ans and ans.startswith(q["dogru_cevap"]):
+          if user_q_ans.get(idx) and user_q_ans.get(idx).startswith(
+              q["dogru_cevap"]
+          ):
             score_c += 1
         st.balloons()
         st.success(
@@ -436,7 +468,9 @@ elif game_mode == "🤖 Yapay Zeka Eğitmenimle Soru-Cevap":
       "Merak ettiğin soruyu yaz:", placeholder="Örn: Bu konuyu bana örnekle..."
   )
   if st.button("Cevap Al"):
-    if question:
+    if not gemini_keys and not groq_keys:
+      st.warning("Lütfen sol menüden API anahtarı girin.")
+    elif question:
       with st.spinner("Eğitmen yanıtlıyor..."):
         prompt = f"""
                 Sen 5. sınıf öğrencisine rehberlik eden sevecen bir MEB öğretmenisin.
