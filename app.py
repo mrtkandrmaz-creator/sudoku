@@ -17,64 +17,74 @@ st.set_page_config(
 def get_all_api_keys():
   """Streamlit secrets (TOML) veya ortam değişkenlerinden
 
-  tüm API anahtarlarını koşulsuz ve eksiksiz toplar.
+  tüm API anahtarlarını biçim fark etmeksizin koşulsuz toplar.
   """
   gemini_keys = []
   groq_keys = []
 
-  # Streamlit Secrets (TOML) taraması
+  # Streamlit Secrets (TOML) derinlemesine özyinelemeli tarama
   try:
     if hasattr(st, "secrets") and st.secrets:
 
-      def recursive_search(sec_obj):
-        if isinstance(sec_obj, dict):
-          for k, v in sec_obj.items():
-            if isinstance(v, dict):
-              recursive_search(v)
-            elif isinstance(v, str) and len(v.strip()) > 5:
-              k_upper = str(k).upper()
-              if (
-                  "GEMINI" in k_upper
-                  or "GOOGLE" in k_upper
-                  or "AIZA" in v
-                  or "API_KEY" in k_upper
-              ):
-                if v.strip() not in gemini_keys and not v.strip().startswith(
-                    "gsk_"
-                ):
-                  gemini_keys.append(v.strip())
-              if (
-                  "GROQ" in k_upper
-                  or "GSK" in v
-                  or v.strip().startswith("gsk_")
-              ):
-                if v.strip() not in groq_keys:
-                  groq_keys.append(v.strip())
+      def extract_values(data):
+        if isinstance(data, dict):
+          for k, v in data.items():
+            extract_values(v)
+        elif isinstance(data, (list, tuple)):
+          for item in data:
+            extract_values(item)
+        elif isinstance(data, str):
+          val = data.strip()
+          if len(val) > 5:
+            # Gemini anahtarı formatı veya ismi geçiyorsa
+            if (
+                val.startswith("AIza")
+                or "GEMINI" in val.upper()
+                or "GOOGLE" in val.upper()
+            ):
+              if val not in gemini_keys and not val.startswith("gsk_"):
+                gemini_keys.append(val)
+            # Groq anahtarı formatı veya ismi geçiyorsa
+            elif val.startswith("gsk_") or "GROQ" in val.upper():
+              if val not in groq_keys:
+                groq_keys.append(val)
 
-      recursive_search(st.secrets)
+      extract_values(st.secrets)
+
+      # Ekstra Güvence: Anahtar isimlerine göre doğrudan okuma denemeleri
+      for top_key in st.secrets.keys():
+        tk_upper = str(top_key).upper()
+        try:
+          val = str(st.secrets[top_key]).strip()
+          if len(val) > 5:
+            if "GEMINI" in tk_upper or "GOOGLE" in tk_upper or val.startswith("AIza"):
+              if val not in gemini_keys:
+                gemini_keys.append(val)
+            elif "GROQ" in tk_upper or val.startswith("gsk_"):
+              if val not in groq_keys:
+                groq_keys.append(val)
+        except Exception:
+          pass
   except Exception:
     pass
 
-  # Sistem ortam değişkenleri taraması
+  # Sistem Ortam Değişkenleri Taraması
   for env_key, env_val in os.environ.items():
     env_upper = env_key.upper()
     if env_val and isinstance(env_val, str) and len(env_val.strip()) > 5:
+      val = env_val.strip()
       if (
           "GEMINI" in env_upper
           or "GOOGLE" in env_upper
-          or env_val.strip().startswith("AIza")
+          or val.startswith("AIza")
       ):
-        if env_val.strip() not in gemini_keys:
-          gemini_keys.append(env_val.strip())
-      if (
-          "GROQ" in env_upper
-          or "GSK" in env_upper
-          or env_val.strip().startswith("gsk_")
-      ):
-        if env_val.strip() not in groq_keys:
-          groq_keys.append(env_val.strip())
+        if val not in gemini_keys:
+          gemini_keys.append(val)
+      elif "GROQ" in env_upper or val.startswith("gsk_"):
+        if val not in groq_keys:
+          groq_keys.append(val)
 
-  # Manuel eklenenler
+  # Manuel eklenenler (Session State)
   if "manual_gemini" in st.session_state and st.session_state["manual_gemini"]:
     if st.session_state["manual_gemini"] not in gemini_keys:
       gemini_keys.append(st.session_state["manual_gemini"])
@@ -108,7 +118,7 @@ except ImportError:
 
 
 def ai_generate_content(prompt_text):
-  """Mutlaka gemini-3.6-flash modelini ve Groq modellerini dener."""
+  """Gemini (gemini-3.6-flash dahil) ve Groq modellerini dener."""
   if has_gemini and gemini_keys:
     for g_key in gemini_keys:
       try:
@@ -233,7 +243,7 @@ MEB_CURRICULUM = {
     },
 }
 
-# --- 3. MEB TARZI ARAYÜZ (CSS) ---
+# --- 3. MEB TARZI BÜYÜK KART TASARIMI (CSS) ---
 st.markdown(
     """
     <style>
@@ -248,19 +258,20 @@ st.markdown(
         margin-bottom: 25px;
         box-shadow: 0 4px 12px rgba(0,0,0,0.15);
     }
+    /* Büyük, okunaklı, renkli EBA tarzı kart butonlar */
     .stButton>button {
         border-radius: 14px;
         font-weight: bold;
         border: none;
         width: 100%;
-        height: 110px;
-        font-size: 20px !important;
+        height: 120px;
+        font-size: 22px !important;
         color: white !important;
-        box-shadow: 0 4px 8px rgba(0,0,0,0.15);
+        box-shadow: 0 4px 10px rgba(0,0,0,0.18);
         transition: transform 0.2s;
     }
     .stButton>button:hover {
-        transform: scale(1.03);
+        transform: scale(1.02);
     }
     </style>
     <div class="main-header">🎒 MEB 5. Sınıf Akıllı Eğitsel Oyun Merkezi (Murat KANDIRMAZ)</div>
@@ -268,14 +279,14 @@ st.markdown(
     unsafe_allow_html=True,
 )
 
-# --- 4. SOL MENÜ (API DURUMU VE YARDIMCI GİRİŞ) ---
+# --- 4. SOL MENÜ (API DURUM GÖSTERGESİ) ---
 with st.sidebar:
-  st.subheader("⚙️ API Yapılandırma")
-  if not gemini_keys and not groq_keys:
-    st.warning("⚠️ Otomatik API anahtarı algılanamadı.")
-    m_key = st.text_input(
-        "Geçici API Anahtarı Girin (Gemini/Groq):", type="password"
-    )
+  st.subheader("⚙️ Sistem Durumu")
+  if gemini_keys or groq_keys:
+    st.success("✅ Yapay Zeka TOML'dan Aktif!")
+  else:
+    st.warning("⚠️ API anahtarı algılanamadı. Buraya geçici girebilirsiniz:")
+    m_key = st.text_input("API Key:", type="password")
     if m_key:
       if m_key.startswith("AIza"):
         st.session_state["manual_gemini"] = m_key
@@ -285,11 +296,9 @@ with st.sidebar:
         st.session_state["manual_groq"] = m_key
         st.success("Groq eklendi!")
         st.rerun()
-  else:
-    st.success("✅ Yapay Zeka TOML'dan Aktif")
 
   st.markdown("---")
-  if st.button("🏠 Ana Sayfaya Dön", key="home_btn", help="Ana menüye döner"):
+  if st.button("🏠 Ana Sayfaya Dön", key="home_btn"):
     st.session_state["selected_subject"] = None
     st.session_state["selected_unit"] = None
     st.session_state["selected_game"] = None
@@ -303,10 +312,10 @@ if "selected_unit" not in st.session_state:
 if "selected_game" not in st.session_state:
   st.session_state["selected_game"] = None
 
-# --- AŞAMA 1: DERS SEÇİMİ ---
+# --- AŞAMA 1: DERS SEÇİMİ (BÜYÜK RENKLİ KARTLAR) ---
 if st.session_state["selected_subject"] is None:
   st.markdown(
-      "### 🌟 Lütfen Çalışmak İstediğiniz MEB Dersine Tıklayın (Dashboard)"
+      "### 🌟 Lütfen Çalışmak İstediğiniz MEB Dersine Kartına Tıklayın"
   )
 
   subjects = list(MEB_CURRICULUM.keys())
@@ -327,14 +336,14 @@ if st.session_state["selected_subject"] is None:
           unsafe_allow_html=True,
       )
       if st.button(
-          f"{data['ikon']}\n\n{subj}",
+          f"{data['ikon']} {subj}",
           key=f"sub_{subj}",
           use_container_width=True,
       ):
         st.session_state["selected_subject"] = subj
         st.rerun()
 
-# --- AŞAMA 2: ÜNİTE SEÇİMİ ---
+# --- AŞAMA 2: ÜNİTE SEÇİMİ (BÜYÜK RENKLİ KARTLAR) ---
 elif (
     st.session_state["selected_subject"] is not None
     and st.session_state["selected_unit"] is None
@@ -345,7 +354,7 @@ elif (
   st.markdown(
       f"### {curr_data['ikon']} {curr_subj} — Ünite / Konu Seçim Ekranı"
   )
-  st.write("Çalışmak istediğiniz alt ünite kutucuğuna tıklayın:")
+  st.write("Çalışmak istediğiniz alt ünite kartına tıklayın:")
 
   if st.button("⬅️ Ders Seçimine Geri Dön", key="back_subj"):
     st.session_state["selected_subject"] = None
@@ -374,7 +383,7 @@ elif (
         st.session_state["selected_unit"] = unit_name
         st.rerun()
 
-# --- AŞAMA 3: OYUN VE SORU MODELLERİ SEÇİMİ ---
+# --- AŞAMA 3: OYUN VE SORU MODELLERİ (BÜYÜK RENKLİ KARTLAR) ---
 elif (
     st.session_state["selected_subject"] is not None
     and st.session_state["selected_unit"] is not None
@@ -397,7 +406,7 @@ elif (
     st.session_state["selected_unit"] = None
     st.rerun()
 
-  st.markdown("### 🎮 Lütfen Bir Oyun / Soru Modülü Kutucuğuna Tıklayın")
+  st.markdown("### 🎮 Lütfen Bir Oyun / Soru Modülü Kartına Tıklayın")
 
   games = [
       {"id": "balon", "isim": "🎈 Balon Patlatmaca", "renk": "#ff6b6b"},
@@ -428,7 +437,7 @@ elif (
         st.session_state["selected_game"] = g_item["id"]
         st.rerun()
 
-# --- AŞAMA 4: SEÇİLEN OYUN MODUNUN ÇALIŞTIRILMASI ---
+# --- AŞAMA 4: OYUN VE SORU MODELLERİNİN ÇALIŞTIRILMASI ---
 else:
   curr_subj = st.session_state["selected_subject"]
   curr_unit = st.session_state["selected_unit"]
@@ -648,3 +657,5 @@ else:
           )
           if ans:
             st.success(ans)
+
+<FollowUp/>
