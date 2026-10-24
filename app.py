@@ -213,7 +213,7 @@ MEB_CURRICULUM = {
     },
 }
 
-# --- 3. MEB TARZI ARAYÜZ (CSS) ---
+# --- 3. MEB TARZI ARAYÜZ (CSS & BUTON HACK) ---
 st.markdown(
     """
     <style>
@@ -228,11 +228,20 @@ st.markdown(
         margin-bottom: 25px;
         box-shadow: 0 4px 12px rgba(0,0,0,0.15);
     }
+    /* Streamlit butonlarını büyük renkli kutucuklara dönüştürüyoruz */
     .stButton>button {
-        border-radius: 8px;
+        border-radius: 14px;
         font-weight: bold;
         border: none;
         width: 100%;
+        height: 110px;
+        font-size: 20px !important;
+        color: white !important;
+        box-shadow: 0 4px 8px rgba(0,0,0,0.15);
+        transition: transform 0.2s;
+    }
+    .stButton>button:hover {
+        transform: scale(1.03);
     }
     </style>
     <div class="main-header">🎒 MEB 5. Sınıf Akıllı Eğitsel Oyun Merkezi (Murat KANDIRMAZ)</div>
@@ -258,10 +267,12 @@ with st.sidebar:
         st.success("Groq eklendi!")
         st.rerun()
   else:
-    st.success("✅ Yapay Zeka TOML'dan Aktif")
+    st.success("✅ Yapay Zeka Aktif")
 
   st.markdown("---")
-  if st.button("🏠 Ana Sayfaya Dön"):
+  if st.button(
+      "🏠 Ana Sayfaya Dön", key="home_btn", help="Ana menüye döner"
+  ):
     st.session_state["selected_subject"] = None
     st.session_state["selected_unit"] = None
     st.session_state["selected_game"] = None
@@ -275,9 +286,11 @@ if "selected_unit" not in st.session_state:
 if "selected_game" not in st.session_state:
   st.session_state["selected_game"] = None
 
-# --- AŞAMA 1: DERS SEÇİMİ (KUTUCUĞA TIKLANDIĞINDA DİREKT GEÇER) ---
+# --- AŞAMA 1: DERS SEÇİMİ (BÜYÜK RENKLİ KUTUCUKLAR) ---
 if st.session_state["selected_subject"] is None:
-  st.markdown("### 🌟 Lütfen Çalışmak İstediğiniz MEB Dersine Tıklayın")
+  st.markdown(
+      "### 🌟 Lütfen Çalışmak İstediğiniz MEB Dersine Tıklayın (Dashboard)"
+  )
 
   subjects = list(MEB_CURRICULUM.keys())
   cols = st.columns(3)
@@ -286,16 +299,26 @@ if st.session_state["selected_subject"] is None:
     col_idx = i % 3
     data = MEB_CURRICULUM[subj]
     with cols[col_idx]:
-      # Streamlit'in yerel button bileşenini renkli kutucuk tasarımına dönüştürüyoruz
+      # Her dersin kendi rengini buton arkaplanına enjekte ediyoruz
+      st.markdown(
+          f"""
+            <style>
+            div.stButton > button[data-testid="baseButton-sub_{subj}"] {{
+                background-color: {data['renk']} !important;
+            }}
+            </style>
+            """,
+          unsafe_allow_html=True,
+      )
       if st.button(
-          f"{data['ikon']} {subj}",
-          key=f"subj_btn_{subj}",
+          f"{data['ikon']}\n\n{subj}",
+          key=f"sub_{subj}",
           use_container_width=True,
       ):
         st.session_state["selected_subject"] = subj
         st.rerun()
 
-# --- AŞAMA 2: ÜNİTE SEÇİMİ (KUTUCUĞA TIKLANDIĞINDA DİREKT GEÇER) ---
+# --- AŞAMA 2: ÜNİTE SEÇİMİ (BÜYÜK RENKLİ KUTUCUKLAR) ---
 elif (
     st.session_state["selected_subject"] is not None
     and st.session_state["selected_unit"] is None
@@ -306,9 +329,9 @@ elif (
   st.markdown(
       f"### {curr_data['ikon']} {curr_subj} — Ünite / Konu Seçim Ekranı"
   )
-  st.write("Çalışmak istediğiniz alt üniteye tıklayın:")
+  st.write("Çalışmak istediğiniz alt ünite kutucuğuna tıklayın:")
 
-  if st.button("⬅️ Ders Seçimine Geri Dön"):
+  if st.button("⬅️ Ders Seçimine Geri Dön", key="back_subj"):
     st.session_state["selected_subject"] = None
     st.rerun()
 
@@ -318,13 +341,24 @@ elif (
   for idx, unit_name in enumerate(curr_data["uniteler"]):
     u_col = unit_cols[idx % 2]
     with u_col:
+      st.markdown(
+          f"""
+            <style>
+            div.stButton > button[data-testid="baseButton-unit_{idx}"] {{
+                background-color: {curr_data['renk']} !important;
+                opacity: 0.95;
+            }}
+            </style>
+            """,
+          unsafe_allow_html=True,
+      )
       if st.button(
-          f"📖 {unit_name}", key=f"unit_btn_{idx}", use_container_width=True
+          f"📖 {unit_name}", key=f"unit_{idx}", use_container_width=True
       ):
         st.session_state["selected_unit"] = unit_name
         st.rerun()
 
-# --- AŞAMA 3: OYUN VE SORU MODELLERİ SEÇİMİ (KUTUCUĞA TIKLANDIĞINDA DİREKT GEÇER) ---
+# --- AŞAMA 3: OYUN VE SORU MODELLERİ (BÜYÜK RENKLİ KUTUCUKLAR) ---
 elif (
     st.session_state["selected_subject"] is not None
     and st.session_state["selected_unit"] is not None
@@ -343,25 +377,57 @@ elif (
       unsafe_allow_html=True,
   )
 
-  if st.button("↩️ Ünite Değiştir"):
+  if st.button("↩️ Ünite Değiştir", key="back_unit"):
     st.session_state["selected_unit"] = None
     st.rerun()
 
-  st.markdown("### 🎮 Lütfen Bir Oyun / Soru Modülü Seçin")
+  st.markdown("### 🎮 Lütfen Bir Oyun / Soru Modülü Kutucuğuna Tıklayın")
 
   games = [
-      {"id": "balon", "isim": "🎈 Balon Patlatmaca"},
-      {"id": "sinav10", "isim": "🧠 10 Soruluk MEB Sınavı"},
-      {"id": "acik", "isim": "✍️ Açık Uçlu Soru Köşesi"},
-      {"id": "kelime", "isim": "🔤 Kelime Avı & Bulmaca"},
-      {"id": "koc", "isim": "🤖 Yapay Zeka Koçum"},
+      {
+          "id": "balon",
+          "isim": "🎈 Balon Patlatmaca",
+          "renk": "#ff6b6b",
+      },
+      {
+          "id": "sinav10",
+          "isim": "🧠 10 Soruluk MEB Sınavı",
+          "renk": "#1c83e1",
+      },
+      {
+          "id": "acik",
+          "isim": "✍️ Açık Uçlu Soru Köşesi",
+          "renk": "#00cc96",
+      },
+      {
+          "id": "kelime",
+          "isim": "🔤 Kelime Avı & Bulmaca",
+          "renk": "#ffa15a",
+      },
+      {
+          "id": "koc",
+          "isim": "🤖 Yapay Zeka Koçum",
+          "renk": "#ab63fa",
+      },
   ]
 
   g_cols = st.columns(3)
   for g_idx, g_item in enumerate(games):
     with g_cols[g_idx % 3]:
+      st.markdown(
+          f"""
+            <style>
+            div.stButton > button[data-testid="baseButton-game_{g_item['id']}"] {{
+                background-color: {g_item['renk']} !important;
+            }}
+            </style>
+            """,
+          unsafe_allow_html=True,
+      )
       if st.button(
-          g_item["isim"], key=f"game_btn_{g_item['id']}", use_container_width=True
+          g_item["isim"],
+          key=f"game_{g_item['id']}",
+          use_container_width=True,
       ):
         st.session_state["selected_game"] = g_item["id"]
         st.rerun()
@@ -372,7 +438,7 @@ else:
   curr_unit = st.session_state["selected_unit"]
   curr_game = st.session_state["selected_game"]
 
-  if st.button("⬅️ Oyun / Mod Seçimine Geri Dön"):
+  if st.button("⬅️ Oyun / Mod Seçimine Geri Dön", key="back_game"):
     st.session_state["selected_game"] = None
     st.rerun()
 
@@ -388,7 +454,7 @@ else:
       st.session_state["b_data"] = None
       st.session_state["b_unit"] = (curr_subj, curr_unit)
 
-    if st.button("🚀 Yapay Zeka ile Balon Soru Üret"):
+    if st.button("🚀 Yapay Zeka ile Balon Soru Üret", key="gen_balloon"):
       with st.spinner("Yapay zeka soru hazırlıyor..."):
         prompt = f"""
                 5. Sınıf MEB müfredatı, Ders: {curr_subj}, Ünite: {curr_unit}.
@@ -432,7 +498,9 @@ else:
       st.session_state["exam_10"] = None
       st.session_state["ex_unit"] = (curr_subj, curr_unit)
 
-    if st.button("📝 Yapay Zeka ile 10 Soruluk Sınavı Başlat"):
+    if st.button(
+        "📝 Yapay Zeka ile 10 Soruluk Sınavı Başlat", key="gen_exam10"
+    ):
       with st.spinner("Yapay zeka 10 adet sınav sorusu üretiyor..."):
         prompt = f"""
                 5. Sınıf MEB müfredatı, Ders: {curr_subj}, Ünite: {curr_unit}.
@@ -493,7 +561,7 @@ else:
       st.session_state["open_q"] = None
       st.session_state["op_unit"] = (curr_subj, curr_unit)
 
-    if st.button("✨ Yapay Zeka ile Klasik Soru Getir"):
+    if st.button("✨ Yapay Zeka ile Klasik Soru Getir", key="gen_open"):
       with st.spinner("Soru üretiliyor..."):
         prompt = f"""
                 5. Sınıf MEB, Ders: {curr_subj}, Ünite: {curr_unit}.
@@ -514,7 +582,7 @@ else:
       oq = st.session_state["open_q"]
       st.markdown(f"**Soru:** {oq['soru']}")
       stu_ans = st.text_area("Cevabınız:")
-      if st.button("Yapay Zekaya Değerlendir"):
+      if st.button("Yapay Zekaya Değerlendir", key="eval_open"):
         if stu_ans:
           with st.spinner("Öğretmen yanıtınızı inceliyor..."):
             fb = ai_generate_content(
@@ -537,7 +605,7 @@ else:
       st.session_state["puz_data"] = None
       st.session_state["p_unit"] = (curr_subj, curr_unit)
 
-    if st.button("🔍 Yapay Zeka ile Kelimeleri Getir"):
+    if st.button("🔍 Yapay Zeka ile Kelimeleri Getir", key="gen_puz"):
       with st.spinner("Kavramlar üretiliyor..."):
         prompt = f"""
                 5. Sınıf {curr_subj} {curr_unit} için AI destekli 3 önemli anahtar kelime üret.
@@ -572,8 +640,10 @@ else:
   # 5. YAPAY ZEKA KOÇUM
   elif curr_game == "koc":
     st.subheader(f"🤖 {curr_subj} Canlı Yapay Zeka Koçu")
-    user_q = st.text_input("Aklına takılan soruyu sor:")
-    if st.button("Koçuma Sor"):
+    user_q = st.text_input(
+        "Aklına takılan soruyu sor:", key="coach_input_box"
+    )
+    if st.button("Koçuma Sor", key="ask_coach"):
       if user_q:
         with st.spinner("Öğretmeniniz yanıtlıyor..."):
           ans = ai_generate_content(
@@ -582,3 +652,5 @@ else:
           )
           if ans:
             st.success(ans)
+
+<FollowUp/>
