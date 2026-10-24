@@ -34,21 +34,18 @@ def deep_clean_json_data(data):
   return data
 
 
-# --- KESİN GÜVENLİ JSON PARSER (HATA RİSKİNİ SIFIRLAR) ---
+# --- KESİN GÜVENLİ JSON PARSER ---
 def safe_parse_json(raw_text):
   if not raw_text:
     return None
   try:
-    # Markdown kod bloklarını temizle
     cleaned = re.sub(r"```json|```", "", raw_text).strip()
-    # İlk '[' ile son ']' arasını veya ilk '{' ile son '}' arasını yakala
     match = re.search(r"(\[.*\]|\{.*\})", cleaned, re.DOTALL)
     if match:
       cleaned = match.group(1)
     data = json.loads(cleaned)
     return deep_clean_json_data(data)
   except Exception:
-    # Alternatif temizleme denemesi
     try:
       cleaned = raw_text.replace("'", '"')
       data = json.loads(cleaned)
@@ -133,7 +130,7 @@ def ai_generate_content(prompt_text):
       try:
         genai.configure(api_key=g_key)
         for model_name in [
-            "gemini-3.6-flash",
+            "gemini-2.5-flash",
             "gemini-1.5-flash",
             "gemini-1.5-pro",
         ]:
@@ -364,13 +361,14 @@ st.markdown(
 )
 
 
-# --- 6. KUSURSUZ DİNAMİK GEOMETRİ VE ŞEKİL MOTORU ---
+# --- 6. KUSURSUZ GEOMETRİ VE ŞEKİL MOTORU (YAYSIZ, DOĞRU AÇI YERLEŞİMİ) ---
 def render_question_visual(gorsel_tipi, param):
   if not gorsel_tipi or gorsel_tipi == "yok":
     return
 
   param_str = clean_math_text(str(param)).strip()
 
+  # 1. ÜÇGEN ÇİZİMİ (Yaylı & Köşelerde Açı Değerleri)
   if gorsel_tipi == "ucgen":
     p_upper = param_str.upper()
     match_letters = re.search(r"([A-Z]{3})", p_upper)
@@ -413,34 +411,46 @@ def render_question_visual(gorsel_tipi, param):
         """
     st.components.v1.html(svg_html, height=205)
 
+  # 2. DÖRTGEN / DİKDÖRTGEN / KARE ÇİZİMİ (Yaysız, Köşe İçlerinde Doğrudan Açı/Kenar Değeri)
   elif gorsel_tipi in ["dortgen", "dikdortgen", "kare", "paralelkenar"]:
     p_upper = param_str.upper()
     match_letters = re.search(r"([A-Z]{4})", p_upper)
-    d_letters = (
+    d = (
         list(match_letters.group(1)) if match_letters else ["A", "B", "C", "D"]
     )
 
-    deg_matches = re.findall(r"([A-Z])\s*:\s*(\d+°|[\d\.]+cm)", param_str)
+    deg_matches = re.findall(
+        r"([A-Z])\s*:\s*(\d+°|[\d\.]+cm|\d+°?\s*x?\+?\d*)", param_str
+    )
     deg_dict = {m[0].upper(): m[1] for m in deg_matches}
-    lbl1 = deg_dict.get(d_letters[0], "90°")
+
+    vA = deg_dict.get(d[0], "90°")
+    vB = deg_dict.get(d[1], "90°")
+    vC = deg_dict.get(d[2], "90°")
+    vD = deg_dict.get(d[3], "90°")
 
     svg_html = f"""
         <div style="display: flex; justify-content: center; margin: 12px 0;">
             <svg width="280" height="190" viewBox="0 0 280 190" style="background: linear-gradient(135deg, #0f172a, #1e293b); border-radius: 18px; border: 1.5px solid rgba(56, 189, 248, 0.4); box-shadow: 0 12px 30px rgba(0, 0, 0, 0.5);">
                 <rect x="50" y="45" width="180" height="100" fill="rgba(56, 189, 248, 0.1)" stroke="#38bdf8" stroke-width="4" rx="6"/>
                 
-                <text x="40" y="40" fill="#38bdf8" font-size="15" font-weight="bold" text-anchor="middle">{d_letters[0]}</text>
-                <text x="245" y="40" fill="#38bdf8" font-size="15" font-weight="bold" text-anchor="middle">{d_letters[1]}</text>
-                <text x="245" y="162" fill="#38bdf8" font-size="15" font-weight="bold" text-anchor="middle">{d_letters[2]}</text>
-                <text x="40" y="162" fill="#38bdf8" font-size="15" font-weight="bold" text-anchor="middle">{d_letters[3]}</text>
+                <!-- Köşe Harfleri -->
+                <text x="38" y="38" fill="#38bdf8" font-size="15" font-weight="bold" text-anchor="middle">{d[0]}</text>
+                <text x="242" y="38" fill="#38bdf8" font-size="15" font-weight="bold" text-anchor="middle">{d[1]}</text>
+                <text x="242" y="162" fill="#38bdf8" font-size="15" font-weight="bold" text-anchor="middle">{d[2]}</text>
+                <text x="38" y="162" fill="#38bdf8" font-size="15" font-weight="bold" text-anchor="middle">{d[3]}</text>
                 
-                <rect x="105" y="84" width="70" height="24" fill="#0f172a" rx="6" stroke="#facc15" stroke-width="1.5"/>
-                <text x="140" y="101" fill="#facc15" font-size="13" font-weight="bold" text-anchor="middle">{lbl1}</text>
+                <!-- Köşelerin İçinde Tam Konumlandırılmış Açı/Değer Etiketleri (Yaysız) -->
+                <text x="75" y="68" fill="#facc15" font-size="12" font-weight="bold" text-anchor="middle">{vA}</text>
+                <text x="212" y="68" fill="#facc15" font-size="12" font-weight="bold" text-anchor="middle">{vB}</text>
+                <text x="212" y="132" fill="#facc15" font-size="12" font-weight="bold" text-anchor="middle">{vC}</text>
+                <text x="75" y="132" fill="#facc15" font-size="12" font-weight="bold" text-anchor="middle">{vD}</text>
             </svg>
         </div>
         """
     st.components.v1.html(svg_html, height=205)
 
+  # 3. ÇEMBER VE DAİRE ÇİZİMİ
   elif gorsel_tipi == "cember":
     val = "12 cm"
     try:
@@ -464,6 +474,7 @@ def render_question_visual(gorsel_tipi, param):
         """
     st.components.v1.html(svg_html, height=200)
 
+  # 4. FEN: AY EVRELERİ
   elif gorsel_tipi == "ay_evresi":
     svg_html = f"""
         <div style="display: flex; justify-content: center; margin: 12px 0;">
@@ -475,6 +486,7 @@ def render_question_visual(gorsel_tipi, param):
         """
     st.components.v1.html(svg_html, height=195)
 
+  # 5. FEN: GÜNEŞ
   elif gorsel_tipi == "gunes":
     svg_html = """
         <div style="display: flex; justify-content: center; margin: 12px 0;">
@@ -485,6 +497,7 @@ def render_question_visual(gorsel_tipi, param):
         """
     st.components.v1.html(svg_html, height=195)
 
+  # 6. FEN: DÜNYA
   elif gorsel_tipi == "dunya":
     svg_html = """
         <div style="display: flex; justify-content: center; margin: 12px 0;">
@@ -495,6 +508,7 @@ def render_question_visual(gorsel_tipi, param):
         """
     st.components.v1.html(svg_html, height=195)
 
+  # 7. FİZİK: DİNAMOMETRE
   elif gorsel_tipi == "dinamometre":
     newton = "5 N"
     try:
@@ -797,7 +811,7 @@ else:
   2. Asla 'circ' kelimesi kullanılmayacak, yalnızca standart derece işareti (°) kullanılacaktır.
   3. Gorsel_parametre alanı şu formatta doldurulmalıdır: 
      - Üçgenler için: "ABC, A:50°, B:60°"
-     - Dörtgenler için: "ABCD, A:90°, B:8cm"
+     - Dörtgenler için: "ABCD, A:90°, B:80°, C:100°, D:90°"
      - Çemberler için: "O, 12cm"
   """
 
@@ -825,8 +839,8 @@ else:
                     "secenekler": ["A) ...", "B) ...", "C) ...", "D) ..."],
                     "dogru_cevap": "A",
                     "aciklama": "Açıklama",
-                    "gorsel_tipi": "ucgen", 
-                    "gorsel_parametre": "ABC, A:50°, B:60°"
+                    "gorsel_tipi": "dortgen", 
+                    "gorsel_parametre": "ABCD, A:90°, B:80°, C:100°, D:90°"
                   }}
                 ]
                 """
@@ -943,8 +957,8 @@ else:
                     "secenekler": ["A)...", "B)...", "C)...", "D)..."], 
                     "dogru_cevap": "A", 
                     "aciklama": "...",
-                    "gorsel_tipi": "ucgen",
-                    "gorsel_parametre": "ABC, A:50°, B:60°"
+                    "gorsel_tipi": "dortgen",
+                    "gorsel_parametre": "ABCD, A:90°, B:80°, C:100°, D:90°"
                   }}
                 ]
                 """
