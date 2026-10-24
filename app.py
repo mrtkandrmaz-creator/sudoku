@@ -108,8 +108,11 @@ except ImportError:
   pass
 
 
+# --- ÖNCE GROQ, SONRA GEMINI 3.6 / GÜNCEL MODELLERLE ÜRETİM MOTORU ---
 def ai_generate_content(prompt_text):
   raw_res = None
+
+  # 1. ÖNCELİK: GROQ API İLE HIZLI ÜRETİM (Llama 3.3 Versatile)
   if has_groq and groq_keys:
     for gr_key in groq_keys:
       try:
@@ -125,14 +128,17 @@ def ai_generate_content(prompt_text):
       except Exception:
         continue
 
+  # 2. İKİNCİL (YEDEK) KANAL: GEMINI 3.6 VE GÜNCEL MODELLER
   if not raw_res and has_gemini and gemini_keys:
     for g_key in gemini_keys:
       try:
         genai.configure(api_key=g_key)
+        # Gemini 3.6 ve diğer modern sürümler sırayla denenir
         for model_name in [
             "gemini-3.6-flash",
+            "gemini-3.6-pro",
+            "gemini-2.5-flash",
             "gemini-1.5-flash",
-            "gemini-1.5-pro",
         ]:
           try:
             model = genai.GenerativeModel(model_name)
@@ -329,7 +335,7 @@ else:  # Yeşil-Mavi
   c_bubble_ai = "#f0fdf4"
   c_text_color = "#0369a1"
 
-# --- 5. STİLLER VE ARAYÜZ ---
+# --- 5. STİLLER VE ARAYÜZ (MURAT KANDIRMAZ) ---
 st.markdown(
     f"""
     <style>
@@ -848,7 +854,7 @@ else:
       st.session_state["game_started"] = False
 
     if st.button("🚀 Yepyeni ve Çeşitli Soruları Üret", key="gen_5_balloons"):
-      with st.spinner("Yapay zeka zengin soru havuzunu hazırlıyor..."):
+      with st.spinner("Groq ve Gemini 3.6 motorları soru havuzunu hazırlıyor..."):
         prompt = f"""
                 5. Sınıf MEB, Ders: {curr_subj}, Tema: {curr_unit}.
                 TAM 5 ADET tamamen birbirinden farklı, özgün ve çeşitli çoktan seçmeli soru üret.
