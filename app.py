@@ -148,7 +148,7 @@ MEB_CURRICULUM = {
             "2. Ünite: Evimiz Dünya",
             "3. Ünite: Kültür ve Miras",
             "4. Ünite: Yaşayan Türkiye",
-            "5. Ünite: Üreten Türkiye",
+            "5. Üreten Türkiye",
             "6. Ünite: Yönetime Katılıyorum",
         ],
     },
@@ -412,32 +412,34 @@ with st.sidebar:
     st.rerun()
 
 
-# --- 8. SAĞ ALT KÖŞE: KUSURSUZ ENTEGRE EDİLMİŞ DİKEY CANLI SOHBET PENCERESİ ---
+# --- 8. SAĞ ALT KÖŞE: GÖRSELDEKİ KUTUYA TAM OTURAN DİKEY CANLI SOHBET MOTORU ---
 
-# Sağ altta sabit avatar düğmesi (Sidebar veya ana akış içinde güvenli konumda)
 st.markdown(
-    """
+    f"""
     <style>
-    .fixed-avatar-container {
+    /* Sağ altta sabit duran ideal boyutlu sevimli avatar düğmesi */
+    .fixed-avatar-container {{
         position: fixed;
         bottom: 25px;
         right: 25px;
         z-index: 99999;
-    }
-    .chat-window-container {
+    }}
+    /* Görseldeki gibi tam oturan dikey sohbet kutusu */
+    .chat-window-box {{
         position: fixed;
         bottom: 95px;
         right: 25px;
-        width: 320px;
+        width: 330px;
+        height: 450px;
         background: #ffffff;
-        border: 2px solid """
-    + c_border
-    + """;
-        border-radius: 16px;
+        border: 2px solid {c_border};
+        border-radius: 18px;
         box-shadow: 0 10px 30px rgba(0,0,0,0.3);
         z-index: 99998;
+        display: flex;
+        flex-direction: column;
         overflow: hidden;
-    }
+    }}
     </style>
 """,
     unsafe_allow_html=True,
@@ -455,26 +457,26 @@ else:
     st.rerun()
 st.markdown("</div>", unsafe_allow_html=True)
 
-# Asistan açıksa doğrudan pencerenin içerisine Streamlit elementlerini güvenle yerleştiriyoruz
+# Asistan açıksa doğrudan şık kutunun içerisini dolduruyoruz
 if st.session_state["coach_open"]:
-  st.markdown('<div class="chat-window-container">', unsafe_allow_html=True)
+  st.markdown('<div class="chat-window-box">', unsafe_allow_html=True)
 
-  # Üst şık başlık
+  # Üst Başlık (Görseldeki mavi bant)
   st.markdown(
       f"""
-        <div style="background: {c_bg_gradient}; padding: 10px 14px; color: white; display: flex; align-items: center; justify-content: space-between; font-weight: bold; font-size: 14px;">
+        <div style="background: {c_bg_gradient}; padding: 12px 14px; color: white; display: flex; align-items: center; justify-content: space-between; font-weight: bold; font-size: 14px;">
             <div style="display: flex; align-items: center; gap: 8px;">
                 <span style="font-size: 20px;">🦊</span>
                 <span>AdenMind (Canlı Asistan)</span>
             </div>
-            <span style="font-size: 10px; background: rgba(0,0,0,0.2); padding: 2px 6px; border-radius: 8px;">Aktif</span>
+            <span style="font-size: 10px; background: rgba(0,0,0,0.2); padding: 2px 8px; border-radius: 10px;">Aktif</span>
         </div>
     """,
       unsafe_allow_html=True,
   )
 
-  # Sohbet mesajları akış alanı (Kompakt yükseklik)
-  chat_box = st.container(height=260)
+  # Sohbet Mesajları Kaydırma Alanı
+  chat_box = st.container(height=280)
   with chat_box:
     for msg in st.session_state["coach_messages"]:
       if msg["role"] == "assistant":
@@ -501,7 +503,7 @@ if st.session_state["coach_open"]:
             unsafe_allow_html=True,
         )
 
-  # Alt mesaj yazma formu (Pencerenin içine tam oturur)
+  # Alt Mesaj Giriş Formu (Kutunun en altına tam oturur)
   with st.form("vertical_chat_form", clear_on_submit=True):
     col_inp, col_btn = st.columns([4, 1])
     with col_inp:
