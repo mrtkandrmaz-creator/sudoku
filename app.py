@@ -745,8 +745,7 @@ else:
                         area.innerHTML = `
                             <div style="padding: 70px; font-size: 28px;">
                                 🏆 <b>Oyun Tamamlandı!</b><br><br>
-                                Toplam Puanınız: <span style="color: #10b981; font-size: 42px;">${score} / 100</span><br><br>
-                                <button onclick="location.reload()" style="padding: 12px 26px; font-size: 18px; background: #6366f1; color: white; border: none; border-radius: 10px; cursor: pointer; font-weight: bold; margin-right: 10px;">Tekrar Oyna 🔄</button>
+                                Toplam Puanınız: <span style="color: #10b981; font-size: 42px;">${score} / 100</span>
                             </div>
                         `;
                     }
@@ -759,12 +758,28 @@ else:
         )
         st.components.v1.html(html_balloon_game, height=580)
         st.markdown("<br>", unsafe_allow_html=True)
-        if st.button("🏠 Ana Ekrana Dön", key="back_home_balloon"):
-          st.session_state["selected_subject"] = None
-          st.session_state["selected_unit"] = None
-          st.session_state["selected_game"] = None
-          st.session_state["game_started"] = False
-          st.rerun()
+
+        # Yan yana Tekrar Oyna ve Ana Ekrana Dön Butonları
+        b_col1, b_col2 = st.columns(2)
+        with b_col1:
+          if st.button(
+              "🔄 Tekrar Oyna",
+              key="replay_balloon",
+              use_container_width=True,
+          ):
+            st.session_state["game_started"] = False
+            st.rerun()
+        with b_col2:
+          if st.button(
+              "🏠 Ana Ekrana Dön",
+              key="back_home_balloon",
+              use_container_width=True,
+          ):
+            st.session_state["selected_subject"] = None
+            st.session_state["selected_unit"] = None
+            st.session_state["selected_game"] = None
+            st.session_state["game_started"] = False
+            st.rerun()
 
   # 2. 5 SORULUK MEB KAZANIM OYUNU
   elif curr_game == "sinav10":
@@ -806,7 +821,7 @@ else:
             " butona tıklayın."
         )
         if st.button(
-            "✨ YARIŞMAYI BAŞLAT VE TAM Ekrana GEÇ 🧠",
+            "✨ YARIŞMAYI BAŞLAT VE TAM EKRANA GEÇ 🧠",
             key="start_quiz_fullscreen",
             use_container_width=True,
         ):
@@ -923,7 +938,6 @@ else:
                             document.querySelector('.quiz-card').innerHTML = `
                                 <h2>🏆 Yarışma Tamamlandı!</h2>
                                 <p style="font-size: 24px;">Toplam Puanınız: <span style="color: #10b981; font-size: 40px;">${totalScore} / 100</span></p>
-                                <button onclick="location.reload()" class="opt-btn" style="text-align:center; background: #6366f1;">Yeniden Oyna 🔄</button>
                             `;
                             return;
                         }
@@ -992,12 +1006,25 @@ else:
         )
         st.components.v1.html(html_quiz_game, height=500)
         st.markdown("<br>", unsafe_allow_html=True)
-        if st.button("🏠 Ana Ekrana Dön", key="back_home_quiz"):
-          st.session_state["selected_subject"] = None
-          st.session_state["selected_unit"] = None
-          st.session_state["selected_game"] = None
-          st.session_state["game_started"] = False
-          st.rerun()
+
+        q_col1, q_col2 = st.columns(2)
+        with q_col1:
+          if st.button(
+              "🔄 Tekrar Oyna", key="replay_quiz", use_container_width=True
+          ):
+            st.session_state["game_started"] = False
+            st.rerun()
+        with q_col2:
+          if st.button(
+              "🏠 Ana Ekrana Dön",
+              key="back_home_quiz",
+              use_container_width=True,
+          ):
+            st.session_state["selected_subject"] = None
+            st.session_state["selected_unit"] = None
+            st.session_state["selected_game"] = None
+            st.session_state["game_started"] = False
+            st.rerun()
 
   # 3. KLASİK YAZILI SİMÜLATÖRÜ
   elif curr_game == "acik":
@@ -1140,5 +1167,3 @@ else:
       st.session_state["selected_unit"] = None
       st.session_state["selected_game"] = None
       st.rerun()
-
-<FollowUp/>
