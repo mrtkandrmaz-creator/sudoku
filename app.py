@@ -308,13 +308,13 @@ st.markdown(
         transform: scale(1.02);
     }}
     </style>
-    .main-header">🎒 MEB 5. Sınıf Akıllı Eğitsel Oyun Merkezi & AdenMind Koçluk (Murat KANDIRMAZ)</div>
+    <div class="main-header">🎒 MEB 5. Sınıf Akıllı Eğitsel Oyun Merkezi & AdenMind Koçluk (Murat KANDIRMAZ)</div>
 """,
     unsafe_allow_html=True,
 )
 
 
-# --- 6. MODERNLEŞTİRİLMİŞ SVG GEOMETRİ VE GÖRSEL MOTORU ---
+# --- 6. KUSURSUZ SVG GEOMETRİ VE GÖRSEL MOTORU (ST.COMPONENTS İLE) ---
 def render_question_visual(gorsel_tipi, param):
   if not gorsel_tipi or gorsel_tipi == "yok":
     return
@@ -341,38 +341,40 @@ def render_question_visual(gorsel_tipi, param):
         else ""
     )
 
-    svg_code = f"""
-        <svg width="260" height="175" viewBox="0 0 260 175" style="background: linear-gradient(135deg, #1e293b, #0f172a); border-radius: 16px; display: block; margin: 12px auto; border: 1px solid rgba(56, 189, 248, 0.3); box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.4);">
-            <defs>
-                <pattern id="grid" width="20" height="20" patternUnits="userSpaceOnUse">
-                    <path d="M 20 0 L 0 0 0 20" fill="none" stroke="rgba(255,255,255,0.03)" stroke-width="1"/>
-                </pattern>
-                <linearGradient id="triangleGrad" x1="0%" y1="0%" x2="100%" y2="100%">
-                    <stop offset="0%" stop-color="rgba(56, 189, 248, 0.2)" />
-                    <stop offset="100%" stop-color="rgba(99, 102, 241, 0.05)" />
-                </linearGradient>
-            </defs>
-            <rect width="100%" height="100%" fill="url(#grid)" rx="16"/>
-            
-            <polygon points="35,140 {x_top},{y_top} 215,140" fill="url(#triangleGrad)" stroke="#38bdf8" stroke-width="3.5" stroke-linejoin="round"/>
-            
-            <path d="M 60 140 A 25 25 0 0 1 70 118" fill="none" stroke="#facc15" stroke-width="3" stroke-linecap="round"/>
-            {right_angle_svg}
-            
-            <text x="{x_top}" y="{y_top - 10}" fill="#38bdf8" font-size="14" font-weight="800" text-anchor="middle">A</text>
-            <text x="20" y="148" fill="#38bdf8" font-size="14" font-weight="800">B</text>
-            <text x="225" y="148" fill="#38bdf8" font-size="14" font-weight="800">C</text>
-            
-            <g transform="translate(80, 122)">
-                <rect x="-6" y="-14" width="42" height="20" fill="#0f172a" rx="6" stroke="#facc15" stroke-width="1.5"/>
-                <text x="15" y="0" fill="#facc15" font-size="12" font-weight="bold" text-anchor="middle">{deg}°</text>
-            </g>
-            
-            <rect x="0" y="150" width="260" height="25" fill="rgba(0,0,0,0.3)" rx="0 0 16 16"/>
-            <text x="130" y="166" fill="#94a3b8" font-size="11" font-weight="600" text-anchor="middle">📐 m(A) = {deg}° | Modern Geometri Görseli</text>
-        </svg>
+    svg_html = f"""
+        <div style="display: flex; justify-content: center; margin: 10px 0;">
+            <svg width="260" height="175" viewBox="0 0 260 175" style="background: linear-gradient(135deg, #1e293b, #0f172a); border-radius: 16px; border: 1px solid rgba(56, 189, 248, 0.3); box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.4);">
+                <defs>
+                    <pattern id="grid" width="20" height="20" patternUnits="userSpaceOnUse">
+                        <path d="M 20 0 L 0 0 0 20" fill="none" stroke="rgba(255,255,255,0.03)" stroke-width="1"/>
+                    </pattern>
+                    <linearGradient id="triangleGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+                        <stop offset="0%" stop-color="rgba(56, 189, 248, 0.2)" />
+                        <stop offset="100%" stop-color="rgba(99, 102, 241, 0.05)" />
+                    </linearGradient>
+                </defs>
+                <rect width="100%" height="100%" fill="url(#grid)" rx="16"/>
+                
+                <polygon points="35,140 {x_top},{y_top} 215,140" fill="url(#triangleGrad)" stroke="#38bdf8" stroke-width="3.5" stroke-linejoin="round"/>
+                
+                <path d="M 60 140 A 25 25 0 0 1 70 118" fill="none" stroke="#facc15" stroke-width="3" stroke-linecap="round"/>
+                {right_angle_svg}
+                
+                <text x="{x_top}" y="{y_top - 10}" fill="#38bdf8" font-size="14" font-weight="800" text-anchor="middle">A</text>
+                <text x="20" y="148" fill="#38bdf8" font-size="14" font-weight="800">B</text>
+                <text x="225" y="148" fill="#38bdf8" font-size="14" font-weight="800">C</text>
+                
+                <g transform="translate(80, 122)">
+                    <rect x="-6" y="-14" width="42" height="20" fill="#0f172a" rx="6" stroke="#facc15" stroke-width="1.5"/>
+                    <text x="15" y="0" fill="#facc15" font-size="12" font-weight="bold" text-anchor="middle">{deg}°</text>
+                </g>
+                
+                <rect x="0" y="150" width="260" height="25" fill="rgba(0,0,0,0.3)" rx="0 0 16 16"/>
+                <text x="130" y="166" fill="#94a3b8" font-size="11" font-weight="600" text-anchor="middle">📐 m(A) = {deg}° | Modern Geometri Görseli</text>
+            </svg>
+        </div>
         """
-    st.markdown(svg_code, unsafe_allow_html=True)
+    st.components.v1.html(svg_html, height=190)
 
   elif gorsel_tipi == "dinamometre":
     newton = 5
@@ -381,30 +383,34 @@ def render_question_visual(gorsel_tipi, param):
     except Exception:
       pass
     spring_y = 40 + min(newton * 7, 75)
-    svg_code = f"""
-        <svg width="180" height="220" viewBox="0 0 180 220" style="background:#0f172a; border-radius:12px; display:block; margin: 10px auto; border: 2px solid #38bdf8;">
-            <rect x="75" y="10" width="30" height="20" fill="#94a3b8" rx="5"/>
-            <rect x="55" y="30" width="70" height="140" fill="none" stroke="#38bdf8" stroke-width="4" rx="10"/>
-            <path d="M 90 30 Q 65 {30+spring_y/4} 115 {30+spring_y/2} Q 65 {30+3*spring_y/4} 90 {30+spring_y}" fill="none" stroke="#facc15" stroke-width="3"/>
-            <rect x="65" y="{30+spring_y}" width="50" height="25" fill="#f43f5e" rx="4"/>
-            <text x="75" y="{47+spring_y}" fill="#ffffff" font-size="14" font-weight="bold">{newton} N</text>
-            <text x="35" y="200" fill="#38bdf8" font-size="12">Ölçülen Kuvvet</text>
-        </svg>
+    svg_html = f"""
+        <div style="display: flex; justify-content: center; margin: 10px 0;">
+            <svg width="180" height="220" viewBox="0 0 180 220" style="background:#0f172a; border-radius:12px; border: 2px solid #38bdf8;">
+                <rect x="75" y="10" width="30" height="20" fill="#94a3b8" rx="5"/>
+                <rect x="55" y="30" width="70" height="140" fill="none" stroke="#38bdf8" stroke-width="4" rx="10"/>
+                <path d="M 90 30 Q 65 {30+spring_y/4} 115 {30+spring_y/2} Q 65 {30+3*spring_y/4} 90 {30+spring_y}" fill="none" stroke="#facc15" stroke-width="3"/>
+                <rect x="65" y="{30+spring_y}" width="50" height="25" fill="#f43f5e" rx="4"/>
+                <text x="75" y="{47+spring_y}" fill="#ffffff" font-size="14" font-weight="bold">{newton} N</text>
+                <text x="35" y="200" fill="#38bdf8" font-size="12">Ölçülen Kuvvet</text>
+            </svg>
+        </div>
         """
-    st.markdown(svg_code, unsafe_allow_html=True)
+    st.components.v1.html(svg_html, height=235)
 
   elif gorsel_tipi in ["ay_evresi", "cember"]:
     phase_name = str(param)
-    svg_code = f"""
-        <svg width="220" height="160" viewBox="0 0 220 160" style="background:#0f172a; border-radius:12px; display:block; margin: 10px auto; border: 2px solid #38bdf8;">
-            <circle cx="45" cy="80" r="28" fill="#f59e0b"/>
-            <text x="25" y="84" fill="#000000" font-size="10" font-weight="bold">GÜNEŞ</text>
-            <circle cx="170" cy="80" r="26" fill="#334155" stroke="#94a3b8" stroke-width="2"/>
-            <path d="M 170 54 A 26 26 0 0 1 170 106 Z" fill="#f8fafc"/>
-            <text x="125" y="135" fill="#38bdf8" font-size="13" font-weight="bold">{phase_name}</text>
-        </svg>
+    svg_html = f"""
+        <div style="display: flex; justify-content: center; margin: 10px 0;">
+            <svg width="220" height="160" viewBox="0 0 220 160" style="background:#0f172a; border-radius:12px; border: 2px solid #38bdf8;">
+                <circle cx="45" cy="80" r="28" fill="#f59e0b"/>
+                <text x="25" y="84" fill="#000000" font-size="10" font-weight="bold">GÜNEŞ</text>
+                <circle cx="170" cy="80" r="26" fill="#334155" stroke="#94a3b8" stroke-width="2"/>
+                <path d="M 170 54 A 26 26 0 0 1 170 106 Z" fill="#f8fafc"/>
+                <text x="125" y="135" fill="#38bdf8" font-size="13" font-weight="bold">{phase_name}</text>
+            </svg>
+        </div>
         """
-    st.markdown(svg_code, unsafe_allow_html=True)
+    st.components.v1.html(svg_html, height=175)
 
 
 # --- 7. SOL MENÜ VE ADENMİND YAPAY ZEKA ROBOTU ---
