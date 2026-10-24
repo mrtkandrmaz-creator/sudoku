@@ -430,13 +430,14 @@ else:
           st.session_state["balloon_5_questions"], ensure_ascii=False
       )
 
-      html_balloon_game = f"""
+      html_balloon_game = (
+          """
             <!DOCTYPE html>
             <html lang="tr">
             <head>
                 <meta charset="UTF-8">
                 <style>
-                    body {{
+                    body {
                         background: linear-gradient(135deg, #1e1e2f, #2a2a40);
                         color: white;
                         font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
@@ -444,8 +445,8 @@ else:
                         margin: 0;
                         padding: 10px;
                         overflow: hidden;
-                    }}
-                    #game-container {{
+                    }
+                    #game-container {
                         position: relative;
                         width: 100%;
                         height: 480px;
@@ -454,16 +455,16 @@ else:
                         overflow: hidden;
                         box-shadow: 0 8px 24px rgba(0,0,0,0.5);
                         border: 3px solid #ff4b4b;
-                    }}
-                    .header-bar {{
+                    }
+                    .header-bar {
                         display: flex;
                         justify-content: space-between;
                         padding: 12px 20px;
                         background: rgba(0,0,0,0.4);
                         font-size: 18px;
                         font-weight: bold;
-                    }}
-                    .question-box {{
+                    }
+                    .question-box {
                         font-size: 20px;
                         font-weight: bold;
                         padding: 15px 20px;
@@ -471,8 +472,8 @@ else:
                         margin: 10px;
                         border-radius: 10px;
                         border-left: 5px solid #ff4b4b;
-                    }}
-                    .balloon {{
+                    }
+                    .balloon {
                         position: absolute;
                         width: 95px;
                         height: 115px;
@@ -489,8 +490,8 @@ else:
                         animation: floatUp 8s linear infinite;
                         padding: 10px;
                         user-select: none;
-                    }}
-                    .balloon::after {{
+                    }
+                    .balloon::after {
                         content: "";
                         position: absolute;
                         bottom: -12px;
@@ -498,13 +499,13 @@ else:
                         width: 2px;
                         height: 15px;
                         background: #aaa;
-                    }}
-                    @keyframes floatUp {{
-                        0% {{ bottom: -130px; transform: scale(1); }}
-                        50% {{ transform: scale(1.05); }}
-                        100% {{ bottom: 500px; transform: scale(1); }}
-                    }}
-                    .feedback-overlay {{
+                    }
+                    @keyframes floatUp {
+                        0% { bottom: -130px; transform: scale(1); }
+                        50% { transform: scale(1.05); }
+                        100% { bottom: 500px; transform: scale(1); }
+                    }
+                    .feedback-overlay {
                         position: absolute;
                         top: 0; left: 0; width: 100%; height: 100%;
                         background: rgba(0,0,0,0.85);
@@ -515,7 +516,7 @@ else:
                         font-size: 28px;
                         z-index: 10;
                         display: none;
-                    }}
+                    }
                 </style>
             </head>
             <body>
@@ -536,7 +537,9 @@ else:
                 </div>
 
                 <script>
-                    const questions = {questions_json};
+                    const questions = """
+          + questions_json
+          + """;
                     let currentIdx = 0;
                     let score = 0;
                     let timeLeft = 50;
@@ -545,7 +548,7 @@ else:
 
                     const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
 
-                    function playSuccessSound() {{
+                    function playSuccessSound() {
                         if (audioCtx.state === 'suspended') audioCtx.resume();
                         let osc = audioCtx.createOscillator();
                         let gain = audioCtx.createGain();
@@ -558,9 +561,9 @@ else:
                         gain.connect(audioCtx.destination);
                         osc.start();
                         osc.stop(audioCtx.currentTime + 0.3);
-                    }}
+                    }
 
-                    function playWrongSound() {{
+                    function playWrongSound() {
                         if (audioCtx.state === 'suspended') audioCtx.resume();
                         let osc = audioCtx.createOscillator();
                         let gain = audioCtx.createGain();
@@ -573,13 +576,13 @@ else:
                         gain.connect(audioCtx.destination);
                         osc.start();
                         osc.stop(audioCtx.currentTime + 0.3);
-                    }}
+                    }
 
-                    function loadQuestion() {{
-                        if (currentIdx >= questions.length || currentIdx >= 5) {{
+                    function loadQuestion() {
+                        if (currentIdx >= questions.length || currentIdx >= 5) {
                             endGame();
                             return;
-                        }}
+                        }
                         gameActive = true;
                         timeLeft = 50;
                         document.getElementById('timer').innerText = "Süre: " + timeLeft + " sn";
@@ -593,7 +596,7 @@ else:
 
                         let colors = ['#ff4b4b', '#1c83e1', '#00cc96', '#ffa15a'];
                         
-                        q.secenekler.forEach((opt, idx) => {{
+                        q.secenekler.forEach((opt, idx) => {
                             let b = document.createElement('div');
                             b.className = 'balloon';
                             b.style.backgroundColor = colors[idx % colors.length];
@@ -602,7 +605,7 @@ else:
                             b.style.animationDelay = (idx * 0.4) + 's';
                             b.innerText = opt;
                             
-                            b.onclick = () => {{
+                            b.onclick = () => {
                                 if (!gameActive) return;
                                 gameActive = false;
                                 clearInterval(timerInterval);
@@ -615,67 +618,68 @@ else:
                                 let msg = document.getElementById('feedback-msg');
                                 overlay.style.display = 'flex';
 
-                                if (chosenLetter === correctLetter) {{
+                                if (chosenLetter === correctLetter) {
                                     playSuccessSound();
                                     score += 20;
                                     document.getElementById('score').innerText = "Puan: " + score;
                                     icon.innerText = "🎈💥 🎉";
                                     msg.innerHTML = "Tebrikler! Doğru Balon!<br><span style='font-size:16px; color:#00cc96;'>" + q.aciklama + "</span>";
-                                }} else {{
+                                } else {
                                     playWrongSound();
                                     icon.innerText = "❌ ⚠️";
                                     msg.innerHTML = "Yanlış Balon!<br>Doğru Cevap: <b>" + q.dogru_cevap + "</b><br><span style='font-size:16px; color:#ff4b4b;'>" + q.aciklama + "</span>";
-                                }}
+                                }
 
-                                setTimeout(() => {{
+                                setTimeout(() => {
                                     overlay.style.display = 'none';
                                     currentIdx++;
                                     loadQuestion();
-                                }}, 3500);
-                            }};
+                                }, 3500);
+                            };
                             
                             area.appendChild(b);
-                        }});
+                        });
 
                         if(timerInterval) clearInterval(timerInterval);
-                        timerInterval = setInterval(() => {{
+                        timerInterval = setInterval(() => {
                             timeLeft--;
                             document.getElementById('timer').innerText = "Süre: " + timeLeft + " sn";
-                            if (timeLeft <= 0) {{
+                            if (timeLeft <= 0) {
                                 clearInterval(timerInterval);
-                                if(gameActive) {{
+                                if(gameActive) {
                                     gameActive = false;
                                     playWrongSound();
                                     let overlay = document.getElementById('overlay');
                                     document.getElementById('feedback-icon').innerText = "⏰ ⚠️";
                                     document.getElementById('feedback-msg').innerText = "Süre Bitti!";
                                     overlay.style.display = 'flex';
-                                    setTimeout(() => {{
+                                    setTimeout(() => {
                                         overlay.style.display = 'none';
                                         currentIdx++;
                                         loadQuestion();
                                     }, 2500);
-                                }}
-                            }}
-                        }}, 1000);
-                    }}
+                                }
+                            }
+                        }, 1000);
+                    }
 
-                    function endGame() {{
+                    function endGame() {
                         let area = document.getElementById('game-container');
                         area.innerHTML = `
                             <div style="padding: 60px; font-size: 28px;">
                                 🏆 <b>Oyun Tamamlandı!</b><br><br>
-                                Toplam Puanınız: <span style="color: #00cc96; font-size: 38px;">${{score}} / 100</span><br><br>
+                                Toplam Puanınız: <span style="color: #00cc96; font-size: 38px;">${score} / 100</span><br><br>
                                 <button onclick="location.reload()" style="padding: 12px 24px; font-size: 20px; background: #00cc96; color: white; border: none; border-radius: 8px; cursor: pointer;">Tekrar Oyna 🔄</button>
                             </div>
                         `;
-                    }}
+                    }
 
                     loadQuestion();
                 </script>
             </body>
             </html>
             """
+      )
       st.components.v1.html(html_balloon_game, height=535)
 
   # 2. 5 SORULUK MEB KAZANIM OYUNU
@@ -713,21 +717,22 @@ else:
       q_json = json.dumps(
           st.session_state["quiz_5_data"], ensure_ascii=False
       )
-      html_quiz_game = f"""
+      html_quiz_game = (
+          """
             <!DOCTYPE html>
             <html lang="tr">
             <head>
                 <meta charset="UTF-8">
                 <style>
-                    body {{
+                    body {
                         background: linear-gradient(135deg, #0f172a, #1e293b);
                         color: white;
                         font-family: 'Segoe UI', Tahoma, sans-serif;
                         text-align: center;
                         margin: 0;
                         padding: 10px;
-                    }}
-                    .quiz-card {{
+                    }
+                    .quiz-card {
                         background: rgba(255, 255, 255, 0.05);
                         border: 2px solid #1c83e1;
                         border-radius: 14px;
@@ -735,8 +740,8 @@ else:
                         max-width: 700px;
                         margin: 0 auto;
                         box-shadow: 0 6px 20px rgba(0,0,0,0.4);
-                    }}
-                    .opt-btn {{
+                    }
+                    .opt-btn {
                         display: block;
                         width: 100%;
                         padding: 12px;
@@ -750,8 +755,8 @@ else:
                         cursor: pointer;
                         transition: 0.2s;
                         text-align: left;
-                    }}
-                    .opt-btn:hover {{ background: #0056b3; transform: scale(1.01); }}
+                    }
+                    .opt-btn:hover { background: #0056b3; transform: scale(1.01); }
                 </style>
             </head>
             <body>
@@ -767,7 +772,9 @@ else:
                 </div>
 
                 <script>
-                    const quizData = {q_json};
+                    const quizData = """
+          + q_json
+          + """;
                     let qIdx = 0;
                     let totalScore = 0;
                     let timeRemaining = 60;
@@ -775,7 +782,7 @@ else:
                     let active = true;
 
                     const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-                    function playSound(type) {{
+                    function playSound(type) {
                         if (audioCtx.state === 'suspended') audioCtx.resume();
                         let osc = audioCtx.createOscillator();
                         let gain = audioCtx.createGain();
@@ -787,17 +794,17 @@ else:
                         gain.connect(audioCtx.destination);
                         osc.start();
                         osc.stop(audioCtx.currentTime + 0.25);
-                    }}
+                    }
 
-                    function loadQ() {{
-                        if (qIdx >= quizData.length || qIdx >= 5) {{
+                    function loadQ() {
+                        if (qIdx >= quizData.length || qIdx >= 5) {
                             document.querySelector('.quiz-card').innerHTML = `
                                 <h2>🏆 Yarışma Tamamlandı!</h2>
-                                <p style="font-size: 24px;">Toplam Puanınız: <span style="color: #00cc96;">${{totalScore}} / 100</span></p>
+                                <p style="font-size: 24px;">Toplam Puanınız: <span style="color: #00cc96;">${totalScore} / 100</span></p>
                                 <button onclick="location.reload()" class="opt-btn" style="text-align:center; background:#00cc96;">Yeniden Oyna 🔄</button>
                             `;
                             return;
-                        }}
+                        }
                         active = true;
                         timeRemaining = 60;
                         document.getElementById('q-num').innerText = "Soru: " + (qIdx + 1) + " / 5";
@@ -809,31 +816,31 @@ else:
                         let area = document.getElementById('options-area');
                         area.innerHTML = '';
 
-                        q.secenekler.forEach(opt => {{
+                        q.secenekler.forEach(opt => {
                             let btn = document.createElement('button');
                             btn.className = 'opt-btn';
                             btn.innerText = opt;
                             btn.onclick = () => checkAnswer(opt, q);
                             area.appendChild(btn);
-                        }});
+                        });
 
                         if(qTimer) clearInterval(qTimer);
-                        qTimer = setInterval(() => {{
+                        qTimer = setInterval(() => {
                             timeRemaining--;
                             document.getElementById('q-timer').innerText = "Süre: " + timeRemaining + " sn";
-                            if(timeRemaining <= 0) {{
+                            if(timeRemaining <= 0) {
                                 clearInterval(qTimer);
-                                if(active) {{
+                                if(active) {
                                     active = false;
                                     playSound('lose');
                                     document.getElementById('q-feedback').innerHTML = "<span style='color:#ff4b4b;'>⏰ Süre Bitti! Doğru: " + q.dogru_cevap + "</span>";
-                                    setTimeout(() => {{ qIdx++; loadQ(); }}, 3000);
-                                }}
-                            }}
-                        }}, 1000);
-                    }}
+                                    setTimeout(() => { qIdx++; loadQ(); }, 3000);
+                                }
+                            }
+                        }, 1000);
+                    }
 
-                    function checkAnswer(chosen, q) {{
+                    function checkAnswer(chosen, q) {
                         if(!active) return;
                         active = false;
                         clearInterval(qTimer);
@@ -842,24 +849,25 @@ else:
                         let correctLetter = q.dogru_cevap.charAt(0).toUpperCase();
                         let fb = document.getElementById('q-feedback');
 
-                        if(chosenLetter === correctLetter) {{
+                        if(chosenLetter === correctLetter) {
                             playSound('win');
                             totalScore += 20;
                             document.getElementById('q-score').innerText = "Puan: " + totalScore;
                             fb.innerHTML = "<span style='color:#00cc96;'>🎉 Doğru! " + q.aciklama + "</span>";
-                        }} else {{
+                        } else {
                             playSound('lose');
                             fb.innerHTML = "<span style='color:#ff4b4b;'>❌ Yanlış! Doğru Cevap: " + q.dogru_cevap + "<br>" + q.aciklama + "</span>";
-                        }}
+                        }
 
-                        setTimeout(() => {{ qIdx++; loadQ(); }}, 3500);
-                    }}
+                        setTimeout(() => { qIdx++; loadQ(); }, 3500);
+                    }
 
                     loadQ();
                 </script>
             </body>
             </html>
             """
+      )
       st.components.v1.html(html_quiz_game, height=450)
 
   # 3. KLASİK YAZILI SİMÜLATÖRÜ
@@ -985,3 +993,5 @@ else:
           )
           if ans:
             st.success(ans)
+
+<FollowUp/>
