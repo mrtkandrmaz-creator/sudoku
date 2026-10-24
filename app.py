@@ -22,10 +22,9 @@ def get_all_api_keys():
   gemini_keys = []
   groq_keys = []
 
-  # 1. Streamlit Secrets (TOML) Tarama
   try:
     if hasattr(st, "secrets") and st.secrets:
-      # Eğer secrets sözlük yapısındaysa düz veya iç içe tüm değerleri tara
+
       def recursive_search(sec_obj):
         if isinstance(sec_obj, dict):
           for k, v in sec_obj.items():
@@ -44,7 +43,6 @@ def get_all_api_keys():
   except Exception:
     pass
 
-  # 2. Ortam Değişkenleri (.env / Environment Variables) Tarama
   for env_key, env_val in os.environ.items():
     env_upper = env_key.upper()
     if env_val and isinstance(env_val, str) and len(env_val.strip()) > 5:
@@ -57,7 +55,6 @@ def get_all_api_keys():
       ) and env_val.strip() not in groq_keys:
         groq_keys.append(env_val.strip())
 
-  # 3. Manuel Eklenenler (Session State)
   if "manual_gemini" in st.session_state and st.session_state["manual_gemini"]:
     if st.session_state["manual_gemini"] not in gemini_keys:
       gemini_keys.append(st.session_state["manual_gemini"])
@@ -91,14 +88,14 @@ except ImportError:
 
 
 def ai_generate_content(prompt_text):
-  """Gemini ve Groq API'leri arasında sırayla dener (Failover)."""
-  # 1. Gemini Modelleri
+  """Gemini (mutlaka gemini-3.6-flash dahil) ve Groq API'leri dener."""
   if has_gemini and gemini_keys:
     for g_key in gemini_keys:
       try:
         genai.configure(api_key=g_key)
         for model_name in [
             "gemini-3.6-flash",
+            "gemini-1.5-flash",
             "gemini-1.5-pro",
             "gemini-pro",
         ]:
@@ -112,7 +109,6 @@ def ai_generate_content(prompt_text):
       except Exception:
         continue
 
-  # 2. Groq Modelleri
   if has_groq and groq_keys:
     for gr_key in groq_keys:
       try:
@@ -279,11 +275,9 @@ if "selected_unit" not in st.session_state:
 if "selected_game" not in st.session_state:
   st.session_state["selected_game"] = None
 
-# --- AŞAMA 1: DERS SEÇİMİ (DASHBOARD - RENTLİ KUTUCUKLARA TIKLAYINCA DİREKT SEÇER) ---
+# --- AŞAMA 1: DERS SEÇİMİ (KUTUCUĞA TIKLANDIĞINDA DİREKT GEÇER) ---
 if st.session_state["selected_subject"] is None:
-  st.markdown(
-      "### 🌟 Lütfen Çalışmak İstediğiniz MEB Dersine Tıklayın (Dashboard)"
-  )
+  st.markdown("### 🌟 Lütfen Çalışmak İstediğiniz MEB Dersine Tıklayın")
 
   subjects = list(MEB_CURRICULUM.keys())
   cols = st.columns(3)
@@ -292,21 +286,16 @@ if st.session_state["selected_subject"] is None:
     col_idx = i % 3
     data = MEB_CURRICULUM[subj]
     with cols[col_idx]:
-      st.markdown(
-          f"""
-                <div style="background-color: {data['renk']}; padding: 22px; border-radius: 12px; color: white; text-align: center; margin-bottom: 15px; box-shadow: 0 4px 6px rgba(0,0,0,0.1);">
-                    <h1 style="margin:0; font-size: 38px;">{data['ikon']}</h1>
-                    <h3 style="margin: 10px 0 0 0; color: white;">{subj}</h3>
-                </div>
-            """,
-          unsafe_allow_html=True,
-      )
-      # Kutucuğun altındaki butona basıldığında direkt dersi seçer
-      if st.button(f"🚀 {subj} Dersine Gir", key=f"subj_click_{subj}"):
+      # Streamlit'in yerel button bileşenini renkli kutucuk tasarımına dönüştürüyoruz
+      if st.button(
+          f"{data['ikon']} {subj}",
+          key=f"subj_btn_{subj}",
+          use_container_width=True,
+      ):
         st.session_state["selected_subject"] = subj
         st.rerun()
 
-# --- AŞAMA 2: ÜNİTE SEÇİMİ (YENİ EKRANDA RENKLİ KUTUCUKLAR) ---
+# --- AŞAMA 2: ÜNİTE SEÇİMİ (KUTUCUĞA TIKLANDIĞINDA DİREKT GEÇER) ---
 elif (
     st.session_state["selected_subject"] is not None
     and st.session_state["selected_unit"] is None
@@ -317,7 +306,7 @@ elif (
   st.markdown(
       f"### {curr_data['ikon']} {curr_subj} — Ünite / Konu Seçim Ekranı"
   )
-  st.write("Çalışmak istediğiniz alt üniteyi aşağıdaki renkli kutucuktan seçin:")
+  st.write("Çalışmak istediğiniz alt üniteye tıklayın:")
 
   if st.button("⬅️ Ders Seçimine Geri Dön"):
     st.session_state["selected_subject"] = None
@@ -329,19 +318,13 @@ elif (
   for idx, unit_name in enumerate(curr_data["uniteler"]):
     u_col = unit_cols[idx % 2]
     with u_col:
-      st.markdown(
-          f"""
-                <div style="background-color: {curr_data['renk']}; opacity: 0.9; padding: 16px; border-radius: 10px; color: white; text-align: center; margin-bottom: 12px; font-weight: bold; font-size: 16px; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
-                    📖 {unit_name}
-                </div>
-            """,
-          unsafe_allow_html=True,
-      )
-      if st.button(f"Seç: {unit_name}", key=f"unit_click_{idx}"):
+      if st.button(
+          f"📖 {unit_name}", key=f"unit_btn_{idx}", use_container_width=True
+      ):
         st.session_state["selected_unit"] = unit_name
         st.rerun()
 
-# --- AŞAMA 3: OYUN VE SORU MODELLERİ (YİNE DASHBOARD TARZI RENKLİ KUTUCUKLAR) ---
+# --- AŞAMA 3: OYUN VE SORU MODELLERİ SEÇİMİ (KUTUCUĞA TIKLANDIĞINDA DİREKT GEÇER) ---
 elif (
     st.session_state["selected_subject"] is not None
     and st.session_state["selected_unit"] is not None
@@ -364,57 +347,22 @@ elif (
     st.session_state["selected_unit"] = None
     st.rerun()
 
-  st.markdown(
-      "### 🎮 Oyun ve Soru Modelleri (Lütfen bir oyun modu kutucuğu seçin)"
-  )
+  st.markdown("### 🎮 Lütfen Bir Oyun / Soru Modülü Seçin")
 
-  # Oyun Modelleri için Dashboard Renkli Kutucukları
   games = [
-      {
-          "id": "balon",
-          "isim": "🎈 Balon Patlatmaca",
-          "renk": "#ff6b6b",
-          "aciklama": "Doğru şıkkı içeren balonu patlat!",
-      },
-      {
-          "id": "sinav10",
-          "isim": "🧠 10 Soruluk MEB Sınavı",
-          "renk": "#4d96ff",
-          "aciklama": "Kapsamlı 10 soruluk kazanım testi.",
-      },
-      {
-          "id": "acik",
-          "isim": "✍️ Açık Uçlu Soru Köşesi",
-          "renk": "#6bcb77",
-          "aciklama": "Yazılı provası ve AI değerlendirmesi.",
-      },
-      {
-          "id": "kelime",
-          "isim": "🔤 Kelime Avı & Bulmaca",
-          "renk": "#ffd93d",
-          "aciklama": "Ünite kavramları ve bulmacalar.",
-      },
-      {
-          "id": "koc",
-          "isim": "🤖 Yapay Zeka Koçum",
-          "renk": "#9b5de5",
-          "aciklama": "Aklına takılanları canlı sor.",
-      },
+      {"id": "balon", "isim": "🎈 Balon Patlatmaca"},
+      {"id": "sinav10", "isim": "🧠 10 Soruluk MEB Sınavı"},
+      {"id": "acik", "isim": "✍️ Açık Uçlu Soru Köşesi"},
+      {"id": "kelime", "isim": "🔤 Kelime Avı & Bulmaca"},
+      {"id": "koc", "isim": "🤖 Yapay Zeka Koçum"},
   ]
 
   g_cols = st.columns(3)
   for g_idx, g_item in enumerate(games):
     with g_cols[g_idx % 3]:
-      st.markdown(
-          f"""
-                <div style="background-color: {g_item['renk']}; padding: 20px; border-radius: 12px; color: white; text-align: center; margin-bottom: 15px; box-shadow: 0 4px 6px rgba(0,0,0,0.1);">
-                    <h3 style="margin:0; color: white;">{g_item['isim']}</h3>
-                    <p style="font-size: 13px; margin: 8px 0 0 0;">{g_item['aciklama']}</p>
-                </div>
-            """,
-          unsafe_allow_html=True,
-      )
-      if st.button(f"Seç: {g_item['isim']}", key=f"game_btn_{g_item['id']}"):
+      if st.button(
+          g_item["isim"], key=f"game_btn_{g_item['id']}", use_container_width=True
+      ):
         st.session_state["selected_game"] = g_item["id"]
         st.rerun()
 
