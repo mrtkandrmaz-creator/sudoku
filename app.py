@@ -225,6 +225,13 @@ if "kazanim_score" not in st.session_state:
 if "kazanim_answers" not in st.session_state:
   st.session_state["kazanim_answers"] = {}
 
+if "fill_idx" not in st.session_state:
+  st.session_state["fill_idx"] = 0
+if "fill_score" not in st.session_state:
+  st.session_state["fill_score"] = 0
+if "fill_feedback" not in st.session_state:
+  st.session_state["fill_feedback"] = ""
+
 # --- 4. TEMA RENK SEÇENEKLERİ ---
 theme_choice = st.session_state["coach_theme"]
 if theme_choice == "Pembe":
@@ -598,7 +605,7 @@ elif (
       },
       {
           "id": "bosluk",
-          "isim": "📝 Boşluk Doldurma Yarışması",
+          "isim": "📝 Boşluk Doldurma Yarışması (Tek Soru Modu)",
           "renk": "linear-gradient(135deg, #f2994a, #f2c94c)",
       },
       {
@@ -776,7 +783,7 @@ else:
         )
         st.components.v1.html(html_balloon_game, height=560)
 
-  # 2. 5 SORULUK MEB KAZANIM OYUNU (TEK SORU MODU + PAS GEÇME)
+  # 2. 5 SORULUK MEB KAZANIM OYUNU (TEK SORU MODU)
   elif curr_game == "sinav10":
     st.subheader(
         f"🧠 {curr_subj} — 5 Soruluk MEB Kazanım Yarışması (Tek Soru Modu)"
@@ -899,7 +906,7 @@ else:
           st.session_state["kazanim_answers"] = {}
           st.rerun()
 
-  # 3. DOĞRU / YANLIŞ MEYDAN OKUMASI (TEK SORU MODU + PAS GEÇME)
+  # 3. DOĞRU / YANLIŞ MEYDAN OKUMASI (TEK SORU MODU)
   elif curr_game == "dogruyanlis":
     st.subheader(
         f"✅ {curr_subj} — Doğru / Yanlış Meydan Okuması (Tek Soru Modu)"
@@ -1008,15 +1015,20 @@ else:
           st.session_state["dy_questions"] = None
           st.rerun()
 
-  # 4. BOŞLUK DOLDURMA YARIŞMASI
+  # 4. BOŞLUK DOLDURMA YARIŞMASI (HER SAYFADA TEK SORU + BUTONLU CEVAPLAR)
   elif curr_game == "bosluk":
-    st.subheader(f"📝 {curr_subj} — Boşluk Doldurma Yarışması")
+    st.subheader(
+        f"📝 {curr_subj} — Boşluk Doldurma Yarışması (Tek Soru Modu)"
+    )
     if (
         "fill_blanks" not in st.session_state
         or st.session_state.get("f_unit_key") != (curr_subj, curr_unit)
     ):
       st.session_state["fill_blanks"] = None
       st.session_state["f_unit_key"] = (curr_subj, curr_unit)
+      st.session_state["fill_idx"] = 0
+      st.session_state["fill_score"] = 0
+      st.session_state["fill_feedback"] = ""
 
     if st.button("✨ Yepyeni Boşluk Doldurma Soruları Üret", key="gen_fill"):
       with st.spinner("Sorular hazırlanıyor..."):
@@ -1034,38 +1046,87 @@ else:
             st.session_state["fill_blanks"] = json.loads(
                 re.sub(r"```json|```", "", res).strip()
             )
+            st.session_state["fill_idx"] = 0
+            st.session_state["fill_score"] = 0
+            st.session_state["fill_feedback"] = ""
             st.rerun()
           except Exception:
             pass
 
     if st.session_state["fill_blanks"]:
       fdata = st.session_state["fill_blanks"]
-      with st.form("fill_form"):
-        f_ans = {}
-        for idx, fq in enumerate(fdata):
-          st.markdown(f"**Soru {idx+1}:** {fq['cumle']}")
-          if "gorsel_tipi" in fq and fq["gorsel_tipi"] != "yok":
-            render_question_visual(
-                fq.get("gorsel_tipi"), fq.get("gorsel_parametre", "")
-            )
-          f_ans[idx] = st.selectbox(
-              f"Boşluğa gelecek kelimeyi sen seç ({idx+1}):",
-              fq["secenekler"],
-              index=None,
-              key=f"f_{idx}",
+      f_idx = st.session_state["fill_idx"]
+
+      if f_idx < len(fdata):
+        fq = fdata[f_idx]
+        st.markdown(
+            f"""
+            <div style="background: rgba(255,255,255,0.06); padding: 22px; border-radius: 16px; border: 2px solid {c_border}; margin-bottom: 20px;">
+                <div style="font-weight: bold; margin-bottom: 8px; color: #38bdf8;">Soru {f_idx + 1} / {len(fdata)}</div>
+                <div style="font-size: 20px; font-weight: bold;">{fq['cumle']}</div>
+            </div>
+            """,
+            unsafe_allow_html=True,
+        )
+
+        if "gorsel_tipi" in fq and fq["gorsel_tipi"] != "yok":
+          render_question_visual(
+              fq.get("gorsel_tipi"), fq.get("gorsel_parametre", "")
           )
-          st.markdown("---")
-        if st.form_submit_button("Cevapları Kontrol Et"):
-          fscore = 0
-          for idx, fq in enumerate(fdata):
-            if f_ans[idx] == fq["dogru_kelime"]:
-              fscore += 20
-              st.success(f"Soru {idx+1} Doğru!")
-            else:
-              st.error(
-                  f"Soru {idx+1} Yanlış! Doğru kelime: **{fq['dogru_kelime']}**"
-              )
-          st.info(f"🏆 Toplam Puanınız: {fscore} / 100")
+
+        if st.session_state["fill_feedback"]:
+          st.markdown(st.session_state["fill_feedback"], unsafe_allow_html=True)
+          st.markdown("<br>", unsafe_allow_html=True)
+          if st.button("➡️ Sonraki Soruya Geç", use_container_width=True):
+            st.session_state["fill_feedback"] = ""
+            st.session_state["fill_idx"] += 1
+            st.rerun()
+        else:
+          st.markdown("**Boşluğa gelecek kelimeyi butonlara tıklayarak seçin:**")
+          opt_cols = st.columns(2)
+          for opt_i, opt_val in enumerate(fq["secenekler"]):
+            with opt_cols[opt_i % 2]:
+              if st.button(
+                  f"📌 {opt_val}",
+                  key=f"fill_btn_{f_idx}_{opt_i}",
+                  use_container_width=True,
+              ):
+                if opt_val == fq["dogru_kelime"]:
+                  st.session_state["fill_score"] += 20
+                  st.session_state["fill_feedback"] = (
+                      f"🎉 **Tebrikler, Doğru Cevap!**<br><span"
+                      f" style='color:#10b981;'>Boşluğa gelebilecek en doğru"
+                      f" kelime: <b>{opt_val}</b></span>"
+                  )
+                else:
+                  st.session_state["fill_feedback"] = (
+                      f"❌ **Yanlış Seçenek!**<br><span"
+                      f" style='color:#f43f5e;'>Doğru kelime:"
+                      f" <b>{fq['dogru_kelime']}</b> olmalıydı.</span>"
+                  )
+                st.rerun()
+
+          st.markdown("<br>", unsafe_allow_html=True)
+          if st.button("⏭️ Pas Geç", use_container_width=True):
+            st.session_state["fill_idx"] += 1
+            st.session_state["fill_feedback"] = ""
+            st.rerun()
+      else:
+        st.markdown(
+            f"""
+            <div style="background: rgba(255,255,255,0.06); padding: 40px; border-radius: 16px; text-align: center;">
+                <h2>🏆 Boşluk Doldurma Yarışması Tamamlandı!</h2>
+                <p style="font-size: 26px;">Toplam Puanınız: <span style="color: #10b981; font-size: 40px;">{st.session_state['fill_score']} / 100</span></p>
+            </div>
+            """,
+            unsafe_allow_html=True,
+        )
+        if st.button("🔄 Tekrar Yarış", use_container_width=True):
+          st.session_state["fill_blanks"] = None
+          st.session_state["fill_idx"] = 0
+          st.session_state["fill_score"] = 0
+          st.session_state["fill_feedback"] = ""
+          st.rerun()
 
   # 5. SORU KARTLARI (FLASHCARDS)
   elif curr_game == "kartlar":
@@ -1224,7 +1285,7 @@ else:
         if res:
           st.markdown(res)
 
-  # 8. KELİME AVI (GERİ AL / SİL BUTONU + PAS GEÇME BUTONU EKLENDİ)
+  # 8. KELİME AVI (GERİ AL / SİL BUTONU + PAS GEÇME BUTONU)
   elif curr_game == "kelime":
     st.subheader(f"🔤 {curr_subj} — Kelime Avı Bulmacası")
 
@@ -1337,7 +1398,6 @@ else:
                   "✔️", key=f"char_btn_used_{p_idx}_{c_i}", disabled=True
               )
 
-        # Kontrol, Geri Al (Sil) ve Pas Geç Butonları
         c_reset, c_backspace, c_pass, c_check = st.columns(4)
         with c_reset:
           if st.button("🔄 Sıfırla", use_container_width=True):
