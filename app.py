@@ -593,7 +593,7 @@ elif (
       },
       {
           "id": "dogruyanlis",
-          "isim": "✅ Doğru / Yanlış Meydan Okuması",
+          "isim": "✅ Doğru / Yanlış Meydan Okuması (Tek Soru Modu)",
           "renk": "linear-gradient(135deg, #38ef7d, #11998e)",
       },
       {
@@ -677,8 +677,7 @@ else:
         prompt = f"""
                 5. Sınıf MEB müfredatı, Ders: {curr_subj}, Ünite: {curr_unit}.
                 TAM 5 ADET çoktan seçmeli (4 şıklı: A, B, C, D) soru üret.
-                Matematik için açı (örn: 50 derece, çeşitkenar/dik üçgen), çember; Fen için dinamometre veya Ay evresi soruları üret.
-                Soru metnindeki açı değerini veya özellikleri gorsel_parametre alanına yaz.
+                Matematik için açı, çember; Fen için dinamometre veya Ay evresi soruları üret.
                 JSON formatında liste olarak ver:
                 [
                   {{
@@ -775,7 +774,7 @@ else:
         )
         st.components.v1.html(html_balloon_game, height=560)
 
-  # 2. 5 SORULUK MEB KAZANIM OYUNU (HER SAYFADA TEK SORU MANTIĞI)
+  # 2. 5 SORULUK MEB KAZANIM OYUNU (TEK SORU MODU - CEVAPLAR GİZLİ)
   elif curr_game == "sinav10":
     st.subheader(
         f"🧠 {curr_subj} — 5 Soruluk MEB Kazanım Yarışması (Tek Soru Modu)"
@@ -798,7 +797,7 @@ else:
         prompt = f"""
                 5. Sınıf MEB, Ders: {curr_subj}, Ünite: {curr_unit}.
                 TAM 5 ADET çoktan seçmeli (4 şıklı) soru üret. 
-                Matematik soruları için açı (örn: 50 derece, dik veya çeşitkenar üçgen); Fen soruları için dinamometre veya Ay evresi içersin. Soruya tam uygun görsel tipi belirtin.
+                Matematik soruları için açı, dik üçgen; Fen soruları için dinamometre veya Ay evresi içersin. 
                 JSON liste formatında şu yapıda ver:
                 [
                   {{
@@ -847,7 +846,7 @@ else:
           )
 
         selected_option = st.radio(
-            "Cevabınızı Seçin:",
+            "Cevabınızı Seçin (Seçim sizin):",
             q["secenekler"],
             index=None,
             key=f"kazanim_radio_{k_idx}",
@@ -872,11 +871,7 @@ else:
           ):
             if selected_option:
               st.session_state["kazanim_answers"][k_idx] = selected_option
-              chosen_letter = (
-                  selected_option.charAt(0).upper()
-                  if hasattr(selected_option, "charAt")
-                  else selected_option[0].upper()
-              )
+              chosen_letter = selected_option[0].upper()
               correct_letter = q["dogru_cevap"].upper()
               if chosen_letter == correct_letter:
                 st.session_state["kazanim_score"] += 20
@@ -900,9 +895,11 @@ else:
           st.session_state["kazanim_answers"] = {}
           st.rerun()
 
-  # 3. DOĞRU / YANLIŞ MEYDAN OKUMASI
+  # 3. DOĞRU / YANLIŞ MEYDAN OKUMASI (TEK SORU MODU)
   elif curr_game == "dogruyanlis":
-    st.subheader(f"✅ {curr_subj} — Doğru / Yanlış Meydan Okuması")
+    st.subheader(
+        f"✅ {curr_subj} — Doğru / Yanlış Meydan Okuması (Tek Soru Modu)"
+    )
     if (
         "dy_questions" not in st.session_state
         or st.session_state.get("dy_unit_key") != (curr_subj, curr_unit)
@@ -969,12 +966,12 @@ else:
               if q_item["cevap"].upper() == "D":
                 st.session_state["dy_score"] += 20
                 st.session_state["dy_feedback"] = (
-                    f"🎉 **Doğru!**<br><span"
+                    f"🎉 **Doğru Seçim!**<br><span"
                     f" style='color:#10b981;'>{q_item['aciklama']}</span>"
                 )
               else:
                 st.session_state["dy_feedback"] = (
-                    f"❌ **Yanlış!** Doğru cevap Yanlış (Y) idi.<br><span"
+                    f"❌ **Yanlış Seçim!** Doğru cevap Yanlış (Y) idi.<br><span"
                     f" style='color:#f43f5e;'>{q_item['aciklama']}</span>"
                 )
               st.rerun()
@@ -983,12 +980,12 @@ else:
               if q_item["cevap"].upper() == "Y":
                 st.session_state["dy_score"] += 20
                 st.session_state["dy_feedback"] = (
-                    f"🎉 **Doğru!**<br><span"
+                    f"🎉 **Doğru Seçim!**<br><span"
                     f" style='color:#10b981;'>{q_item['aciklama']}</span>"
                 )
               else:
                 st.session_state["dy_feedback"] = (
-                    f"❌ **Yanlış!** Doğru cevap Doğru (D) idi.<br><span"
+                    f"❌ **Yanlış Seçim!** Doğru cevap Doğru (D) idi.<br><span"
                     f" style='color:#f43f5e;'>{q_item['aciklama']}</span>"
                 )
               st.rerun()
@@ -1002,7 +999,7 @@ else:
           st.session_state["dy_questions"] = None
           st.rerun()
 
-  # 4. BOŞLUK DOLDURMA YARIŞMASI
+  # 4. BOŞLUK DOLDURMA YARIŞMASI (TEK SORU / SEÇMELİ MOD)
   elif curr_game == "bosluk":
     st.subheader(f"📝 {curr_subj} — Boşluk Doldurma Yarışması")
     if (
@@ -1042,7 +1039,7 @@ else:
                 fq.get("gorsel_tipi"), fq.get("gorsel_parametre", "")
             )
           f_ans[idx] = st.selectbox(
-              f"Boşluğa gelecek kelimeyi seç ({idx+1}):",
+              f"Boşluğa gelecek kelimeyi sen seç ({idx+1}):",
               fq["secenekler"],
               index=None,
               key=f"f_{idx}",
@@ -1126,7 +1123,7 @@ else:
           st.session_state["fc_idx"] = 0
           st.rerun()
 
-  # 6. OYNAYARAK ÖĞREN (DOĞRU CEVAPLAR KALDIRILDI, KULLANICI SEÇER)
+  # 6. OYNAYARAK ÖĞREN
   elif curr_game == "oynayarak":
     st.subheader(f"🎯 {curr_subj} — Oynayarak Öğren Atölyesi")
     if (
@@ -1143,7 +1140,7 @@ else:
         prompt = f"""
                 5. Sınıf MEB müfredatı, Ders: {curr_subj}, Ünite: {curr_unit}.
                 Öğrencinin oynayarak öğreneceği, kendi karar vereceği bir senaryo ve çoktan seçmeli mini görev (soru, 4 şık A, B, C, D ve ipucu) üret. 
-                DİKKAT: Doğru cevabı açıkça METNİN İÇİNDE YAZMA. Sadece senaryo, ipucu ve 4 şıkkı ver.
+                DİKKAT: Doğru cevabı açıkça METNİN İÇİNDE YAZMA.
                 JSON formatında şu yapıda ver:
                 {{
                   "senaryo": "...",
@@ -1179,7 +1176,7 @@ else:
 
       with st.form("interactive_choice_form"):
         user_choice = st.radio(
-            "Seçiminizi Yapın:", iq.get("secenekler", []), index=None
+            "Cevabınızı Sen Seçin:", iq.get("secenekler", []), index=None
         )
         submitted_choice = st.form_submit_button("Seçimi Gönder ve Değerlendir")
 
@@ -1198,7 +1195,6 @@ else:
             st.warning("Lütfen seçeneklerden birini işaretleyin!")
 
       if st.button("💡 AdenMind İpucu İste"):
-        st.toast(f"Koçun İpucu: {iq.get('ipucu', 'Dikkatli düşün!')}")
         st.info(f"🦊 **AdenMind İpucu:** {iq.get('ipucu', '')}")
 
   # 7. ETKİNLİKLERLE ÖĞREN
