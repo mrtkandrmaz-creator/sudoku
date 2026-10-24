@@ -68,7 +68,7 @@ def get_all_api_keys():
               groq_keys.append(k.strip())
       if "gemini_keys" in api_block:
         for k in api_block["gemini_keys"]:
-          if isinstance(k, str) and len(k.strip()) > 5:
+          if isinstance(k, str) and len(k.strip>() > 5):
             if k.strip() not in gemini_keys:
               gemini_keys.append(k.strip())
   except Exception:
@@ -84,12 +84,12 @@ def get_all_api_keys():
   return gemini_keys, groq_keys
 
 
-# --- KESİN GROQ ÖNCELİKLİ VE TÜM VARYASYONLARI DENEYEN ÜRETİM MOTORU ---
+# --- KESİN KESİNTİSİZ ÜRETİM MOTORU (GROQ -> GEMINI) ---
 def ai_generate_content(prompt_text):
   raw_res = None
   gemini_keys, groq_keys = get_all_api_keys()
 
-  # 1. KESİN ÖNCELİK: GROQ API (Tüm model versiyonları ve anahtarlar sırayla denenir)
+  # 1. ÖNCELİK: GROQ API (Tüm model versiyonları)
   if groq_keys:
     try:
       from groq import Groq
@@ -97,7 +97,6 @@ def ai_generate_content(prompt_text):
       for gr_key in groq_keys:
         try:
           client = Groq(api_key=gr_key.strip())
-          # Groq'un desteklediği tüm olası kararlı modeller
           groq_models = [
               "llama-3.3-70b-versatile",
               "llama-3.1-70b-versatile",
@@ -127,10 +126,10 @@ def ai_generate_content(prompt_text):
             break
         except Exception:
           continue
-    except ImportError:
+    except Exception:
       pass
 
-  # 2. YEDEK KANAL: EĞER GROQ BAŞARISIZ OLURSA GEMINI 3.6 / FLASH MODELLERİ DEVREYE GİRER
+  # 2. YEDEK KANAL: GEMINI API (Groq başarısız olursa)
   if not raw_res and gemini_keys:
     try:
       import google.generativeai as genai
@@ -157,7 +156,7 @@ def ai_generate_content(prompt_text):
             break
         except Exception:
           continue
-    except ImportError:
+    except Exception:
       pass
 
   return clean_math_text(raw_res) if raw_res else None
@@ -906,7 +905,7 @@ else:
         else:
           st.error(
               "⚠️ Sorular üretilemedi. Lütfen sol menüden Groq API"
-              " anahtarınızı kontrol edin."
+              " anahtarınızı girdiğinizden emin olun."
           )
 
     if st.session_state["balloon_5_questions"]:
@@ -1024,7 +1023,10 @@ else:
           st.session_state["kazanim_answers"] = {}
           st.rerun()
         else:
-          st.error("Sorular üretilemedi. Lütfen tekrar deneyin.")
+          st.error(
+              "Sorular üretilemedi. Lütfen sol menüden API anahtarınızı"
+              " kontrol edin."
+          )
 
     if st.session_state["kazanim_list"]:
       k_list = st.session_state["kazanim_list"]
