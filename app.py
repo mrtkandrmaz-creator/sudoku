@@ -11,38 +11,32 @@ st.set_page_config(
     layout="wide",
 )
 
-# --- 1. KOŞULSUZ VE ESNEK TOML / SECRETS API TARAMA MOTORU ---
+# --- 1. [api_keys] TOML YAPISINI KESİN OKUYAN MOTOR ---
 
 
 def get_all_api_keys():
-  """Streamlit secrets içindeki [api_keys] tablosunu ve listeleri kesin okur."""
+  """Streamlit secrets içindeki [api_keys] tablosunu ve listeleri doğrudan okur."""
   gemini_keys = []
   groq_keys = []
 
   try:
     if hasattr(st, "secrets") and st.secrets:
-      # 1. Doğrudan [api_keys] tablosu altındaki listeleri kontrol et
+      # Doğrudan [api_keys] tablosu kontrolü
       if "api_keys" in st.secrets:
         api_block = st.secrets["api_keys"]
         if isinstance(api_block, dict):
-          # groq_keys listesi
-          if "groq_keys" in api_block:
-            g_list = api_block["groq_keys"]
-            if isinstance(g_list, (list, tuple)):
-              for k in g_list:
-                if isinstance(k, str) and len(k.strip()) > 5:
-                  if k.strip() not in groq_keys:
-                    groq_keys.append(k.strip())
-          # gemini_keys listesi
           if "gemini_keys" in api_block:
-            ge_list = api_block["gemini_keys"]
-            if isinstance(ge_list, (list, tuple)):
-              for k in ge_list:
-                if isinstance(k, str) and len(k.strip()) > 5:
-                  if k.strip() not in gemini_keys:
-                    gemini_keys.append(k.strip())
+            for k in api_block["gemini_keys"]:
+              if isinstance(k, str) and len(k.strip()) > 5:
+                if k.strip() not in gemini_keys:
+                  gemini_keys.append(k.strip())
+          if "groq_keys" in api_block:
+            for k in api_block["groq_keys"]:
+              if isinstance(k, str) and len(k.strip()) > 5:
+                if k.strip() not in groq_keys:
+                  groq_keys.append(k.strip())
 
-      # 2. Genel esnek tarama
+      # Alternatif genel tarama
       def recursive_search(data):
         if isinstance(data, dict):
           for k, v in data.items():
@@ -53,14 +47,8 @@ def get_all_api_keys():
               val = item.strip()
               if val.startswith("gsk_") and val not in groq_keys:
                 groq_keys.append(val)
-              elif (
-                  val.startswith("AQ.")
-                  or "AIza" in val
-                  or len(val) > 20
-                  and val not in gemini_keys
-              ):
-                if val not in gemini_keys and not val.startswith("gsk_"):
-                  gemini_keys.append(val)
+              elif val not in gemini_keys and not val.startswith("gsk_"):
+                gemini_keys.append(val)
 
       recursive_search(st.secrets)
   except Exception:
@@ -72,7 +60,7 @@ def get_all_api_keys():
       val = env_val.strip()
       if val.startswith("gsk_") and val not in groq_keys:
         groq_keys.append(val)
-      elif (val.startswith("AQ.") or "AIza" in val) and val not in gemini_keys:
+      elif val not in gemini_keys and not val.startswith("gsk_"):
         gemini_keys.append(val)
 
   # Manuel eklenenler
@@ -109,7 +97,7 @@ except ImportError:
 
 
 def ai_generate_content(prompt_text):
-  """Gemini ve Groq anahtarlarını sırayla dener."""
+  """Gemini (gemini-3.6-flash dahil) ve Groq anahtarlarını sırayla dener."""
   if has_gemini and gemini_keys:
     for g_key in gemini_keys:
       try:
