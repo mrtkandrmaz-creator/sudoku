@@ -54,9 +54,7 @@ def safe_parse_json(raw_text):
       return None
 
 
-# --- 1. [api_keys] TOML YAPISINI DOĞRUDAN OKUYAN KESİN MOTOR ---
-
-
+# --- 1. [api_keys] TOML VE SESSION STATE OKUYAN MOTOR ---
 def get_all_api_keys():
   gemini_keys = []
   groq_keys = []
@@ -86,82 +84,81 @@ def get_all_api_keys():
   return gemini_keys, groq_keys
 
 
-gemini_keys, groq_keys = get_all_api_keys()
-
-has_gemini = False
-has_groq = False
-
-try:
-  import google.generativeai as genai
-
-  if gemini_keys:
-    has_gemini = True
-except ImportError:
-  pass
-
-try:
-  from groq import Groq
-
-  if groq_keys:
-    has_groq = True
-except ImportError:
-  pass
-
-
-# --- ÖNCE GROQ, BAŞARISIZ OLURSA OTOMATİK GEMINI 3.6 GEÇİŞLİ GÜÇLENDİRİLMİŞ MOTOR ---
+# --- KESİN GROQ ÖNCELİKLİ VE TÜM VARYASYONLARI DENEYEN ÜRETİM MOTORU ---
 def ai_generate_content(prompt_text):
   raw_res = None
+  gemini_keys, groq_keys = get_all_api_keys()
 
-  # 1. ÖNCELİK: GROQ API İLE HIZLI ÜRETİM
-  if has_groq and groq_keys:
-    for gr_key in groq_keys:
-      try:
-        client = Groq(api_key=gr_key)
-        # Genişletilmiş model listesi ve yedekli model denemeleri
-        for g_model in [
-            "llama-3.3-70b-versatile",
-            "llama-3.1-8b-instant",
-            "mixtral-8x7b-32768",
-        ]:
-          try:
-            completion = client.chat.completions.create(
-                model=g_model,
-                messages=[{"role": "user", "content": prompt_text}],
-                temperature=0.95,
-            )
-            if completion.choices[0].message.content:
-              raw_res = completion.choices[0].message.content
-              break
-          except Exception:
-            continue
-        if raw_res:
-          break
-      except Exception:
-        continue
+  # 1. KESİN ÖNCELİK: GROQ API (Tüm model versiyonları ve anahtarlar sırayla denenir)
+  if groq_keys:
+    try:
+      from groq import Groq
 
-  # 2. OTOMATİK YEDEK KANAL: GEMINI 3.6 / GÜNCEL MODELLER
-  if not raw_res and has_gemini and gemini_keys:
-    for g_key in gemini_keys:
-      try:
-        genai.configure(api_key=g_key)
-        for model_name in [
-            "gemini-3.6-flash",
-            "gemini-3.6-pro",
-            "gemini-2.5-flash",
-            "gemini-1.5-flash",
-        ]:
-          try:
-            model = genai.GenerativeModel(model_name)
-            response = model.generate_content(prompt_text)
-            if response and response.text:
-              raw_res = response.text
-              break
-          except Exception:
-            continue
-        if raw_res:
-          break
-      except Exception:
-        continue
+      for gr_key in groq_keys:
+        try:
+          client = Groq(api_key=gr_key.strip())
+          # Groq'un desteklediği tüm olası kararlı modeller
+          groq_models = [
+              "llama-3.3-70b-versatile",
+              "llama-3.1-70b-versatile",
+              "llama-3.1-8b-instant",
+              "llama3-70b-8192",
+              "llama3-8b-8192",
+              "mixtral-8x7b-32768",
+              "gemma2-9b-it",
+          ]
+          for g_model in groq_models:
+            try:
+              completion = client.chat.completions.create(
+                  model=g_model,
+                  messages=[{"role": "user", "content": prompt_text}],
+                  temperature=0.95,
+              )
+              if (
+                  completion
+                  and completion.choices
+                  and completion.choices[0].message.content
+              ):
+                raw_res = completion.choices[0].message.content
+                break
+            except Exception:
+              continue
+          if raw_res:
+            break
+        except Exception:
+          continue
+    except ImportError:
+      pass
+
+  # 2. YEDEK KANAL: EĞER GROQ BAŞARISIZ OLURSA GEMINI 3.6 / FLASH MODELLERİ DEVREYE GİRER
+  if not raw_res and gemini_keys:
+    try:
+      import google.generativeai as genai
+
+      for g_key in gemini_keys:
+        try:
+          genai.configure(api_key=g_key.strip())
+          gemini_models = [
+              "gemini-3.6-flash",
+              "gemini-3.6-pro",
+              "gemini-2.5-flash",
+              "gemini-1.5-flash",
+          ]
+          for model_name in gemini_models:
+            try:
+              model = genai.GenerativeModel(model_name)
+              response = model.generate_content(prompt_text)
+              if response and response.text:
+                raw_res = response.text
+                break
+            except Exception:
+              continue
+          if raw_res:
+            break
+        except Exception:
+          continue
+    except ImportError:
+      pass
 
   return clean_math_text(raw_res) if raw_res else None
 
@@ -564,7 +561,7 @@ def render_question_visual(gorsel_tipi, param):
     st.components.v1.html(svg_html, height=215)
 
 
-# --- 7. SOL MENÜ VE İKİNCİL API GİRİŞ ALANLARI ---
+# --- 7. SOL MENÜ VE API ANAHTARI GİRİŞİ ---
 with st.sidebar:
   st.subheader("🦊 AdenMind Tema Tercihi")
   selected_theme = st.radio(
@@ -586,21 +583,21 @@ with st.sidebar:
 
   st.markdown("---")
   st.subheader("🔑 API Anahtarı Ayarları")
-  with st.expander("API Anahtarı Gir / Güncelle"):
+  with st.expander("Groq / Gemini Anahtarlarını Tanımla"):
     manual_groq_input = st.text_input(
-        "Groq API Key",
+        "Groq API Key (Öncelikli)",
         value=st.session_state.get("manual_groq", ""),
         type="password",
     )
     manual_gemini_input = st.text_input(
-        "Gemini API Key",
+        "Gemini API Key (Yedek)",
         value=st.session_state.get("manual_gemini", ""),
         type="password",
     )
     if st.button("Kaydet ve Yenile"):
       st.session_state["manual_groq"] = manual_groq_input
       st.session_state["manual_gemini"] = manual_gemini_input
-      st.success("API anahtarları güncellendi!")
+      st.success("API anahtarları kaydedildi!")
       st.rerun()
 
   st.markdown("---")
@@ -883,9 +880,7 @@ else:
       st.session_state["game_started"] = False
 
     if st.button("🚀 Yepyeni ve Çeşitli Soruları Üret", key="gen_5_balloons"):
-      with st.spinner(
-          "Groq ve Gemini 3.6 motorları aktif, sorular hazırlanıyor..."
-      ):
+      with st.spinner("Groq API modelleri taranıyor ve sorular üretiliyor..."):
         prompt = f"""
                 5. Sınıf MEB, Ders: {curr_subj}, Tema: {curr_unit}.
                 TAM 5 ADET tamamen birbirinden farklı, özgün ve çeşitli çoktan seçmeli soru üret.
@@ -910,8 +905,8 @@ else:
           st.rerun()
         else:
           st.error(
-              "⚠️ Sorular üretilemedi. Lütfen sol menüden API anahtarınızı"
-              " kontrol edin veya tekrar deneyin."
+              "⚠️ Sorular üretilemedi. Lütfen sol menüden Groq API"
+              " anahtarınızı kontrol edin."
           )
 
     if st.session_state["balloon_5_questions"]:
