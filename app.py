@@ -315,14 +315,14 @@ st.markdown(
 )
 
 
-# --- 6. HARFLENDİRME VE DEĞERLERİ YERİNDE GÖSTEREN 3D SVG MOTORU ---
+# --- 6. AÇI YAYLARI VE KÖŞE HARFLERİ İLE PROFESYONEL 3D SVG MOTORU ---
 def render_question_visual(gorsel_tipi, param):
   if not gorsel_tipi or gorsel_tipi == "yok":
     return
 
   param_str = str(param).lower().strip()
 
-  # 1. MATEMATİK: ABC / XYZ ÜÇGEN VE AÇI MODELİ (Köşe Harfleri ve Açı Değerleri Üzerinde)
+  # 1. MATEMATİK: ÜÇGEN VE AÇI YAYLARI (A, B, C Köşeleri ve Açı Yayları)
   if gorsel_tipi in ["ucgen", "aci"]:
     deg = 60
     try:
@@ -345,19 +345,24 @@ def render_question_visual(gorsel_tipi, param):
                 </defs>
                 <polygon points="{Ax},{Ay} {Bx},{By} {Cx},{Cy}" fill="url(#triGrad)" stroke="#38bdf8" stroke-width="4" stroke-linejoin="round"/>
                 
-                <!-- Köşe Harfleri Doğru Yerlerinde (A, B, C) -->
+                <!-- Köşe Harfleri (A, B, C) -->
                 <text x="{Ax}" y="{Ay - 10}" fill="#38bdf8" font-size="15" font-weight="bold" text-anchor="middle">A</text>
                 <text x="{Bx - 12}" y="{By + 15}" fill="#38bdf8" font-size="15" font-weight="bold" text-anchor="middle">B</text>
                 <text x="{Cx + 12}" y="{By + 15}" fill="#38bdf8" font-size="15" font-weight="bold" text-anchor="middle">C</text>
                 
-                <!-- Açı Değeri -->
+                <!-- Açı Yayları (A, B ve C köşeleri için arklar) -->
+                <path d="M 125 55 A 25 25 0 0 1 155 55" fill="none" stroke="#facc15" stroke-width="3" stroke-linecap="round"/>
+                <path d="M 55 132 A 25 25 0 0 0 65 150" fill="none" stroke="#facc15" stroke-width="3" stroke-linecap="round"/>
+                <path d="M 215 150 A 25 25 0 0 0 225 132" fill="none" stroke="#facc15" stroke-width="3" stroke-linecap="round"/>
+
+                <!-- Değer Metni -->
                 <text x="140" y="85" fill="#facc15" font-size="13" font-weight="bold" text-anchor="middle">{deg}°</text>
             </svg>
         </div>
         """
     st.components.v1.html(svg_html, height=200)
 
-  # 2. MATEMATİK: ÇEMBER VE ÇAP / YARIÇAP MODELİ (Merkez Noktası O, Çap Bilgisi)
+  # 2. MATEMATİK: ÇEMBER VE ÇAP / YARIÇAP MODELİ
   elif gorsel_tipi == "cember":
     val = "12"
     try:
@@ -495,7 +500,7 @@ def render_question_visual(gorsel_tipi, param):
         """
     st.components.v1.html(svg_html, height=195)
 
-  # 6. FIZIK: DİNAMOMETRE
+  # 6. FIZİK: DİNAMOMETRE
   elif gorsel_tipi == "dinamometre":
     newton = 5
     try:
@@ -802,13 +807,13 @@ else:
 
   st.markdown("---")
 
-  # HARFLENDİRME VE DEĞER ENTEGRASYON PROMPTI
+  # HARFLENDİRME VE AÇI YAYI PROMPTI
   rand_seed = f"{time.time()}_{random.randint(100000, 999999)}"
   visual_prompt_instruction = f"""
-  (GEOMETRİ VE HARFLENDİRME TALİMATI - Seed: {rand_seed}):
-  1. Geometri sorularında (ABC üçgeni vb.) köşeler A, B, C şeklinde harflendirilerek sorulmalı ve gorsel_tipi: 'ucgen', gorsel_parametre alanına açı değeri yazılmalıdır.
-  2. Çember sorularında merkez O harfiyle belirtilmeli ve gorsel_tipi: 'cember', gorsel_parametre alanına çap/yarıçap değeri yazılmalıdır.
-  3. Görsellerde başlık veya açıklama metni olmayacak; yalnızca şekil üzerinde köşe harfleri (A, B, C) ve matematiksel değerler (açı derece veya uzunluk) yer alacaktır.
+  (GEOMETRİ VE AÇI YAYI TALİMATI - Seed: {rand_seed}):
+  1. Geometri sorularında köşeler A, B, C şeklinde harflendirilerek sorulmalı, açı yayları çizilmeli ve gorsel_tipi: 'ucgen', gorsel_parametre alanına derece değeri (örn: '60°') yazılmalıdır.
+  2. Çember sorularında merkez O harfiyle belirtilmeli ve gorsel_tipi: 'cember', gorsel_parametre alanına çap değeri yazılmalıdır.
+  3. Görsellerde açıklama veya başlık yazısı olmayacak; yalnızca şekil üzerinde köşe harfleri, açı yayları ve derece simgeleri yer alacaktır.
   """
 
   # 1. BALON PATLATMACA
@@ -836,7 +841,7 @@ else:
                     "dogru_cevap": "A",
                     "aciklama": "Açıklama",
                     "gorsel_tipi": "ucgen", 
-                    "gorsel_parametre": "60"
+                    "gorsel_parametre": "60°"
                   }}
                 ]
                 """
@@ -953,7 +958,7 @@ else:
                     "dogru_cevap": "A", 
                     "aciklama": "...",
                     "gorsel_tipi": "ucgen",
-                    "gorsel_parametre": "60"
+                    "gorsel_parametre": "60°"
                   }}
                 ]
                 """
