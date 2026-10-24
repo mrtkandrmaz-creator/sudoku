@@ -123,7 +123,7 @@ MEB_CURRICULUM = {
             "1. Ünite: Doğal Sayılar",
             "2. Ünite: Kesirler",
             "3. Ünite: Ondalık Gösterimler",
-            "4. Ünite: Geometrik Kavramlar",
+            "4. Ünite: Geometrik Kavramlar ve Üçgenler",
             "5. Ünite: Veri İşleme",
         ],
     },
@@ -202,15 +202,15 @@ if "game_started" not in st.session_state:
 if "coach_open" not in st.session_state:
   st.session_state["coach_open"] = False
 if "coach_theme" not in st.session_state:
-  st.session_state["coach_theme"] = "Mavi"  # Varsayılan Mavi
+  st.session_state["coach_theme"] = "Mavi"
 if "coach_messages" not in st.session_state:
   st.session_state["coach_messages"] = [
       {
           "role": "assistant",
           "content": (
-              "Merhaba! Ben senin yapay zeka koçun **AdenMind**. Görseldeki"
-              " sevimli dostun tarzıyla seninle birlikte çalışmaya hazırız!"
-              " Bugün hangi konuda yardıma ihtiyacın var? 🦊✨"
+              "Merhaba! Ben senin yapay zeka koçun **AdenMind**. Görsel"
+              " destekli MEB soruları, geometrik şekiller, Dünya-Güneş-Ay"
+              " modelleri ve eğlenceli oyunlarla öğrenmeye hazır mısın? 🦊✨"
           ),
       }
   ]
@@ -312,7 +312,7 @@ with st.sidebar:
     st.session_state["game_started"] = False
     st.rerun()
 
-# --- 7. GLOBAL SAĞ ALT KÖŞE: ADENMİND AKILLI ASİSTAN (KÜÇÜK AVATAR PANELİ) ---
+# --- 7. GLOBAL SAĞ ALT KÖŞE: ADENMİND AKILLI ASİSTAN ---
 st.markdown("---")
 with st.container():
   col_space, col_trigger = st.columns([9, 3])
@@ -335,7 +335,7 @@ if st.session_state["coach_open"]:
                 <div style="font-size: 45px; background: rgba(255,255,255,0.2); padding: 10px; border-radius: 50%;">🦊</div>
                 <div>
                     <h2 style="margin: 0; font-size: 24px;">AdenMind — Senin Akıllı Koçun</h2>
-                    <p style="margin: 4px 0 0 0; font-size: 14px; opacity: 0.9;">Görseldeki sevimli tilki ruhuyla her an yanındayım! İstediğini sor, birlikte öğrenelim.</p>
+                    <p style="margin: 4px 0 0 0; font-size: 14px; opacity: 0.9;">Görsel destekli MEB soruları ve eğlenceli ipuçlarıyla her an yanındayım!</p>
                 </div>
             </div>
         </div>
@@ -343,7 +343,6 @@ if st.session_state["coach_open"]:
         unsafe_allow_html=True,
     )
 
-    # Sohbet Geçmişi Kutusu
     for msg in st.session_state["coach_messages"]:
       if msg["role"] == "assistant":
         st.markdown(
@@ -364,9 +363,11 @@ if st.session_state["coach_open"]:
             unsafe_allow_html=True,
         )
 
-    # Soru Gönderme Formu
     with st.form("coach_chat_form", clear_on_submit=True):
-      user_input = st.text_input("AdenMind'a bir soru sor veya sohbet et:")
+      user_input = st.text_input(
+          "AdenMind'a görsel bir soru veya konu sor (Örn: Dik üçgen açıları"
+          " veya Dünya'nın hareketleri):"
+      )
       submitted = st.form_submit_button("Gönder 🚀")
       if submitted and user_input:
         st.session_state["coach_messages"].append(
@@ -377,9 +378,13 @@ if st.session_state["coach_open"]:
         prompt = (
             f"Sen 5. sınıf MEB müfredatı odaklı, sevimli, eğlenceli ve teşvik"
             f" edici bir akıllı koçsun. Adın AdenMind. Öğrencinin seçtiği ders:"
-            f" {curr_s}, ünite: {curr_u}. Öğrencinin mesajı: {user_input}"
+            f" {curr_s}, ünite: {curr_u}. Öğrencinin mesajı: {user_input}."
+            " Eğer matematik veya fen konuları sorulursa (örneğin dik üçgen,"
+            " eşkenar üçgen, açı ölçüleri, Dünya-Güneş-Ay evreleri), metin"
+            " içinde görsel tasvirler, ASCII şemalar veya açıklayıcı görsel"
+            " benzetmelerle harika bir rehberlik yap."
         )
-        with st.spinner("AdenMind düşünüyor..."):
+        with st.spinner("AdenMind düşünüyor ve görselleştiriyor..."):
           response = ai_generate_content(prompt)
           if response:
             st.session_state["coach_messages"].append(
@@ -568,16 +573,18 @@ else:
 
     if st.button("🚀 Balon Sorularını Üret", key="gen_5_balloons"):
       with st.spinner(
-          f"Yapay zeka {curr_subj} için 5 adet eğlenceli balon sorusu"
+          f"Yapay zeka {curr_subj} için görsel ve kavramsal 5 balon sorusu"
           " hazırlıyor..."
       ):
         prompt = f"""
                 5. Sınıf MEB müfredatı, Ders: {curr_subj}, Ünite: {curr_unit}.
-                Balon patlatmaca oyunu için TAM 5 ADET çoktan seçmeli (4 şıklı: A, B, C, D) soru üret.
+                Bu ünite için balon patlatmaca oyunu kapsamında TAM 5 ADET çoktan seçmeli (4 şıklı: A, B, C, D) soru üret.
+                Ders Matematik ise dik üçgen, eşkenar üçgen, açı hesaplama gibi geometrik/görsel senaryolara yer ver.
+                Ders Fen Bilimleri ise Dünya, Güneş, Ay ilişkileri veya şemalı/görsel açıklamalı sorular üret.
                 Kesinlikle şu JSON formatında bir liste olarak ver:
                 [
                   {{
-                    "soru": "Soru metni buraya",
+                    "soru": "Soru metni ve görsel/şema tanımı",
                     "secenekler": ["A) ...", "B) ...", "C) ...", "D) ..."],
                     "dogru_cevap": "A",
                     "aciklama": "Açıklama"
@@ -597,8 +604,8 @@ else:
     if st.session_state["balloon_5_questions"]:
       if not st.session_state["game_started"]:
         st.success(
-            "✅ Sorular Başarıyla Üretildi! Oyunu tam ekran başlatmak için"
-            " aşağıdaki butona tıklayın."
+            "✅ Görsel ve Kazanım Odaklı Sorular Hazır! Oyunu tam ekran"
+            " başlatmak için aşağıdaki butona tıklayın."
         )
         if st.button(
             "✨ OYUNU BAŞLAT VE TAM EKRANA GEÇ 🎮",
@@ -646,13 +653,14 @@ else:
                         font-weight: bold;
                     }
                     .question-box {
-                        font-size: 21px;
+                        font-size: 20px;
                         font-weight: bold;
-                        padding: 16px 24px;
+                        padding: 14px 20px;
                         background: rgba(255, 255, 255, 0.08);
-                        margin: 12px;
+                        margin: 10px;
                         border-radius: 12px;
                         border-left: 6px solid #6366f1;
+                        text-align: left;
                     }
                     .balloon {
                         position: absolute;
@@ -709,7 +717,7 @@ else:
                 
                 <div id="game-container">
                     <div class="question-box" id="question-text">Soru yükleniyor...</div>
-                    <div id="balloons-area" style="position:relative; width:100%; height:340px;"></div>
+                    <div id="balloons-area" style="position:relative; width:100%; height:320px;"></div>
                     
                     <div class="feedback-overlay" id="overlay">
                         <div id="feedback-icon" style="font-size: 65px; margin-bottom: 12px;">🎉</div>
@@ -920,10 +928,15 @@ else:
       st.session_state["game_started"] = False
 
     if st.button("🚀 Kazanım Sorularını Üret", key="gen_5_quiz"):
-      with st.spinner(f"Yapay zeka {curr_subj} için 5 kazanım sorusu üretiliyor..."):
+      with st.spinner(
+          f"Yapay zeka {curr_subj} için görsel/kavramsal 5 kazanım sorusu"
+          " üretiliyor..."
+      ):
         prompt = f"""
                 5. Sınıf MEB müfredatı, Ders: {curr_subj}, Ünite: {curr_unit}.
                 Bu ünite için TAM 5 ADET çoktan seçmeli (4 şıklı) kazanım sorusu üret.
+                Ders Matematik ise dik üçgen, eşkenar üçgen, açı ölçüleri gibi geometrik senaryolar ekle.
+                Ders Fen Bilimleri ise Dünya, Güneş, Ay ve evreleri ile ilgili görsel/şemalı senaryolar ekle.
                 JSON formatında liste olarak ver:
                 [
                   {{"soru": "...", "secenekler": ["A)...", "B)...", "C)...", "D)..."], "dogru_cevap": "A", "aciklama": "..."}}
@@ -1006,7 +1019,7 @@ else:
                         <span id="q-timer" style="color: #f43f5e;">Süre: 60 sn</span>
                         <span id="q-score" style="color: #10b981;">Puan: 0</span>
                     </div>
-                    <div id="q-text" style="font-size: 21px; font-weight: bold; margin-bottom: 22px; text-align: left;">Yükleniyor...</div>
+                    <div id="q-text" style="font-size: 20px; font-weight: bold; margin-bottom: 20px; text-align: left;">Yükleniyor...</div>
                     <div id="options-area"></div>
                     <div id="q-feedback" style="margin-top: 18px; font-size: 18px; font-weight: bold;"></div>
                 </div>
@@ -1164,10 +1177,11 @@ else:
       st.session_state["dy_unit_key"] = (curr_subj, curr_unit)
 
     if st.button("🚀 Doğru/Yanlış Sorularını Üret", key="gen_dy"):
-      with st.spinner("Yapay zeka 5 adet Doğru/Yanlış önermesi hazırlıyor..."):
+      with st.spinner("Yapay zeka 5 adet görsel/kavramsal önerme hazırlıyor..."):
         prompt = f"""
                 5. Sınıf MEB müfredatı, Ders: {curr_subj}, Ünite: {curr_unit}.
                 Bu ünite için TAM 5 ADET Doğru veya Yanlış önermesi üret.
+                Ders Matematik/Fen ise şekil, açı, Dünya-Güneş-Ay gibi görsel/kavramsal konulara ağırlık ver.
                 JSON formatında liste olarak ver:
                 [
                   {{"ifade": "Önerme metni", "cevap": "D", "aciklama": "Açıklama"}}
@@ -1362,10 +1376,10 @@ else:
       st.session_state["c_unit_key"] = (curr_subj, curr_unit)
 
     if st.button("✨ Yazılı Sınavını Başlat (5 Soru)", key="gen_classic"):
-      with st.spinner("Yapay zeka 5 adet yazılı klasik soru hazırlıyor..."):
+      with st.spinner("Yapay zeka görsel ve klasik yazılı soruları hazırlıyor..."):
         prompt = f"""
                 5. Sınıf MEB, Ders: {curr_subj}, Ünite: {curr_unit}.
-                TAM 5 ADET açık uçlu yazılı sorusu ve ideal cevap anahtarlarını JSON liste formatında ver:
+                TAM 5 ADET açık uçlu yazılı sorusu (Matematik için şekilli/açılı, Fen için Dünya-Güneş-Ay şemalı senaryolar içerebilir) ve ideal cevap anahtarlarını JSON liste formatında ver:
                 [
                   {{"soru": "...", "beklenen_cevap": "..."}}
                 ]
