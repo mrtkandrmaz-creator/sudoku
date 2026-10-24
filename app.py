@@ -242,6 +242,7 @@ with st.sidebar:
     st.session_state["selected_subject"] = None
     st.session_state["selected_unit"] = None
     st.session_state["selected_game"] = None
+    st.session_state["game_started"] = False
     st.rerun()
 
 # --- 5. SESSION STATE TANIMLARI ---
@@ -251,6 +252,8 @@ if "selected_unit" not in st.session_state:
   st.session_state["selected_unit"] = None
 if "selected_game" not in st.session_state:
   st.session_state["selected_game"] = None
+if "game_started" not in st.session_state:
+  st.session_state["game_started"] = False
 
 # --- AŞAMA 1: DERS SEÇİMİ ---
 if st.session_state["selected_subject"] is None:
@@ -280,6 +283,7 @@ if st.session_state["selected_subject"] is None:
           use_container_width=True,
       ):
         st.session_state["selected_subject"] = subj
+        st.session_state["game_started"] = False
         st.rerun()
 
 # --- AŞAMA 2: ÜNİTE SEÇİMİ ---
@@ -297,6 +301,7 @@ elif (
 
   if st.button("⬅️ Ders Seçimine Geri Dön", key="back_subj"):
     st.session_state["selected_subject"] = None
+    st.session_state["game_started"] = False
     st.rerun()
 
   st.markdown("---")
@@ -317,6 +322,7 @@ elif (
           f"Seç: {unit_name}", key=f"unit_{idx}", use_container_width=True
       ):
         st.session_state["selected_unit"] = unit_name
+        st.session_state["game_started"] = False
         st.rerun()
 
 # --- AŞAMA 3: OYUN VE SORU MODELLERİ ---
@@ -340,6 +346,7 @@ elif (
 
   if st.button("↩️ Ünite Değiştir", key="back_unit"):
     st.session_state["selected_unit"] = None
+    st.session_state["game_started"] = False
     st.rerun()
 
   st.markdown("### 🎮 Lütfen Bir Oyun / Soru Modülü Kartına Tıklayın")
@@ -373,6 +380,7 @@ elif (
           use_container_width=True,
       ):
         st.session_state["selected_game"] = g_item["id"]
+        st.session_state["game_started"] = False
         st.rerun()
 
 # --- AŞAMA 4: OYUN VE SORU MODELLERİNİN ÇALIŞTIRILMASI ---
@@ -383,11 +391,12 @@ else:
 
   if st.button("⬅️ Oyun / Mod Seçimine Geri Dön", key="back_game"):
     st.session_state["selected_game"] = None
+    st.session_state["game_started"] = False
     st.rerun()
 
   st.markdown("---")
 
-  # 1. BALON PATLATMACA (Tam Ekran Özellikli)
+  # 1. BALON PATLATMACA
   if curr_game == "balon":
     st.subheader(f"🎈 {curr_subj} — Klasik Balon Patlatmaca Oyunu")
 
@@ -397,8 +406,9 @@ else:
     ):
       st.session_state["balloon_5_questions"] = None
       st.session_state["b_unit_key"] = (curr_subj, curr_unit)
+      st.session_state["game_started"] = False
 
-    if st.button("🚀 Balon Patlatmaca Oyununu Başlat", key="gen_5_balloons"):
+    if st.button("🚀 Balon Sorularını Üret", key="gen_5_balloons"):
       with st.spinner(
           f"Yapay zeka {curr_subj} için 5 adet eğlenceli balon sorusu"
           " hazırlıyor..."
@@ -421,17 +431,31 @@ else:
           try:
             clean_res = re.sub(r"```json|```", "", res).strip()
             st.session_state["balloon_5_questions"] = json.loads(clean_res)
+            st.session_state["game_started"] = False
             st.rerun()
           except Exception as e:
             st.error(f"Soru çözümleme hatası: {e}")
 
     if st.session_state["balloon_5_questions"]:
-      questions_json = json.dumps(
-          st.session_state["balloon_5_questions"], ensure_ascii=False
-      )
+      if not st.session_state["game_started"]:
+        st.success(
+            "✅ Sorular Başarıyla Üretildi! Oyunu başlatmak için aşağıdaki"
+            " butona tıklayın."
+        )
+        if st.button(
+            "🎮 Oyunu Başlat ve Tam Ekrana Geç",
+            key="start_balloon_fullscreen",
+            use_container_width=True,
+        ):
+          st.session_state["game_started"] = True
+          st.rerun()
+      else:
+        questions_json = json.dumps(
+            st.session_state["balloon_5_questions"], ensure_ascii=False
+        )
 
-      html_balloon_game = (
-          """
+        html_balloon_game = (
+            """
             <!DOCTYPE html>
             <html lang="tr">
             <head>
@@ -449,7 +473,7 @@ else:
                     #game-container {
                         position: relative;
                         width: 100%;
-                        height: 480px;
+                        height: 520px;
                         background: radial-gradient(circle, #22223b 0%, #11111d 100%);
                         border-radius: 16px;
                         overflow: hidden;
@@ -547,7 +571,8 @@ else:
                             elem.msRequestFullscreen();
                         }
                     }
-                    window.onload = () => { setTimeout(goFullScreen, 500); };
+                    // Başlat butonuna basılıp ekran açıldığı an tam ekrana geç
+                    goFullScreen();
 
                     function exitFullScreen() {
                         if (document.exitFullscreen) {
@@ -560,8 +585,8 @@ else:
                     }
 
                     const questions = """
-          + questions_json
-          + """;
+            + questions_json
+            + """;
                     let currentIdx = 0;
                     let score = 0;
                     let timeLeft = 50;
@@ -686,7 +711,7 @@ else:
                     }
 
                     function endGame() {
-                        exitFullScreen();
+                        exitFullScreen(); // Oyun bitince tam ekrandan çık ve eski boyuta dön
                         let area = document.getElementById('game-container');
                         area.innerHTML = `
                             <div style="padding: 60px; font-size: 28px;">
@@ -702,10 +727,10 @@ else:
             </body>
             </html>
             """
-      )
-      st.components.v1.html(html_balloon_game, height=535)
+        )
+        st.components.v1.html(html_balloon_game, height=560)
 
-  # 2. 5 SORULUK MEB KAZANIM OYUNU (Tam Ekran Özellikli)
+  # 2. 5 SORULUK MEB KAZANIM OYUNU
   elif curr_game == "sinav10":
     st.subheader(f"🧠 {curr_subj} — 5 Soruluk MEB Kazanım Yarışması")
 
@@ -715,8 +740,9 @@ else:
     ):
       st.session_state["quiz_5_data"] = None
       st.session_state["q_unit_key"] = (curr_subj, curr_unit)
+      st.session_state["game_started"] = False
 
-    if st.button("🚀 Kazanım Yarışmasını Başlat", key="gen_5_quiz"):
+    if st.button("🚀 Kazanım Sorularını Üret", key="gen_5_quiz"):
       with st.spinner(f"Yapay zeka {curr_subj} için 5 kazanım sorusu üretiliyor..."):
         prompt = f"""
                 5. Sınıf MEB müfredatı, Ders: {curr_subj}, Ünite: {curr_unit}.
@@ -732,16 +758,30 @@ else:
             st.session_state["quiz_5_data"] = json.loads(
                 re.sub(r"```json|```", "", res).strip()
             )
+            st.session_state["game_started"] = False
             st.rerun()
           except Exception:
             st.error("Biçim hatası.")
 
     if st.session_state["quiz_5_data"]:
-      q_json = json.dumps(
-          st.session_state["quiz_5_data"], ensure_ascii=False
-      )
-      html_quiz_game = (
-          """
+      if not st.session_state["game_started"]:
+        st.success(
+            "✅ Yarışma Soruları Hazır! Başlatmak için aşağıdaki butona"
+            " tıklayın."
+        )
+        if st.button(
+            "🧠 Yarışmayı Başlat ve Tam Ekrana Geç",
+            key="start_quiz_fullscreen",
+            use_container_width=True,
+        ):
+          st.session_state["game_started"] = True
+          st.rerun()
+      else:
+        q_json = json.dumps(
+            st.session_state["quiz_5_data"], ensure_ascii=False
+        )
+        html_quiz_game = (
+            """
             <!DOCTYPE html>
             <html lang="tr">
             <head>
@@ -805,7 +845,7 @@ else:
                             elem.msRequestFullscreen();
                         }
                     }
-                    window.onload = () => { setTimeout(goFullScreen, 500); };
+                    goFullScreen();
 
                     function exitFullScreen() {
                         if (document.exitFullscreen) {
@@ -818,8 +858,8 @@ else:
                     }
 
                     const quizData = """
-          + q_json
-          + """;
+            + q_json
+            + """;
                     let qIdx = 0;
                     let totalScore = 0;
                     let timeRemaining = 60;
@@ -843,7 +883,7 @@ else:
 
                     function loadQ() {
                         if (qIdx >= quizData.length || qIdx >= 5) {
-                            exitFullScreen();
+                            exitFullScreen(); // Yarışma bitince eski ekrana dön
                             document.querySelector('.quiz-card').innerHTML = `
                                 <h2>🏆 Yarışma Tamamlandı!</h2>
                                 <p style="font-size: 24px;">Toplam Puanınız: <span style="color: #00cc96;">${totalScore} / 100</span></p>
@@ -913,8 +953,8 @@ else:
             </body>
             </html>
             """
-      )
-      st.components.v1.html(html_quiz_game, height=450)
+        )
+        st.components.v1.html(html_quiz_game, height=480)
 
   # 3. KLASİK YAZILI SİMÜLATÖRÜ
   elif curr_game == "acik":
