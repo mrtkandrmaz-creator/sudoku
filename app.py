@@ -1155,7 +1155,6 @@ else:
         st.markdown("#### Kelime Kutucukları:")
         user_guess = st.session_state["user_guess"]
 
-        # Kutucuklar (Tek bir temiz st.markdown bloğunda güvenli şekilde oluşturulur)
         boxes_html = '<div style="display: flex; gap: 8px; justify-content: center; margin-bottom: 20px;">'
         for b_i in range(len(target_word)):
           char_in_box = user_guess[b_i] if b_i < len(user_guess) else ""
@@ -1314,5 +1313,3 @@ else:
       st.session_state["selected_unit"] = None
       st.session_state["selected_game"] = None
       st.rerun()
-
-<FollowUp/>
