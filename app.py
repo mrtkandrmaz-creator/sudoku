@@ -12,6 +12,48 @@ st.set_page_config(
     layout="wide",
 )
 
+
+# --- KESİN METİN VE DERECE TEMİZLEME MOTORU ---
+def clean_math_text(text):
+  if not isinstance(text, str):
+    return text
+  text = re.sub(r"\\circ", "°", text)
+  text = re.sub(r"\bcirc\b", "°", text, flags=re.IGNORECASE)
+  text = re.sub(r"&deg;", "°", text)
+  text = re.sub(r"°\s*°", "°", text)
+  return text
+
+
+def deep_clean_json_data(data):
+  if isinstance(data, str):
+    return clean_math_text(data)
+  elif isinstance(data, list):
+    return [deep_clean_json_data(item) for item in data]
+  elif isinstance(data, dict):
+    return {k: deep_clean_json_data(v) for k, v in data.items()}
+  return data
+
+
+# --- KESİN GÜVENLİ JSON PARSER ---
+def safe_parse_json(raw_text):
+  if not raw_text:
+    return None
+  try:
+    cleaned = re.sub(r"```json|```", "", raw_text).strip()
+    match = re.search(r"(\[.*\]|\{.*\})", cleaned, re.DOTALL)
+    if match:
+      cleaned = match.group(1)
+    data = json.loads(cleaned)
+    return deep_clean_json_data(data)
+  except Exception:
+    try:
+      cleaned = raw_text.replace("'", '"')
+      data = json.loads(cleaned)
+      return deep_clean_json_data(data)
+    except Exception:
+      return None
+
+
 # --- 1. [api_keys] TOML YAPISINI DOĞRUDAN OKUYAN KESİN MOTOR ---
 
 
@@ -67,6 +109,7 @@ except ImportError:
 
 
 def ai_generate_content(prompt_text):
+  raw_res = None
   if has_groq and groq_keys:
     for gr_key in groq_keys:
       try:
@@ -74,34 +117,37 @@ def ai_generate_content(prompt_text):
         completion = client.chat.completions.create(
             model="llama-3.3-70b-versatile",
             messages=[{"role": "user", "content": prompt_text}],
-            temperature=0.99,
+            temperature=0.7,
         )
         if completion.choices[0].message.content:
-          return completion.choices[0].message.content
+          raw_res = completion.choices[0].message.content
+          break
       except Exception:
         continue
 
-  if has_gemini and gemini_keys:
+  if not raw_res and has_gemini and gemini_keys:
     for g_key in gemini_keys:
       try:
         genai.configure(api_key=g_key)
         for model_name in [
-            "gemini-3.6-flash",
+            "gemini-2.5-flash",
             "gemini-1.5-flash",
             "gemini-1.5-pro",
-            "gemini-pro",
         ]:
           try:
             model = genai.GenerativeModel(model_name)
             response = model.generate_content(prompt_text)
             if response and response.text:
-              return response.text
+              raw_res = response.text
+              break
           except Exception:
             continue
+        if raw_res:
+          break
       except Exception:
         continue
 
-  return None
+  return clean_math_text(raw_res) if raw_res else None
 
 
 # --- 2. 5. SINIF MEB MÜFREDATI VE DERS RENKLERİ ---
@@ -315,20 +361,26 @@ st.markdown(
 )
 
 
-# --- 6. HARFLENDİRME VE DEĞERLERİ YERİNDE GÖSTEREN 3D SVG MOTORU ---
+# --- 6. KUSURSUZ GEOMETRİ VE ŞEKİL MOTORU (YAYSIZ, DOĞRU AÇI YERLEŞİMİ) ---
 def render_question_visual(gorsel_tipi, param):
   if not gorsel_tipi or gorsel_tipi == "yok":
     return
 
-  param_str = str(param).lower().strip()
+  param_str = clean_math_text(str(param)).strip()
 
-  # 1. MATEMATİK: ABC / XYZ ÜÇGEN VE AÇI MODELİ (Köşe Harfleri ve Açı Değerleri Üzerinde)
-  if gorsel_tipi in ["ucgen", "aci"]:
-    deg = 60
-    try:
-      deg = int(re.search(r"\d+", str(param)).group())
-    except Exception:
-      pass
+  # 1. ÜÇGEN ÇİZİMİ (Yaylı & Köşelerde Açı Değerleri)
+  if gorsel_tipi == "ucgen":
+    p_upper = param_str.upper()
+    match_letters = re.search(r"([A-Z]{3})", p_upper)
+    k1, k2, k3 = (
+        list(match_letters.group(1)) if match_letters else ["A", "B", "C"]
+    )
+
+    deg_matches = re.findall(r"([A-Z])\s*:\s*(\d+°)", param_str)
+    deg_dict = {m[0].upper(): m[1] for m in deg_matches}
+
+    val1 = deg_dict.get(k1, "50°")
+    val2 = deg_dict.get(k2, "60°")
 
     Ax, Ay = 140, 35
     Bx, By = 35, 150
@@ -336,7 +388,7 @@ def render_question_visual(gorsel_tipi, param):
 
     svg_html = f"""
         <div style="display: flex; justify-content: center; margin: 12px 0;">
-            <svg width="280" height="185" viewBox="0 0 280 185" style="background: linear-gradient(135deg, #0f172a, #1e293b); border-radius: 18px; border: 1.5px solid rgba(56, 189, 248, 0.4); box-shadow: 0 12px 30px rgba(0, 0, 0, 0.5);">
+            <svg width="280" height="190" viewBox="0 0 280 190" style="background: linear-gradient(135deg, #0f172a, #1e293b); border-radius: 18px; border: 1.5px solid rgba(56, 189, 248, 0.4); box-shadow: 0 12px 30px rgba(0, 0, 0, 0.5);">
                 <defs>
                     <linearGradient id="triGrad" x1="0%" y1="0%" x2="100%" y2="100%">
                         <stop offset="0%" stop-color="rgba(56, 189, 248, 0.4)" />
@@ -345,23 +397,66 @@ def render_question_visual(gorsel_tipi, param):
                 </defs>
                 <polygon points="{Ax},{Ay} {Bx},{By} {Cx},{Cy}" fill="url(#triGrad)" stroke="#38bdf8" stroke-width="4" stroke-linejoin="round"/>
                 
-                <!-- Köşe Harfleri Doğru Yerlerinde (A, B, C) -->
-                <text x="{Ax}" y="{Ay - 10}" fill="#38bdf8" font-size="15" font-weight="bold" text-anchor="middle">A</text>
-                <text x="{Bx - 12}" y="{By + 15}" fill="#38bdf8" font-size="15" font-weight="bold" text-anchor="middle">B</text>
-                <text x="{Cx + 12}" y="{By + 15}" fill="#38bdf8" font-size="15" font-weight="bold" text-anchor="middle">C</text>
+                <text x="{Ax}" y="{Ay - 10}" fill="#38bdf8" font-size="15" font-weight="bold" text-anchor="middle">{k1}</text>
+                <text x="{Bx - 12}" y="{By + 15}" fill="#38bdf8" font-size="15" font-weight="bold" text-anchor="middle">{k2}</text>
+                <text x="{Cx + 12}" y="{By + 15}" fill="#38bdf8" font-size="15" font-weight="bold" text-anchor="middle">{k3}</text>
                 
-                <!-- Açı Değeri -->
-                <text x="140" y="85" fill="#facc15" font-size="13" font-weight="bold" text-anchor="middle">{deg}°</text>
+                <path d="M 126 58 Q 140 73 154 58" fill="none" stroke="#facc15" stroke-width="3" stroke-linecap="round"/>
+                <text x="140" y="92" fill="#facc15" font-size="12" font-weight="bold" text-anchor="middle">{val1}</text>
+
+                <path d="M 52 135 Q 68 142 62 124" fill="none" stroke="#facc15" stroke-width="3" stroke-linecap="round"/>
+                <text x="75" y="128" fill="#facc15" font-size="12" font-weight="bold" text-anchor="middle">{val2}</text>
             </svg>
         </div>
         """
-    st.components.v1.html(svg_html, height=200)
+    st.components.v1.html(svg_html, height=205)
 
-  # 2. MATEMATİK: ÇEMBER VE ÇAP / YARIÇAP MODELİ (Merkez Noktası O, Çap Bilgisi)
+  # 2. DÖRTGEN / DİKDÖRTGEN / KARE ÇİZİMİ (Yaysız, Köşe İçlerinde Doğrudan Açı/Kenar Değeri)
+  elif gorsel_tipi in ["dortgen", "dikdortgen", "kare", "paralelkenar"]:
+    p_upper = param_str.upper()
+    match_letters = re.search(r"([A-Z]{4})", p_upper)
+    d = (
+        list(match_letters.group(1)) if match_letters else ["A", "B", "C", "D"]
+    )
+
+    deg_matches = re.findall(
+        r"([A-Z])\s*:\s*(\d+°|[\d\.]+cm|\d+°?\s*x?\+?\d*)", param_str
+    )
+    deg_dict = {m[0].upper(): m[1] for m in deg_matches}
+
+    vA = deg_dict.get(d[0], "90°")
+    vB = deg_dict.get(d[1], "90°")
+    vC = deg_dict.get(d[2], "90°")
+    vD = deg_dict.get(d[3], "90°")
+
+    svg_html = f"""
+        <div style="display: flex; justify-content: center; margin: 12px 0;">
+            <svg width="280" height="190" viewBox="0 0 280 190" style="background: linear-gradient(135deg, #0f172a, #1e293b); border-radius: 18px; border: 1.5px solid rgba(56, 189, 248, 0.4); box-shadow: 0 12px 30px rgba(0, 0, 0, 0.5);">
+                <rect x="50" y="45" width="180" height="100" fill="rgba(56, 189, 248, 0.1)" stroke="#38bdf8" stroke-width="4" rx="6"/>
+                
+                <!-- Köşe Harfleri -->
+                <text x="38" y="38" fill="#38bdf8" font-size="15" font-weight="bold" text-anchor="middle">{d[0]}</text>
+                <text x="242" y="38" fill="#38bdf8" font-size="15" font-weight="bold" text-anchor="middle">{d[1]}</text>
+                <text x="242" y="162" fill="#38bdf8" font-size="15" font-weight="bold" text-anchor="middle">{d[2]}</text>
+                <text x="38" y="162" fill="#38bdf8" font-size="15" font-weight="bold" text-anchor="middle">{d[3]}</text>
+                
+                <!-- Köşelerin İçinde Tam Konumlandırılmış Açı/Değer Etiketleri (Yaysız) -->
+                <text x="75" y="68" fill="#facc15" font-size="12" font-weight="bold" text-anchor="middle">{vA}</text>
+                <text x="212" y="68" fill="#facc15" font-size="12" font-weight="bold" text-anchor="middle">{vB}</text>
+                <text x="212" y="132" fill="#facc15" font-size="12" font-weight="bold" text-anchor="middle">{vC}</text>
+                <text x="75" y="132" fill="#facc15" font-size="12" font-weight="bold" text-anchor="middle">{vD}</text>
+            </svg>
+        </div>
+        """
+    st.components.v1.html(svg_html, height=205)
+
+  # 3. ÇEMBER VE DAİRE ÇİZİMİ
   elif gorsel_tipi == "cember":
-    val = "12"
+    val = "12 cm"
     try:
-      val = re.search(r"\d+", str(param)).group()
+      num_match = re.search(r"(\d+)\s*(cm|m)?", param_str, re.IGNORECASE)
+      if num_match:
+        val = num_match.group(0)
     except Exception:
       pass
 
@@ -372,153 +467,61 @@ def render_question_visual(gorsel_tipi, param):
                 <circle cx="140" cy="90" r="4" fill="#facc15"/>
                 <text x="148" y="85" fill="#facc15" font-size="13" font-weight="bold">O</text>
                 <line x1="80" y1="90" x2="200" y2="90" stroke="#f43f5e" stroke-width="2.5" stroke-dasharray="5,3"/>
-                <rect x="112" y="75" width="56" height="22" fill="#0f172a" rx="5" stroke="#f43f5e" stroke-width="1.5"/>
-                <text x="140" y="91" fill="#f43f5e" font-size="12" font-weight="bold" text-anchor="middle">{val} cm</text>
+                <rect x="105" y="75" width="70" height="22" fill="#0f172a" rx="5" stroke="#f43f5e" stroke-width="1.5"/>
+                <text x="140" y="91" fill="#f43f5e" font-size="12" font-weight="bold" text-anchor="middle">{val}</text>
             </svg>
         </div>
         """
     st.components.v1.html(svg_html, height=200)
 
-  # 3. FEN BİLİMLERİ: AY EVRELERİ
+  # 4. FEN: AY EVRELERİ
   elif gorsel_tipi == "ay_evresi":
-    if "ilk_dordun" in param_str or "ilk dördün" in param_str:
-      moon_shadow = (
-          '<path d="M 140 30 A 50 50 0 0 0 140 130 Z"'
-          ' fill="rgba(10, 15, 30, 0.94)"/>'
-      )
-    elif "son_dordun" in param_str or "son dördün" in param_str:
-      moon_shadow = (
-          '<path d="M 140 30 A 50 50 0 0 1 140 130 Z"'
-          ' fill="rgba(10, 15, 30, 0.94)"/>'
-      )
-    elif "yeni_ay" in param_str or "yeni ay" in param_str:
-      moon_shadow = (
-          '<circle cx="140" cy="80" r="50" fill="rgba(10, 15, 30, 0.96)"'
-          ' stroke="#475569" stroke-width="1.5"/>'
-      )
-    elif "hilal" in param_str:
-      moon_shadow = (
-          '<path d="M 140 30 A 50 50 0 0 1 140 130 A 35 35 0 0 0 140 30 Z"'
-          ' fill="rgba(10, 15, 30, 0.94)"/>'
-      )
-    elif "siskin_ay" in param_str or "şişkin ay" in param_str:
-      moon_shadow = (
-          '<path d="M 140 30 A 50 50 0 0 0 140 130 A 24 24 0 0 1 140 30 Z"'
-          ' fill="rgba(10, 15, 30, 0.94)"/>'
-      )
-    else:
-      moon_shadow = ""
-
     svg_html = f"""
         <div style="display: flex; justify-content: center; margin: 12px 0;">
             <svg width="280" height="180" viewBox="0 0 280 180" style="background: linear-gradient(135deg, #020617, #0b1329); border-radius: 18px; border: 1.5px solid #38bdf8; box-shadow: 0 12px 30px rgba(0, 0, 0, 0.6);">
-                <defs>
-                    <radialGradient id="3dMoon" cx="35%" cy="30%" r="70%">
-                        <stop offset="0%" stop-color="#ffffff" />
-                        <stop offset="40%" stop-color="#f1f5f9" />
-                        <stop offset="80%" stop-color="#cbd5e1" />
-                        <stop offset="100%" stop-color="#64748b" />
-                    </radialGradient>
-                    <filter id="moonGlow">
-                        <feGaussianBlur stdDeviation="4" result="coloredBlur"/>
-                        <feMerge><feMergeNode in="coloredBlur"/><feMergeNode in="SourceGraphic"/></feMerge>
-                    </filter>
-                </defs>
-                <circle cx="30" cy="30" r="1.2" fill="#fff" opacity="0.9"/><circle cx="250" cy="40" r="1.8" fill="#fff" opacity="0.8"/><circle cx="220" cy="150" r="1" fill="#fff" opacity="0.7"/>
-                
-                <circle cx="140" cy="80" r="50" fill="url(#3dMoon)" filter="url(#moonGlow)"/>
-                <circle cx="124" cy="66" r="10" fill="#475569" opacity="0.32"/>
-                <circle cx="156" cy="96" r="12" fill="#475569" opacity="0.32"/>
-                <circle cx="138" cy="104" r="7" fill="#475569" opacity="0.28"/>
-                <circle cx="150" cy="58" r="5" fill="#475569" opacity="0.25"/>
-                
-                {moon_shadow}
+                <circle cx="140" cy="80" r="50" fill="#f1f5f9"/>
+                <path d="M 140 30 A 50 50 0 0 0 140 130 Z" fill="rgba(10, 15, 30, 0.94)"/>
             </svg>
         </div>
         """
     st.components.v1.html(svg_html, height=195)
 
-  # 4. FEN BİLİMLERİ: GÜNEŞ
+  # 5. FEN: GÜNEŞ
   elif gorsel_tipi == "gunes":
     svg_html = """
         <div style="display: flex; justify-content: center; margin: 12px 0;">
             <svg width="280" height="180" viewBox="0 0 280 180" style="background: linear-gradient(135deg, #090314, #1c0502); border-radius: 18px; border: 1.5px solid #f59e0b; box-shadow: 0 12px 30px rgba(0, 0, 0, 0.6);">
-                <defs>
-                    <radialGradient id="sun3d" cx="45%" cy="45%" r="55%">
-                        <stop offset="0%" stop-color="#fffbeb" />
-                        <stop offset="25%" stop-color="#fef08a" />
-                        <stop offset="65%" stop-color="#f59e0b" />
-                        <stop offset="90%" stop-color="#ea580c" />
-                        <stop offset="100%" stop-color="#7f1d1d" />
-                    </radialGradient>
-                    <filter id="sunGlow">
-                        <feGaussianBlur stdDeviation="8" result="coloredBlur"/>
-                        <feMerge><feMergeNode in="coloredBlur"/><feMergeNode in="SourceGraphic"/></feMerge>
-                    </filter>
-                </defs>
-                <circle cx="140" cy="80" r="62" fill="#facc15" opacity="0.22" filter="url(#sunGlow)"/>
-                <circle cx="140" cy="80" r="52" fill="url(#sun3d)" filter="url(#sunGlow)"/>
-                <ellipse cx="122" cy="66" rx="6" ry="3" fill="#450a0a" opacity="0.8"/>
-                <ellipse cx="158" cy="92" rx="8" ry="4" fill="#450a0a" opacity="0.85"/>
-                <circle cx="134" cy="100" r="3.5" fill="#450a0a" opacity="0.75"/>
+                <circle cx="140" cy="80" r="52" fill="#f59e0b"/>
             </svg>
         </div>
         """
     st.components.v1.html(svg_html, height=195)
 
-  # 5. FEN BİLİMLERİ: DÜNYA
+  # 6. FEN: DÜNYA
   elif gorsel_tipi == "dunya":
     svg_html = """
         <div style="display: flex; justify-content: center; margin: 12px 0;">
             <svg width="280" height="180" viewBox="0 0 280 180" style="background: linear-gradient(135deg, #020617, #0f172a); border-radius: 18px; border: 1.5px solid #38bdf8; box-shadow: 0 12px 30px rgba(0, 0, 0, 0.6);">
-                <defs>
-                    <radialGradient id="earth3d" cx="35%" cy="30%" r="65%">
-                        <stop offset="0%" stop-color="#38bdf8" />
-                        <stop offset="50%" stop-color="#0284c7" />
-                        <stop offset="85%" stop-color="#0369a1" />
-                        <stop offset="100%" stop-color="#02132b" />
-                    </radialGradient>
-                    <filter id="earthGlow">
-                        <feGaussianBlur stdDeviation="4" result="coloredBlur"/>
-                        <feMerge><feMergeNode in="coloredBlur"/><feMergeNode in="SourceGraphic"/></feMerge>
-                    </filter>
-                </defs>
-                <circle cx="140" cy="80" r="52" fill="none" stroke="#60a5fa" stroke-width="2" opacity="0.6" filter="url(#earthGlow)"/>
-                <circle cx="140" cy="80" r="48" fill="url(#earth3d)"/>
-                <path d="M 112 58 Q 134 40 148 62 Q 138 90 112 72 Z" fill="#16a34a" opacity="0.92"/>
-                <path d="M 134 98 Q 160 84 164 112 Q 138 120 126 98 Z" fill="#16a34a" opacity="0.92"/>
-                <path d="M 104 50 Q 118 44 132 50" fill="none" stroke="#ffffff" stroke-width="3" stroke-linecap="round" opacity="0.82"/>
-                <path d="M 142 96 Q 156 90 170 96" fill="none" stroke="#ffffff" stroke-width="3" stroke-linecap="round" opacity="0.82"/>
-                <line x1="118" y1="18" x2="162" y2="142" stroke="#facc15" stroke-width="2" stroke-dasharray="4,4"/>
+                <circle cx="140" cy="80" r="48" fill="#0284c7"/>
             </svg>
         </div>
         """
     st.components.v1.html(svg_html, height=195)
 
-  # 6. FIZIK: DİNAMOMETRE
+  # 7. FİZİK: DİNAMOMETRE
   elif gorsel_tipi == "dinamometre":
-    newton = 5
+    newton = "5 N"
     try:
-      newton = int(re.search(r"\d+", str(param)).group())
+      match_n = re.search(r"(\d+)\s*N", param_str, re.IGNORECASE)
+      if match_n:
+        newton = match_n.group(0)
     except Exception:
       pass
-    spring_y = 35 + min(newton * 7, 75)
     svg_html = f"""
         <div style="display: flex; justify-content: center; margin: 12px 0;">
-            <svg width="180" height="200" viewBox="0 0 180 200" style="background:#0f172a; border-radius:16px; border: 2px solid #38bdf8; box-shadow: 0 10px 25px rgba(0,0,0,0.5);">
-                <circle cx="90" cy="15" r="8" fill="none" stroke="#94a3b8" stroke-width="3"/>
-                <rect x="75" y="23" width="30" height="12" fill="#64748b" rx="3"/>
+            <svg width="180" height="200" viewBox="0 0 180 200" style="background:#0f172a; border-radius:16px; border: 2px solid #38bdf8;">
                 <rect x="55" y="35" width="70" height="145" fill="rgba(56, 189, 248, 0.12)" stroke="#38bdf8" stroke-width="3" rx="8"/>
-                <line x1="60" y1="50" x2="70" y2="50" stroke="#94a3b8" stroke-width="2"/>
-                <line x1="60" y1="70" x2="70" y2="70" stroke="#94a3b8" stroke-width="2"/>
-                <line x1="60" y1="90" x2="70" y2="90" stroke="#94a3b8" stroke-width="2"/>
-                <line x1="60" y1="110" x2="70" y2="110" stroke="#94a3b8" stroke-width="2"/>
-                <line x1="60" y1="130" x2="70" y2="130" stroke="#94a3b8" stroke-width="2"/>
-                <path d="M 90 35 Q 65 {35+spring_y/4} 115 {35+spring_y/2} Q 65 {35+3*spring_y/4} 90 {35+spring_y}" fill="none" stroke="#facc15" stroke-width="3.5"/>
-                <rect x="65" y="{35+spring_y}" width="50" height="20" fill="#f43f5e" rx="4"/>
-                <text x="90" y="{49+spring_y}" fill="#ffffff" font-size="11" font-weight="bold" text-anchor="middle">{newton} N</text>
-                <path d="M 90 {55+spring_y} L 90 {75+spring_y}" fill="none" stroke="#94a3b8" stroke-width="3"/>
-                <path d="M 85 {75+spring_y} Q 90 {85+spring_y} 95 {75+spring_y}" fill="none" stroke="#94a3b8" stroke-width="3"/>
+                <text x="90" y="100" fill="#ffffff" font-size="14" font-weight="bold" text-anchor="middle">{newton}</text>
             </svg>
         </div>
         """
@@ -802,13 +805,14 @@ else:
 
   st.markdown("---")
 
-  # HARFLENDİRME VE DEĞER ENTEGRASYON PROMPTI
-  rand_seed = f"{time.time()}_{random.randint(100000, 999999)}"
-  visual_prompt_instruction = f"""
-  (GEOMETRİ VE HARFLENDİRME TALİMATI - Seed: {rand_seed}):
-  1. Geometri sorularında (ABC üçgeni vb.) köşeler A, B, C şeklinde harflendirilerek sorulmalı ve gorsel_tipi: 'ucgen', gorsel_parametre alanına açı değeri yazılmalıdır.
-  2. Çember sorularında merkez O harfiyle belirtilmeli ve gorsel_tipi: 'cember', gorsel_parametre alanına çap/yarıçap değeri yazılmalıdır.
-  3. Görsellerde başlık veya açıklama metni olmayacak; yalnızca şekil üzerinde köşe harfleri (A, B, C) ve matematiksel değerler (açı derece veya uzunluk) yer alacaktır.
+  visual_prompt_instruction = """
+  (KUSURSUZ GÖRSEL VE METİN SENKRONİZASYONU TALİMATI):
+  1. Soruda geçen tüm harfler ve açı/uzunluk değerleri görsel parametresine birebir aktarılacaktır.
+  2. Asla 'circ' kelimesi kullanılmayacak, yalnızca standart derece işareti (°) kullanılacaktır.
+  3. Gorsel_parametre alanı şu formatta doldurulmalıdır: 
+     - Üçgenler için: "ABC, A:50°, B:60°"
+     - Dörtgenler için: "ABCD, A:90°, B:80°, C:100°, D:90°"
+     - Çemberler için: "O, 12cm"
   """
 
   # 1. BALON PATLATMACA
@@ -823,37 +827,38 @@ else:
       st.session_state["game_started"] = False
 
     if st.button("🚀 Yepyeni Balon Sorularını Üret", key="gen_5_balloons"):
-      with st.spinner("Yapay zeka yepyeni ve özgün sorular hazırlıyor..."):
+      with st.spinner("Yapay zeka soruları hazırlıyor..."):
         prompt = f"""
-                5. Sınıf MEB müfredatı, Ders: {curr_subj}, Ünite: {curr_unit}.
-                TAM 5 ADET benzersiz yeni nesil çoktan seçmeli (4 şıklı) soru üret.
+                5. Sınıf MEB, Ders: {curr_subj}, Ünite: {curr_unit}.
+                TAM 5 ADET benzersiz çoktan seçmeli soru üret.
                 {visual_prompt_instruction}
-                JSON formatında liste olarak ver:
+                JSON formatında geçerli bir liste olarak ver:
                 [
                   {{
                     "soru": "Soru metni",
                     "secenekler": ["A) ...", "B) ...", "C) ...", "D) ..."],
                     "dogru_cevap": "A",
                     "aciklama": "Açıklama",
-                    "gorsel_tipi": "ucgen", 
-                    "gorsel_parametre": "60"
+                    "gorsel_tipi": "dortgen", 
+                    "gorsel_parametre": "ABCD, A:90°, B:80°, C:100°, D:90°"
                   }}
                 ]
                 """
         res = ai_generate_content(prompt)
-        if res:
-          try:
-            st.session_state["balloon_5_questions"] = json.loads(
-                re.sub(r"```json|```", "", res).strip()
-            )
-            st.session_state["game_started"] = False
-            st.rerun()
-          except Exception as e:
-            st.error(f"Hata: {e}")
+        parsed = safe_parse_json(res)
+        if parsed and isinstance(parsed, list):
+          st.session_state["balloon_5_questions"] = parsed
+          st.session_state["game_started"] = False
+          st.rerun()
+        else:
+          st.error(
+              "Sorular yüklenirken bir veri hatası oluştu. Lütfen tekrar"
+              " deneyin."
+          )
 
     if st.session_state["balloon_5_questions"]:
       if not st.session_state["game_started"]:
-        st.success("✅ Görsel Uyumlu Sorular Hazır! Oyunu başlatmak için tıklayın.")
+        st.success("✅ Sorular Hazır! Oyunu başlatmak için tıklayın.")
         if st.button(
             "✨ OYUNU BAŞLAT 🎮",
             key="start_balloon_fullscreen",
@@ -940,10 +945,10 @@ else:
       st.session_state["kazanim_answers"] = {}
 
     if st.button("🚀 Yepyeni Kazanım Sorularını Üret", key="gen_kazanim"):
-      with st.spinner("Yapay zeka taze soruları oluşturuyor..."):
+      with st.spinner("Sorular oluşturuluyor..."):
         prompt = f"""
                 5. Sınıf MEB, Ders: {curr_subj}, Ünite: {curr_unit}.
-                TAM 5 ADET yepyeni ve yaratıcı çoktan seçmeli soru üret. 
+                TAM 5 ADET çoktan seçmeli soru üret. 
                 {visual_prompt_instruction}
                 JSON liste formatında şu yapıda ver:
                 [
@@ -952,23 +957,21 @@ else:
                     "secenekler": ["A)...", "B)...", "C)...", "D)..."], 
                     "dogru_cevap": "A", 
                     "aciklama": "...",
-                    "gorsel_tipi": "ucgen",
-                    "gorsel_parametre": "60"
+                    "gorsel_tipi": "dortgen",
+                    "gorsel_parametre": "ABCD, A:90°, B:80°, C:100°, D:90°"
                   }}
                 ]
                 """
         res = ai_generate_content(prompt)
-        if res:
-          try:
-            st.session_state["kazanim_list"] = json.loads(
-                re.sub(r"```json|```", "", res).strip()
-            )
-            st.session_state["kazanim_idx"] = 0
-            st.session_state["kazanim_score"] = 0
-            st.session_state["kazanim_answers"] = {}
-            st.rerun()
-          except Exception:
-            pass
+        parsed = safe_parse_json(res)
+        if parsed and isinstance(parsed, list):
+          st.session_state["kazanim_list"] = parsed
+          st.session_state["kazanim_idx"] = 0
+          st.session_state["kazanim_score"] = 0
+          st.session_state["kazanim_answers"] = {}
+          st.rerun()
+        else:
+          st.error("Sorular üretilemedi. Lütfen tekrar deneyin.")
 
     if st.session_state["kazanim_list"]:
       k_list = st.session_state["kazanim_list"]
@@ -1064,7 +1067,7 @@ else:
       with st.spinner("Önermeler hazırlanıyor..."):
         prompt = f"""
                 5. Sınıf MEB, Ders: {curr_subj}, Ünite: {curr_unit}.
-                TAM 5 ADET yepyeni Doğru veya Yanlış önermesi üret. 
+                TAM 5 ADET Doğru veya Yanlış önermesi üret. 
                 {visual_prompt_instruction}
                 JSON liste formatında ver:
                 [
@@ -1072,17 +1075,15 @@ else:
                 ]
                 """
         res = ai_generate_content(prompt)
-        if res:
-          try:
-            st.session_state["dy_questions"] = json.loads(
-                re.sub(r"```json|```", "", res).strip()
-            )
-            st.session_state["dy_score"] = 0
-            st.session_state["dy_current_q"] = 0
-            st.session_state["dy_feedback"] = ""
-            st.rerun()
-          except Exception:
-            pass
+        parsed = safe_parse_json(res)
+        if parsed and isinstance(parsed, list):
+          st.session_state["dy_questions"] = parsed
+          st.session_state["dy_score"] = 0
+          st.session_state["dy_current_q"] = 0
+          st.session_state["dy_feedback"] = ""
+          st.rerun()
+        else:
+          st.error("Sorular üretilemedi.")
 
     if st.session_state["dy_questions"]:
       questions = st.session_state["dy_questions"]
@@ -1182,17 +1183,15 @@ else:
                 ]
                 """
         res = ai_generate_content(prompt)
-        if res:
-          try:
-            st.session_state["fill_blanks"] = json.loads(
-                re.sub(r"```json|```", "", res).strip()
-            )
-            st.session_state["fill_idx"] = 0
-            st.session_state["fill_score"] = 0
-            st.session_state["fill_feedback"] = ""
-            st.rerun()
-          except Exception:
-            pass
+        parsed = safe_parse_json(res)
+        if parsed and isinstance(parsed, list):
+          st.session_state["fill_blanks"] = parsed
+          st.session_state["fill_idx"] = 0
+          st.session_state["fill_score"] = 0
+          st.session_state["fill_feedback"] = ""
+          st.rerun()
+        else:
+          st.error("Sorular üretilemedi.")
 
     if st.session_state["fill_blanks"]:
       fdata = st.session_state["fill_blanks"]
@@ -1284,21 +1283,19 @@ else:
       with st.spinner("Kartlar hazırlanıyor..."):
         prompt = f"""
                 5. Sınıf MEB, Ders: {curr_subj}, Ünite: {curr_unit}.
-                5 adet yepyeni flashcard üret. JSON liste formatında ver:
+                5 adet flashcard üret. JSON liste formatında ver:
                 [
                   {{"on_yuz": "...", "arka_yuz": "..."}}
                 ]
                 """
         res = ai_generate_content(prompt)
-        if res:
-          try:
-            st.session_state["flashcards"] = json.loads(
-                re.sub(r"```json|```", "", res).strip()
-            )
-            st.session_state["fc_idx"] = 0
-            st.rerun()
-          except Exception:
-            pass
+        parsed = safe_parse_json(res)
+        if parsed and isinstance(parsed, list):
+          st.session_state["flashcards"] = parsed
+          st.session_state["fc_idx"] = 0
+          st.rerun()
+        else:
+          st.error("Kartlar üretilemedi.")
 
     if st.session_state["flashcards"]:
       cards = st.session_state["flashcards"]
@@ -1363,14 +1360,12 @@ else:
                 }}
                 """
         res = ai_generate_content(prompt)
-        if res:
-          try:
-            st.session_state["interactive_quest"] = json.loads(
-                re.sub(r"```json|```", "", res).strip()
-            )
-            st.rerun()
-          except Exception:
-            pass
+        parsed = safe_parse_json(res)
+        if parsed and isinstance(parsed, dict):
+          st.session_state["interactive_quest"] = parsed
+          st.rerun()
+        else:
+          st.error("Görev üretilemedi.")
 
     if st.session_state["interactive_quest"]:
       iq = st.session_state["interactive_quest"]
@@ -1389,7 +1384,7 @@ else:
 
       with st.form("interactive_choice_form"):
         user_choice = st.radio(
-            "Cevabınızı Sen Seçin:", iq.get("secenekler", []), index=None
+            "Cevabınızı Seçin:", iq.get("secenekler", []), index=None
         )
         submitted_choice = st.form_submit_button("Seçimi Gönder ve Değerlendir")
 
@@ -1439,31 +1434,29 @@ else:
       st.session_state["used_indices"] = []
 
     if st.button("🔍 Yepyeni Kelime Avını Başlat", key="gen_puz"):
-      with st.spinner("Yepyeni bulmaca kelimeleri hazırlanıyor..."):
+      with st.spinner("Bulmaca kelimeleri hazırlanıyor..."):
         prompt = f"""
-                5. Sınıf {curr_subj} {curr_unit} için 5 adet tamamen taze anahtar kelime ve tanım ipucu üret.
+                5. Sınıf {curr_subj} {curr_unit} için 5 adet anahtar kelime ve tanım ipucu üret.
                 JSON liste formatında ver:
                 [
                   {{"kelime": "TERİM", "ipucu": "..."}}
                 ]
                 """
         res = ai_generate_content(prompt)
-        if res:
-          try:
-            st.session_state["puz_items"] = json.loads(
-                re.sub(r"```json|```", "", res).strip()
-            )
-            st.session_state["puz_idx"] = 0
-            st.session_state["user_guess"] = []
-            st.session_state["used_indices"] = []
-            keys_to_del = [
-                k for k in st.session_state.keys() if k.startswith("pool_")
-            ]
-            for k in keys_to_del:
-              del st.session_state[k]
-            st.rerun()
-          except Exception:
-            pass
+        parsed = safe_parse_json(res)
+        if parsed and isinstance(parsed, list):
+          st.session_state["puz_items"] = parsed
+          st.session_state["puz_idx"] = 0
+          st.session_state["user_guess"] = []
+          st.session_state["used_indices"] = []
+          keys_to_del = [
+              k for k in st.session_state.keys() if k.startswith("pool_")
+          ]
+          for k in keys_to_del:
+            del st.session_state[k]
+          st.rerun()
+        else:
+          st.error("Bulmaca üretilemedi.")
 
     if st.session_state["puz_items"]:
       items = st.session_state["puz_items"]
@@ -1608,14 +1601,12 @@ else:
                 ]
                 """
         res = ai_generate_content(prompt)
-        if res:
-          try:
-            st.session_state["classic_exam"] = json.loads(
-                re.sub(r"```json|```", "", res).strip()
-            )
-            st.rerun()
-          except Exception:
-            pass
+        parsed = safe_parse_json(res)
+        if parsed and isinstance(parsed, list):
+          st.session_state["classic_exam"] = parsed
+          st.rerun()
+        else:
+          st.error("Yazılı soruları üretilemedi.")
 
     if st.session_state["classic_exam"]:
       exam_list = st.session_state["classic_exam"]
