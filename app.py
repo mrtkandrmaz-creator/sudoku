@@ -315,16 +315,15 @@ st.markdown(
 )
 
 
-# --- 6. DOĞRU YÖNLÜ AÇI YAYLARI VE TEMİZ SVG MOTORU ---
+# --- 6. KUSURSUZ VE DOĞRU AÇILI GEOMETRİ MOTORU ---
 def render_question_visual(gorsel_tipi, param):
   if not gorsel_tipi or gorsel_tipi == "yok":
     return
 
   param_str = str(param).lower().strip()
 
-  # 1. MATEMATİK: ÜÇGEN VE SADECE VERİLEN AÇILARA DOĞRU AÇI YAYLARI
+  # 1. MATEMATİK: ÜÇGEN VE DOĞRU AÇI YAYLARI (A ve B Köşeleri)
   if gorsel_tipi in ["ucgen", "aci"]:
-    # Parametreden değerleri ayıkla (Örn: "A:55°, B:65°" veya tek değer)
     deg_a, deg_b = "55°", "65°"
     if "55" in param_str:
       deg_a = "55°"
@@ -346,19 +345,18 @@ def render_question_visual(gorsel_tipi, param):
                 </defs>
                 <polygon points="{Ax},{Ay} {Bx},{By} {Cx},{Cy}" fill="url(#triGrad)" stroke="#38bdf8" stroke-width="4" stroke-linejoin="round"/>
                 
-                <!-- Köşe Harfleri (A, B, C) -->
+                <!-- Köşe Harfleri -->
                 <text x="{Ax}" y="{Ay - 10}" fill="#38bdf8" font-size="15" font-weight="bold" text-anchor="middle">A</text>
                 <text x="{Bx - 12}" y="{By + 15}" fill="#38bdf8" font-size="15" font-weight="bold" text-anchor="middle">B</text>
                 <text x="{Cx + 12}" y="{By + 15}" fill="#38bdf8" font-size="15" font-weight="bold" text-anchor="middle">C</text>
                 
-                <!-- Doğru Konumda Açı Yayları ve Dereceler -->
-                <!-- A Köşesi Açı Yayı (Aşağı bakan iç açı) -->
-                <path d="M 128 58 Q 140 70 152 58" fill="none" stroke="#facc15" stroke-width="3" stroke-linecap="round"/>
-                <text x="140" y="85" fill="#facc15" font-size="12" font-weight="bold" text-anchor="middle">{deg_a}</text>
+                <!-- A Köşesi İç Açı Yayı (Aşağı Yönlü Düzgün Ark) -->
+                <path d="M 126 58 Q 140 73 154 58" fill="none" stroke="#facc15" stroke-width="3" stroke-linecap="round"/>
+                <text x="140" y="92" fill="#facc15" font-size="12" font-weight="bold" text-anchor="middle">{deg_a}</text>
 
-                <!-- B Köşesi Açı Yayı (Sağ yukarı bakan iç açı) -->
-                <path d="M 58 132 Q 72 138 65 125" fill="none" stroke="#facc15" stroke-width="3" stroke-linecap="round"/>
-                <text x="68" y="125" fill="#facc15" font-size="12" font-weight="bold" text-anchor="middle">{deg_b}</text>
+                <!-- B Köşesi İç Açı Yayı (Sağ-Üst Yönlü Düzgün Ark) -->
+                <path d="M 52 135 Q 68 142 62 124" fill="none" stroke="#facc15" stroke-width="3" stroke-linecap="round"/>
+                <text x="75" y="128" fill="#facc15" font-size="12" font-weight="bold" text-anchor="middle">{deg_b}</text>
             </svg>
         </div>
         """
@@ -502,7 +500,7 @@ def render_question_visual(gorsel_tipi, param):
         """
     st.components.v1.html(svg_html, height=195)
 
-  # 6. FIZİK: DİNAMOMETRE
+  # 6. FİZİK: DİNAMOMETRE
   elif gorsel_tipi == "dinamometre":
     newton = 5
     try:
@@ -809,13 +807,13 @@ else:
 
   st.markdown("---")
 
-  # NET VE HATASIZ DERECE PROMPTI
+  # KUSURSUZ TEMİZ PROMPT TALİMATI
   rand_seed = f"{time.time()}_{random.randint(100000, 999999)}"
   visual_prompt_instruction = f"""
   (GEOMETRİ VE DERECE TALİMATI - Seed: {rand_seed}):
-  1. Geometri sorularında (ABC üçgeni vb.) derece simgelerini kesinlikle doğru yaz ('55°', '65°'). 'circ' gibi hatalı ifadeler kesinlikle kullanılmayacaktır.
-  2. Açı yayları sadece değeri verilen köşelere (A ve B köşelerine) doğru açıyla çizilecektir. Boş köşelere yay çizilmez.
-  3. Görsellerde başlık veya açıklama metni olmayacak; yalnızca şekil üzerinde köşe harfleri, doğru açılı açı yayları ve derece değerleri yer alacaktır.
+  1. Geometri sorularında derece simgeleri kusursuz yazılacaktır ('55°', '65°'). 'circ' veya benzeri hatalı simgeler kesinlikle kullanılmayacaktır.
+  2. Açı yayları yalnızca değeri bilinen veya verilen köşelere (A ve B köşelerine) düzgün iç açı arkları olarak çizilecektir. Boş olan köşelere kesinlikle açı yayı çizilmeyecektir.
+  3. Görsellerde ekstra başlık veya metin bulunmayacak; yalnızca harfler, kusursuz açı yayları ve derece değerleri yer alacaktır.
   """
 
   # 1. BALON PATLATMACA
