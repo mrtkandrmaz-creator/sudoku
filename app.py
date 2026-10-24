@@ -117,7 +117,7 @@ def ai_generate_content(prompt_text):
         completion = client.chat.completions.create(
             model="llama-3.3-70b-versatile",
             messages=[{"role": "user", "content": prompt_text}],
-            temperature=0.95,  # Yüksek çeşitlilik ve yaratıcılık için
+            temperature=0.95,
         )
         if completion.choices[0].message.content:
           raw_res = completion.choices[0].message.content
@@ -150,8 +150,38 @@ def ai_generate_content(prompt_text):
   return clean_math_text(raw_res) if raw_res else None
 
 
-# --- 2. 5. SINIF MEB MÜFREDATI VE DERS RENKLERİ ---
+# --- 2. 5. SINIF MEB MÜFREDATI VE DERS RENKLERİ (YENİ MATEMATİK TEMALARI) ---
 MEB_CURRICULUM = {
+    "Matematik": {
+        "renk": "linear-gradient(135deg, #2193b0, #6dd5ed)",
+        "ikon": "📐",
+        "uniteler": [
+            (
+                "1. Tema: Geometrik Şekiller (Nokta, Doğru, Açı, Çokgenler,"
+                " Çember)"
+            ),
+            (
+                "2. Tema: Sayılar ve Nicelikler (1) (Çok Basamaklı Sayılar ve"
+                " Dört İşlem)"
+            ),
+            (
+                "3. Tema: Geometrik Nicelikler (Uzunluk, Çevre ve Alan"
+                " Hesaplamaları)"
+            ),
+            (
+                "4. Tema: Sayılar ve Nicelikler (2) (Kesirler, Ondalık ve"
+                " Yüzdeler)"
+            ),
+            (
+                "5. Tema: İstatistiksel Araştırma Süreci (Veri Toplama ve"
+                " Grafikler)"
+            ),
+            (
+                "6. Tema: İşlemlerle Cebirsel Düşünme ve Veriden Olasılığa"
+                " (Örüntüler ve Olasılık)"
+            ),
+        ],
+    },
     "Türkçe": {
         "renk": "linear-gradient(135deg, #ff416c, #ff4b2b)",
         "ikon": "📖",
@@ -161,17 +191,6 @@ MEB_CURRICULUM = {
             "3. Tema: Parçada Anlam",
             "4. Tema: Metin Türleri",
             "5. Tema: Noktalama İşaretleri",
-        ],
-    },
-    "Matematik": {
-        "renk": "linear-gradient(135deg, #2193b0, #6dd5ed)",
-        "ikon": "📐",
-        "uniteler": [
-            "1. Ünite: Doğal Sayılar",
-            "2. Ünite: Kesirler",
-            "3. Ünite: Ondalık Gösterimler",
-            "4. Ünite: Geometrik Kavramlar ve Üçgenler",
-            "5. Ünite: Veri İşleme",
         ],
     },
     "Fen Bilimleri": {
@@ -368,7 +387,6 @@ def render_question_visual(gorsel_tipi, param):
 
   param_str = clean_math_text(str(param)).strip()
 
-  # 1. ÜÇGEN ÇİZİMLERİ (Dik, Eşkenar, İkizkenar, Çeşitkenar)
   if gorsel_tipi == "ucgen":
     p_upper = param_str.upper()
     match_letters = re.search(r"([A-Z]{3})", p_upper)
@@ -410,7 +428,6 @@ def render_question_visual(gorsel_tipi, param):
         """
     st.components.v1.html(svg_html, height=205)
 
-  # 2. DÖRTGEN ÇİZİMLERİ (Kare, Dikdörtgen, Paralelkenar, Eşkenar Dörtgen, Yamuk, Çeşitkenar Dörtgen)
   elif gorsel_tipi in ["dortgen", "dikdortgen", "kare", "paralelkenar", "yamuk"]:
     p_upper = param_str.upper()
     match_letters = re.search(r"([A-Z]{4})", p_upper)
@@ -447,7 +464,6 @@ def render_question_visual(gorsel_tipi, param):
         """
     st.components.v1.html(svg_html, height=205)
 
-  # 3. ÇOKGENLER (Beşgen, Altıgen vb.)
   elif gorsel_tipi in ["besgen", "altıgen", "cokgen"]:
     svg_html = """
         <div style="display: flex; justify-content: center; margin: 12px 0;">
@@ -459,7 +475,6 @@ def render_question_visual(gorsel_tipi, param):
         """
     st.components.v1.html(svg_html, height=205)
 
-  # 4. ÇEMBER VE DAİRE (Yarıçap, Çap)
   elif gorsel_tipi == "cember":
     val = "12 cm"
     try:
@@ -483,7 +498,6 @@ def render_question_visual(gorsel_tipi, param):
         """
     st.components.v1.html(svg_html, height=200)
 
-  # 5. FEN: AY EVRELERİ
   elif gorsel_tipi == "ay_evresi":
     svg_html = f"""
         <div style="display: flex; justify-content: center; margin: 12px 0;">
@@ -495,7 +509,6 @@ def render_question_visual(gorsel_tipi, param):
         """
     st.components.v1.html(svg_html, height=195)
 
-  # 6. FEN: GÜNEŞ
   elif gorsel_tipi == "gunes":
     svg_html = """
         <div style="display: flex; justify-content: center; margin: 12px 0;">
@@ -506,7 +519,6 @@ def render_question_visual(gorsel_tipi, param):
         """
     st.components.v1.html(svg_html, height=195)
 
-  # 7. FEN: DÜNYA
   elif gorsel_tipi == "dunya":
     svg_html = """
         <div style="display: flex; justify-content: center; margin: 12px 0;">
@@ -517,7 +529,6 @@ def render_question_visual(gorsel_tipi, param):
         """
     st.components.v1.html(svg_html, height=195)
 
-  # 8. FİZİK: DİNAMOMETRE
   elif gorsel_tipi == "dinamometre":
     newton = "5 N"
     try:
@@ -617,7 +628,7 @@ with st.sidebar:
       curr_u = st.session_state.get("selected_unit", "Genel Konu")
       prompt = (
           f"Sen 5. sınıf MEB müfredatı odaklı, sevimli ve bilgili akıllı koçsun."
-          f" Adın AdenMind. Öğrencinin dersi: {curr_s}, ünite: {curr_u}."
+          f" Adın AdenMind. Öğrencinin dersi: {curr_s}, ünite/tema: {curr_u}."
           f" Öğrencinin sorusu: {user_msg}. Kısa ve sevimli rehberlik yap."
       )
       response = ai_generate_content(prompt)
@@ -664,7 +675,7 @@ if st.session_state["selected_subject"] is None:
         st.session_state["game_started"] = False
         st.rerun()
 
-# --- AŞAMA 2: ÜNİTE SEÇİMİ ---
+# --- AŞAMA 2: ÜNİTE / TEMA SEÇİMİ ---
 elif (
     st.session_state["selected_subject"] is not None
     and st.session_state["selected_unit"] is None
@@ -673,9 +684,9 @@ elif (
   curr_data = MEB_CURRICULUM[curr_subj]
 
   st.markdown(
-      f"### {curr_data['ikon']} {curr_subj} — Ünite / Konu Seçim Ekranı"
+      f"### {curr_data['ikon']} {curr_subj} — Tema / Ünite Seçim Ekranı"
   )
-  st.write("Çalışmak istediğiniz alt üniteye doğrudan tıklayın:")
+  st.write("Çalışmak istediğiniz tema veya üniteye doğrudan tıklayın:")
 
   if st.button("⬅️ Ders Seçimine Geri Dön", key="back_subj"):
     st.session_state["selected_subject"] = None
@@ -691,13 +702,13 @@ elif (
       st.markdown(
           f"""
             <div class="card-box" style="background: {curr_data['renk']}; opacity: 0.95; margin-bottom: 8px;">
-                <div style="font-size: 18px;">📖 {unit_name}</div>
+                <div style="font-size: 17px;">📖 {unit_name}</div>
             </div>
             """,
           unsafe_allow_html=True,
       )
       if st.button(
-          f"Seç: {unit_name[:25]}...",
+          f"Seç: Tema {idx+1}",
           key=f"unit_{idx}",
           use_container_width=True,
       ):
@@ -718,13 +729,13 @@ elif (
   st.markdown(
       f"""
         <div style="background: {curr_data['renk']}; padding: 16px; border-radius: 12px; color: white; margin-bottom: 20px; font-weight: bold; font-size: 18px; box-shadow: 0 4px 15px rgba(0,0,0,0.15);">
-            <b>Seçilen Ders:</b> {curr_subj} &nbsp;|&nbsp; <b>Ünite:</b> {curr_unit}
+            <b>Seçilen Ders:</b> {curr_subj} &nbsp;|&nbsp; <b>Tema:</b> {curr_unit}
         </div>
     """,
       unsafe_allow_html=True,
   )
 
-  if st.button("↩️ Ünite Değiştir", key="back_unit"):
+  if st.button("↩️ Tema Değiştir", key="back_unit"):
     st.session_state["selected_unit"] = None
     st.session_state["game_started"] = False
     st.rerun()
@@ -814,17 +825,15 @@ else:
 
   st.markdown("---")
 
-  # ÇEŞİTLİLİK VE ZENGİNLİK SAĞLAYAN TALİMAT SETİ
   visual_prompt_instruction = """
   (MAKSİMUM ÇEŞİTLİLİK VE GEOMETRİ ZENGİNLİĞİ TALİMATI):
-  1. Asla birbirinin tıpkısı veya aynı kalıpta sorular üretme! Her soruda farklı bir geometrik şekil veya alt konu seç.
-  2. Eğer konu geometri / üçgenler / dörtgenler ise soruları şu çeşitlerden harmanlayarak üret:
-     - Üçgen çeşitleri: Dik üçgen, eşkenar üçgen, ikizkenar üçgen, çeşitkenar üçgen, dar açılı/geniş açılı üçgenler.
-     - Dörtgen çeşitleri: Kare, dikdörtgen, paralelkenar, eşkenar dörtgen, yamuk, çeşitkenar dörtgen.
-     - Çember / Daire: Merkez, yarıçap, çap hesaplamaları.
-     - Çokgenler: Beşgen, altıgen iç açılar toplamı ve özellikleri.
+  1. Asla birbirinin tıpkısı veya aynı kalıpta sorular üretme! Her soruda farklı bir alt konu, farklı sayılar veya farklı şekiller kullan.
+  2. Eğer seçilen Tema Geometri / Üçgenler / Dörtgenler ise şunları çeşitlendir:
+     - Üçgenler: Dik üçgen, eşkenar üçgen, ikizkenar üçgen, çeşitkenar üçgen.
+     - Dörtgenler: Kare, dikdörtgen, paralelkenar, eşkenar dörtgen, yamuk.
+     - Çember / Daire: Merkez, yarıçap (r), çap (R).
   3. Asla 'circ' kelimesi kullanma, yalnızca standart derece işareti (°) kullan.
-  4. Gorsel_parametre alanını şekle göre esnek ve doğru doldur (Örn: "ABC, A:90°, B:45°" veya "ABCD, A:90°, B:90°, C:90°, D:90°" veya "O, 12cm").
+  4. Gorsel_parametre alanını doğru doldur (Örn: "ABC, A:90°, B:45°" veya "ABCD, A:90°, B:90°, C:90°, D:90°" veya "O, 12cm").
   """
 
   # 1. BALON PATLATMACA
@@ -841,7 +850,7 @@ else:
     if st.button("🚀 Yepyeni ve Çeşitli Soruları Üret", key="gen_5_balloons"):
       with st.spinner("Yapay zeka zengin soru havuzunu hazırlıyor..."):
         prompt = f"""
-                5. Sınıf MEB, Ders: {curr_subj}, Ünite: {curr_unit}.
+                5. Sınıf MEB, Ders: {curr_subj}, Tema: {curr_unit}.
                 TAM 5 ADET tamamen birbirinden farklı, özgün ve çeşitli çoktan seçmeli soru üret.
                 {visual_prompt_instruction}
                 JSON formatında geçerli bir liste olarak ver:
@@ -959,8 +968,8 @@ else:
     if st.button("🚀 Farklı ve Çeşitli Kazanım Soruları Üret", key="gen_kazanim"):
       with st.spinner("Sorular oluşturuluyor..."):
         prompt = f"""
-                5. Sınıf MEB, Ders: {curr_subj}, Ünite: {curr_unit}.
-                TAM 5 ADET birbirini tekrar etmeyen, farklı şekil ve konulardan çoktan seçmeli soru üret. 
+                5. Sınıf MEB, Ders: {curr_subj}, Tema: {curr_unit}.
+                TAM 5 ADET birbirini tekrar etmeyen, farklı alt başlıklardan çoktan seçmeli soru üret. 
                 {visual_prompt_instruction}
                 JSON liste formatında şu yapıda ver:
                 [
@@ -1078,7 +1087,7 @@ else:
     if st.button("🚀 Farklı ve Çeşitli D/Y Soruları Üret", key="gen_dy"):
       with st.spinner("Önermeler hazırlanıyor..."):
         prompt = f"""
-                5. Sınıf MEB, Ders: {curr_subj}, Ünite: {curr_unit}.
+                5. Sınıf MEB, Ders: {curr_subj}, Tema: {curr_unit}.
                 TAM 5 ADET birbirinden farklı özgün Doğru veya Yanlış önermesi üret. 
                 {visual_prompt_instruction}
                 JSON liste formatında ver:
@@ -1186,7 +1195,7 @@ else:
     if st.button("✨ Çeşitli Boşluk Doldurma Soruları Üret", key="gen_fill"):
       with st.spinner("Sorular hazırlanıyor..."):
         prompt = f"""
-                5. Sınıf MEB, Ders: {curr_subj}, Ünite: {curr_unit}.
+                5. Sınıf MEB, Ders: {curr_subj}, Tema: {curr_unit}.
                 Cümle içinde boşluk bırakılmış, birbirinden farklı 5 adet soru üret. 
                 {visual_prompt_instruction}
                 JSON liste formatında ver:
@@ -1294,7 +1303,7 @@ else:
     if st.button("✨ Yepyeni Soru Kartları Dağıt", key="gen_fc"):
       with st.spinner("Kartlar hazırlanıyor..."):
         prompt = f"""
-                5. Sınıf MEB, Ders: {curr_subj}, Ünite: {curr_unit}.
+                5. Sınıf MEB, Ders: {curr_subj}, Tema: {curr_unit}.
                 5 adet birbirinden farklı konsepti içeren flashcard üret. JSON liste formatında ver:
                 [
                   {{"on_yuz": "...", "arka_yuz": "..."}}
@@ -1361,7 +1370,7 @@ else:
     if st.button("🚀 Yepyeni İnteraktif Görev Başlat", key="gen_interactive_quest"):
       with st.spinner("Macera hazırlanıyor..."):
         prompt = f"""
-                5. Sınıf MEB müfredatı, Ders: {curr_subj}, Ünite: {curr_unit}.
+                5. Sınıf MEB müfredatı, Ders: {curr_subj}, Tema: {curr_unit}.
                 Gerçek hayattan esinlenen, farklı bir senaryo ve çoktan seçmeli mini görev üret. 
                 JSON formatında şu yapıda ver:
                 {{
@@ -1403,7 +1412,7 @@ else:
         if submitted_choice:
           if user_choice:
             eval_prompt = f"""
-                        Ders: {curr_subj}, Ünite: {curr_unit}.
+                        Ders: {curr_subj}, Tema: {curr_unit}.
                         Görev Sorusu: {iq.get('gorev_sorusu')}
                         Öğrencinin Seçtiği Şık: {user_choice}
                         Bu seçimin doğru olup olmadığını değerlendir, nedenini sevimli bir dille açıkla.
@@ -1606,7 +1615,7 @@ else:
     if st.button("✨ Yepyeni Yazılı Sınavını Başlat", key="gen_classic"):
       with st.spinner("Yazılı soruları hazırlanıyor..."):
         prompt = f"""
-                5. Sınıf MEB, Ders: {curr_subj}, Ünite: {curr_unit}.
+                5. Sınıf MEB, Ders: {curr_subj}, Tema: {curr_unit}.
                 TAM 5 ADET farklı konulardan açık uçlu yazılı sorusu ve ideal cevapları JSON liste formatında ver:
                 [
                   {{"soru": "...", "beklenen_cevap": "..."}}
