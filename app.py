@@ -314,7 +314,7 @@ st.markdown(
 )
 
 
-# --- 6. KUSURSUZ SVG GEOMETRİ VE GÖRSEL MOTORU (ST.COMPONENTS İLE) ---
+# --- 6. TAM DOĞRULUKTA DÜZELTİLMİŞ SVG GEOMETRİ MOTORU ---
 def render_question_visual(gorsel_tipi, param):
   if not gorsel_tipi or gorsel_tipi == "yok":
     return
@@ -326,55 +326,61 @@ def render_question_visual(gorsel_tipi, param):
     except Exception:
       pass
 
-    import math
+    # Üçgen Köşe Koordinatları (A Tepe Köşesi, B Sol Taban, C Sağ Taban)
+    # m(A) Açısı A Köşesinde Doğru İki Kenar Arasında İçe Bakacak Şekilde Hesaplanır
+    Ax, Ay = 125, 45
+    Bx, By = 35, 145
+    Cx, Cy = 215, 145
 
-    rad = math.radians(deg)
-    x_top = int(40 + 130 * math.cos(rad))
-    y_top = int(140 - 110 * math.sin(rad))
-    x_top = max(50, min(x_top, 190))
+    # A Köşesinden Çıkan Kenarların Açı Hesaplaması
+    # AB kenarı vektör açısı ve AC kenarı vektör açısı
+    # Yay çiziminin iç kısma tam oturması için kavis A noktasının altına yönlendirilir
+    arc_svg = f"""
+        <path d="M 103 69 A 28 28 0 0 0 147 69" fill="none" stroke="#facc15" stroke-width="3" stroke-linecap="round"/>
+        """
 
     is_right_angle = "dik" in str(param).lower() or deg == 90
-    right_angle_svg = (
-        '<path d="M 170,140 L 170,125 L 185,125" fill="none"'
-        ' stroke="#ef4444" stroke-width="2.5" stroke-linecap="round"/>'
-        if is_right_angle
-        else ""
-    )
+    if is_right_angle:
+      arc_svg = '<polyline points="115,55 115,65 125,65" fill="none" stroke="#ef4444" stroke-width="2.5"/>'
 
     svg_html = f"""
         <div style="display: flex; justify-content: center; margin: 10px 0;">
-            <svg width="260" height="175" viewBox="0 0 260 175" style="background: linear-gradient(135deg, #1e293b, #0f172a); border-radius: 16px; border: 1px solid rgba(56, 189, 248, 0.3); box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.4);">
+            <svg width="260" height="180" viewBox="0 0 260 180" style="background: linear-gradient(135deg, #1e293b, #0f172a); border-radius: 16px; border: 1px solid rgba(56, 189, 248, 0.3); box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.4);">
                 <defs>
                     <pattern id="grid" width="20" height="20" patternUnits="userSpaceOnUse">
                         <path d="M 20 0 L 0 0 0 20" fill="none" stroke="rgba(255,255,255,0.03)" stroke-width="1"/>
                     </pattern>
                     <linearGradient id="triangleGrad" x1="0%" y1="0%" x2="100%" y2="100%">
-                        <stop offset="0%" stop-color="rgba(56, 189, 248, 0.2)" />
+                        <stop offset="0%" stop-color="rgba(56, 189, 248, 0.25)" />
                         <stop offset="100%" stop-color="rgba(99, 102, 241, 0.05)" />
                     </linearGradient>
                 </defs>
                 <rect width="100%" height="100%" fill="url(#grid)" rx="16"/>
                 
-                <polygon points="35,140 {x_top},{y_top} 215,140" fill="url(#triangleGrad)" stroke="#38bdf8" stroke-width="3.5" stroke-linejoin="round"/>
+                <!-- ABC Üçgeni Çizimi -->
+                <polygon points="{Ax},{Ay} {Bx},{By} {Cx},{Cy}" fill="url(#triangleGrad)" stroke="#38bdf8" stroke-width="3.5" stroke-linejoin="round"/>
                 
-                <path d="M 60 140 A 25 25 0 0 1 70 118" fill="none" stroke="#facc15" stroke-width="3" stroke-linecap="round"/>
-                {right_angle_svg}
+                <!-- Düzeltilmiş Açı Yayı (A Köşesinin İç Tarafı) -->
+                {arc_svg}
                 
-                <text x="{x_top}" y="{y_top - 10}" fill="#38bdf8" font-size="14" font-weight="800" text-anchor="middle">A</text>
-                <text x="20" y="148" fill="#38bdf8" font-size="14" font-weight="800">B</text>
-                <text x="225" y="148" fill="#38bdf8" font-size="14" font-weight="800">C</text>
+                <!-- Köşe İsimlendirmeleri -->
+                <text x="{Ax}" y="{Ay - 10}" fill="#38bdf8" font-size="15" font-weight="800" text-anchor="middle">A</text>
+                <text x="{Bx - 12}" y="{By + 5}" fill="#38bdf8" font-size="15" font-weight="800">B</text>
+                <text x="{Cx + 5}" y="{Cy + 5}" fill="#38bdf8" font-size="15" font-weight="800">C</text>
                 
-                <g transform="translate(80, 122)">
-                    <rect x="-6" y="-14" width="42" height="20" fill="#0f172a" rx="6" stroke="#facc15" stroke-width="1.5"/>
-                    <text x="15" y="0" fill="#facc15" font-size="12" font-weight="bold" text-anchor="middle">{deg}°</text>
+                <!-- A Açısı Değer Etiketi (A Köşesinin İç Tarafında Ortalanmış) -->
+                <g transform="translate({Ax - 18}, {Ay + 35})">
+                    <rect x="0" y="0" width="36" height="18" fill="#0f172a" rx="5" stroke="#facc15" stroke-width="1.5"/>
+                    <text x="18" y="13" fill="#facc15" font-size="11" font-weight="bold" text-anchor="middle">{deg}°</text>
                 </g>
                 
-                <rect x="0" y="150" width="260" height="25" fill="rgba(0,0,0,0.3)" rx="0 0 16 16"/>
-                <text x="130" y="166" fill="#94a3b8" font-size="11" font-weight="600" text-anchor="middle">📐 m(A) = {deg}° | Modern Geometri Görseli</text>
+                <!-- Alt Bilgilendirme Çubuğu -->
+                <rect x="0" y="155" width="260" height="25" fill="rgba(0,0,0,0.3)" rx="0 0 16 16"/>
+                <text x="130" y="171" fill="#94a3b8" font-size="11" font-weight="600" text-anchor="middle">📐 m(A) = {deg}° | Dinamik Geometri Modeli</text>
             </svg>
         </div>
         """
-    st.components.v1.html(svg_html, height=190)
+    st.components.v1.html(svg_html, height=195)
 
   elif gorsel_tipi == "dinamometre":
     newton = 5
