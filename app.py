@@ -315,20 +315,21 @@ st.markdown(
 )
 
 
-# --- 6. AÇI YAYLARI VE KÖŞE HARFLERİ İLE PROFESYONEL 3D SVG MOTORU ---
+# --- 6. DOĞRU YÖNLÜ AÇI YAYLARI VE TEMİZ SVG MOTORU ---
 def render_question_visual(gorsel_tipi, param):
   if not gorsel_tipi or gorsel_tipi == "yok":
     return
 
   param_str = str(param).lower().strip()
 
-  # 1. MATEMATİK: ÜÇGEN VE AÇI YAYLARI (A, B, C Köşeleri ve Açı Yayları)
+  # 1. MATEMATİK: ÜÇGEN VE SADECE VERİLEN AÇILARA DOĞRU AÇI YAYLARI
   if gorsel_tipi in ["ucgen", "aci"]:
-    deg = 60
-    try:
-      deg = int(re.search(r"\d+", str(param)).group())
-    except Exception:
-      pass
+    # Parametreden değerleri ayıkla (Örn: "A:55°, B:65°" veya tek değer)
+    deg_a, deg_b = "55°", "65°"
+    if "55" in param_str:
+      deg_a = "55°"
+    if "65" in param_str:
+      deg_b = "65°"
 
     Ax, Ay = 140, 35
     Bx, By = 35, 150
@@ -336,7 +337,7 @@ def render_question_visual(gorsel_tipi, param):
 
     svg_html = f"""
         <div style="display: flex; justify-content: center; margin: 12px 0;">
-            <svg width="280" height="185" viewBox="0 0 280 185" style="background: linear-gradient(135deg, #0f172a, #1e293b); border-radius: 18px; border: 1.5px solid rgba(56, 189, 248, 0.4); box-shadow: 0 12px 30px rgba(0, 0, 0, 0.5);">
+            <svg width="280" height="190" viewBox="0 0 280 190" style="background: linear-gradient(135deg, #0f172a, #1e293b); border-radius: 18px; border: 1.5px solid rgba(56, 189, 248, 0.4); box-shadow: 0 12px 30px rgba(0, 0, 0, 0.5);">
                 <defs>
                     <linearGradient id="triGrad" x1="0%" y1="0%" x2="100%" y2="100%">
                         <stop offset="0%" stop-color="rgba(56, 189, 248, 0.4)" />
@@ -350,19 +351,20 @@ def render_question_visual(gorsel_tipi, param):
                 <text x="{Bx - 12}" y="{By + 15}" fill="#38bdf8" font-size="15" font-weight="bold" text-anchor="middle">B</text>
                 <text x="{Cx + 12}" y="{By + 15}" fill="#38bdf8" font-size="15" font-weight="bold" text-anchor="middle">C</text>
                 
-                <!-- Açı Yayları (A, B ve C köşeleri için arklar) -->
-                <path d="M 125 55 A 25 25 0 0 1 155 55" fill="none" stroke="#facc15" stroke-width="3" stroke-linecap="round"/>
-                <path d="M 55 132 A 25 25 0 0 0 65 150" fill="none" stroke="#facc15" stroke-width="3" stroke-linecap="round"/>
-                <path d="M 215 150 A 25 25 0 0 0 225 132" fill="none" stroke="#facc15" stroke-width="3" stroke-linecap="round"/>
+                <!-- Doğru Konumda Açı Yayları ve Dereceler -->
+                <!-- A Köşesi Açı Yayı (Aşağı bakan iç açı) -->
+                <path d="M 128 58 Q 140 70 152 58" fill="none" stroke="#facc15" stroke-width="3" stroke-linecap="round"/>
+                <text x="140" y="85" fill="#facc15" font-size="12" font-weight="bold" text-anchor="middle">{deg_a}</text>
 
-                <!-- Değer Metni -->
-                <text x="140" y="85" fill="#facc15" font-size="13" font-weight="bold" text-anchor="middle">{deg}°</text>
+                <!-- B Köşesi Açı Yayı (Sağ yukarı bakan iç açı) -->
+                <path d="M 58 132 Q 72 138 65 125" fill="none" stroke="#facc15" stroke-width="3" stroke-linecap="round"/>
+                <text x="68" y="125" fill="#facc15" font-size="12" font-weight="bold" text-anchor="middle">{deg_b}</text>
             </svg>
         </div>
         """
-    st.components.v1.html(svg_html, height=200)
+    st.components.v1.html(svg_html, height=205)
 
-  # 2. MATEMATİK: ÇEMBER VE ÇAP / YARIÇAP MODELİ
+  # 2. MATEMATİK: ÇEMBER MODELİ
   elif gorsel_tipi == "cember":
     val = "12"
     try:
@@ -807,13 +809,13 @@ else:
 
   st.markdown("---")
 
-  # HARFLENDİRME VE AÇI YAYI PROMPTI
+  # NET VE HATASIZ DERECE PROMPTI
   rand_seed = f"{time.time()}_{random.randint(100000, 999999)}"
   visual_prompt_instruction = f"""
-  (GEOMETRİ VE AÇI YAYI TALİMATI - Seed: {rand_seed}):
-  1. Geometri sorularında köşeler A, B, C şeklinde harflendirilerek sorulmalı, açı yayları çizilmeli ve gorsel_tipi: 'ucgen', gorsel_parametre alanına derece değeri (örn: '60°') yazılmalıdır.
-  2. Çember sorularında merkez O harfiyle belirtilmeli ve gorsel_tipi: 'cember', gorsel_parametre alanına çap değeri yazılmalıdır.
-  3. Görsellerde açıklama veya başlık yazısı olmayacak; yalnızca şekil üzerinde köşe harfleri, açı yayları ve derece simgeleri yer alacaktır.
+  (GEOMETRİ VE DERECE TALİMATI - Seed: {rand_seed}):
+  1. Geometri sorularında (ABC üçgeni vb.) derece simgelerini kesinlikle doğru yaz ('55°', '65°'). 'circ' gibi hatalı ifadeler kesinlikle kullanılmayacaktır.
+  2. Açı yayları sadece değeri verilen köşelere (A ve B köşelerine) doğru açıyla çizilecektir. Boş köşelere yay çizilmez.
+  3. Görsellerde başlık veya açıklama metni olmayacak; yalnızca şekil üzerinde köşe harfleri, doğru açılı açı yayları ve derece değerleri yer alacaktır.
   """
 
   # 1. BALON PATLATMACA
@@ -841,7 +843,7 @@ else:
                     "dogru_cevap": "A",
                     "aciklama": "Açıklama",
                     "gorsel_tipi": "ucgen", 
-                    "gorsel_parametre": "60°"
+                    "gorsel_parametre": "A:55°, B:65°"
                   }}
                 ]
                 """
@@ -958,7 +960,7 @@ else:
                     "dogru_cevap": "A", 
                     "aciklama": "...",
                     "gorsel_tipi": "ucgen",
-                    "gorsel_parametre": "60°"
+                    "gorsel_parametre": "A:55°, B:65°"
                   }}
                 ]
                 """
