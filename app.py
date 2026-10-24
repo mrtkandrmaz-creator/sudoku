@@ -650,5 +650,3 @@ else:
           )
           if ans:
             st.success(ans)
-
-<FollowUp/>
