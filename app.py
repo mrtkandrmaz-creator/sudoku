@@ -108,32 +108,42 @@ except ImportError:
   pass
 
 
-# --- ÖNCE GROQ, SONRA GEMINI 3.6 / GÜNCEL MODELLERLE ÜRETİM MOTORU ---
+# --- ÖNCE GROQ, BAŞARISIZ OLURSA OTOMATİK GEMINI 3.6 GEÇİŞLİ GÜÇLENDİRİLMİŞ MOTOR ---
 def ai_generate_content(prompt_text):
   raw_res = None
 
-  # 1. ÖNCELİK: GROQ API İLE HIZLI ÜRETİM (Llama 3.3 Versatile)
+  # 1. ÖNCELİK: GROQ API İLE HIZLI ÜRETİM
   if has_groq and groq_keys:
     for gr_key in groq_keys:
       try:
         client = Groq(api_key=gr_key)
-        completion = client.chat.completions.create(
-            model="llama-3.3-70b-versatile",
-            messages=[{"role": "user", "content": prompt_text}],
-            temperature=0.95,
-        )
-        if completion.choices[0].message.content:
-          raw_res = completion.choices[0].message.content
+        # Genişletilmiş model listesi ve yedekli model denemeleri
+        for g_model in [
+            "llama-3.3-70b-versatile",
+            "llama-3.1-8b-instant",
+            "mixtral-8x7b-32768",
+        ]:
+          try:
+            completion = client.chat.completions.create(
+                model=g_model,
+                messages=[{"role": "user", "content": prompt_text}],
+                temperature=0.95,
+            )
+            if completion.choices[0].message.content:
+              raw_res = completion.choices[0].message.content
+              break
+          except Exception:
+            continue
+        if raw_res:
           break
       except Exception:
         continue
 
-  # 2. İKİNCİL (YEDEK) KANAL: GEMINI 3.6 VE GÜNCEL MODELLER
+  # 2. OTOMATİK YEDEK KANAL: GEMINI 3.6 / GÜNCEL MODELLER
   if not raw_res and has_gemini and gemini_keys:
     for g_key in gemini_keys:
       try:
         genai.configure(api_key=g_key)
-        # Gemini 3.6 ve diğer modern sürümler sırayla denenir
         for model_name in [
             "gemini-3.6-flash",
             "gemini-3.6-pro",
@@ -156,7 +166,7 @@ def ai_generate_content(prompt_text):
   return clean_math_text(raw_res) if raw_res else None
 
 
-# --- 2. 5. SINIF MEB MÜFREDATI VE DERS RENKLERİ (YENİ MATEMATİK TEMALARI) ---
+# --- 2. 5. SINIF MEB MÜFREDATI VE DERS RENKLERİ ---
 MEB_CURRICULUM = {
     "Matematik": {
         "renk": "linear-gradient(135deg, #2193b0, #6dd5ed)",
@@ -335,7 +345,7 @@ else:  # Yeşil-Mavi
   c_bubble_ai = "#f0fdf4"
   c_text_color = "#0369a1"
 
-# --- 5. STİLLER VE ARAYÜZ (MURAT KANDIRMAZ) ---
+# --- 5. STİLLER VE ARAYÜZ ---
 st.markdown(
     f"""
     <style>
@@ -554,7 +564,7 @@ def render_question_visual(gorsel_tipi, param):
     st.components.v1.html(svg_html, height=215)
 
 
-# --- 7. SOL MENÜ VE ADENMİND YAPAY ZEKA ROBOTU ---
+# --- 7. SOL MENÜ VE İKİNCİL API GİRİŞ ALANLARI ---
 with st.sidebar:
   st.subheader("🦊 AdenMind Tema Tercihi")
   selected_theme = st.radio(
@@ -573,6 +583,25 @@ with st.sidebar:
   if selected_theme != st.session_state["coach_theme"]:
     st.session_state["coach_theme"] = selected_theme
     st.rerun()
+
+  st.markdown("---")
+  st.subheader("🔑 API Anahtarı Ayarları")
+  with st.expander("API Anahtarı Gir / Güncelle"):
+    manual_groq_input = st.text_input(
+        "Groq API Key",
+        value=st.session_state.get("manual_groq", ""),
+        type="password",
+    )
+    manual_gemini_input = st.text_input(
+        "Gemini API Key",
+        value=st.session_state.get("manual_gemini", ""),
+        type="password",
+    )
+    if st.button("Kaydet ve Yenile"):
+      st.session_state["manual_groq"] = manual_groq_input
+      st.session_state["manual_gemini"] = manual_gemini_input
+      st.success("API anahtarları güncellendi!")
+      st.rerun()
 
   st.markdown("---")
   if st.button("🏠 Ana Sayfaya Dön", key="home_btn", use_container_width=True):
@@ -854,7 +883,9 @@ else:
       st.session_state["game_started"] = False
 
     if st.button("🚀 Yepyeni ve Çeşitli Soruları Üret", key="gen_5_balloons"):
-      with st.spinner("Groq ve Gemini 3.6 motorları soru havuzunu hazırlıyor..."):
+      with st.spinner(
+          "Groq ve Gemini 3.6 motorları aktif, sorular hazırlanıyor..."
+      ):
         prompt = f"""
                 5. Sınıf MEB, Ders: {curr_subj}, Tema: {curr_unit}.
                 TAM 5 ADET tamamen birbirinden farklı, özgün ve çeşitli çoktan seçmeli soru üret.
@@ -879,8 +910,8 @@ else:
           st.rerun()
         else:
           st.error(
-              "Sorular yüklenirken bir veri hatası oluştu. Lütfen tekrar"
-              " deneyin."
+              "⚠️ Sorular üretilemedi. Lütfen sol menüden API anahtarınızı"
+              " kontrol edin veya tekrar deneyin."
           )
 
     if st.session_state["balloon_5_questions"]:
