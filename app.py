@@ -199,8 +199,6 @@ if "selected_game" not in st.session_state:
   st.session_state["selected_game"] = None
 if "game_started" not in st.session_state:
   st.session_state["game_started"] = False
-if "coach_open" not in st.session_state:
-  st.session_state["coach_open"] = False
 if "coach_theme" not in st.session_state:
   st.session_state["coach_theme"] = "Mavi-Beyaz"
 if "coach_messages" not in st.session_state:
@@ -208,8 +206,8 @@ if "coach_messages" not in st.session_state:
       {
           "role": "assistant",
           "content": (
-              "Merhaba! Ben senin yapay zeka koçun **AdenMind**. Sağ alttaki"
-              " baloncuktan bana dilediğin zaman soru sorabilirsin! 🦊✨"
+              "Merhaba! Ben senin yapay zeka koçun **AdenMind**. Bana"
+              " dilediğin zaman soru sorabilirsin! 🦊✨"
           ),
       }
   ]
@@ -384,7 +382,7 @@ def render_question_visual(gorsel_tipi, param):
     st.markdown(svg_code, unsafe_allow_html=True)
 
 
-# --- 7. SOL MENÜ ---
+# --- 7. SOL MENÜ VE KARARLI YERLEŞİK POPOVER ASİSTAN ---
 with st.sidebar:
   st.subheader("🦊 AdenMind Tema Tercihi")
   selected_theme = st.radio(
@@ -405,103 +403,55 @@ with st.sidebar:
     st.rerun()
 
   st.markdown("---")
-  if st.button("🏠 Ana Sayfaya Dön", key="home_btn", use_container_width=True):
-    st.session_state["selected_subject"] = None
-    st.session_state["selected_unit"] = None
-    st.session_state["selected_game"] = None
-    st.session_state["game_started"] = False
-    st.rerun()
 
-# --- 8. SAĞ ALT KÖŞE: ADENMİND CANLI ASİSTAN BALONCUĞU ---
-st.markdown("<br><br><br>", unsafe_allow_html=True)
-
-with st.container():
-  st.markdown(
-      """
-        <div style="position: fixed; bottom: 20px; right: 20px; z-index: 99999; text-align: right;">
-        """,
-      unsafe_allow_html=True,
-  )
-
-  coach_btn_text = (
-      "❌ Asistanı Kapat"
-      if st.session_state["coach_open"]
-      else "🦊 AdenMind Canlı Asistan 💬"
-  )
-  if st.button(coach_btn_text, key="floating_lamp_btn"):
-    st.session_state["coach_open"] = not st.session_state["coach_open"]
-    st.rerun()
-
-  st.markdown("</div>", unsafe_allow_html=True)
-
-if st.session_state["coach_open"]:
-  st.markdown(
-      f"""
-        <div style="
-            position: fixed; 
-            bottom: 85px; 
-            right: 20px; 
-            width: 360px; 
-            max-height: 500px; 
-            background: #ffffff; 
-            border: 3px solid {c_border}; 
-            border-radius: 16px; 
-            box-shadow: 0 10px 30px rgba(0,0,0,0.3); 
-            z-index: 99998; 
-            padding: 16px; 
-            overflow-y: auto;
-        ">
-        <div style="display: flex; align-items: center; justify-content: space-between; border-bottom: 2px solid #eee; padding-bottom: 8px; margin-bottom: 10px;">
-            <div style="display: flex; align-items: center; gap: 8px;">
-                <span style="font-size: 28px;">🦊</span>
-                <b style="color: {c_text_color}; font-size: 16px;">AdenMind (Canlı Asistan)</b>
-            </div>
-            <span style="font-size: 12px; color: #666;">Çevrimiçi</span>
-        </div>
-        """,
-      unsafe_allow_html=True,
-  )
-
-  chat_container = st.container()
-  with chat_container:
-    for msg in st.session_state["coach_messages"]:
-      if msg["role"] == "assistant":
-        st.markdown(
-            f"""
-                <div style="background-color: {c_bubble_ai}; padding: 10px 12px; border-radius: 10px; margin-bottom: 8px; border-left: 4px solid {c_accent}; color: {c_text_color}; font-size: 13px;">
-                    <b>AdenMind:</b> {msg['content']}
-                </div>
-                """,
-            unsafe_allow_html=True,
-        )
-      else:
-        st.markdown(
-            f"""
-                <div style="background-color: {c_bubble_user}; padding: 10px 12px; border-radius: 10px; margin-bottom: 8px; text-align: right; color: #1e293b; font-size: 13px;">
-                    <b>Sen:</b> {msg['content']}
-                </div>
-                """,
-            unsafe_allow_html=True,
-        )
-
-  with st.form("floating_coach_form", clear_on_submit=True):
-    lamp_input = st.text_input(
-        "Asistana soru sor (Örn: Açı hesaplama, Üçgen çeşitleri...)",
-        key="lamp_query",
+  # Streamlit Yerleşik Kararlı Popover Asistanı (Sidebar içinde küçük şık pencere)
+  with st.popover("🦊 AdenMind Canlı Asistan 💬", use_container_width=True):
+    st.markdown("##### Canlı Koçluk Penceresi")
+    st.markdown(
+        "<hr style='margin: 5px 0 10px 0; border-color: #ddd;'>",
+        unsafe_allow_html=True,
     )
-    lamp_submitted = st.form_submit_button("Sor 🚀", use_container_width=True)
-    if lamp_submitted and lamp_input:
-      st.session_state["coach_messages"].append(
-          {"role": "user", "content": lamp_input}
+
+    # Sohbet Geçmişini Göster
+    chat_box_container = st.container(height=280)
+    with chat_box_container:
+      for msg in st.session_state["coach_messages"]:
+        if msg["role"] == "assistant":
+          st.markdown(
+              f"""
+                    <div style="background-color: {c_bubble_ai}; padding: 8px 10px; border-radius: 8px; margin-bottom: 6px; border-left: 3px solid {c_accent}; color: {c_text_color}; font-size: 12px;">
+                        <b>AdenMind:</b> {msg['content']}
+                    </div>
+                    """,
+              unsafe_allow_html=True,
+          )
+        else:
+          st.markdown(
+              f"""
+                    <div style="background-color: {c_bubble_user}; padding: 8px 10px; border-radius: 8px; margin-bottom: 6px; text-align: right; color: #1e293b; font-size: 12px;">
+                        <b>Sen:</b> {msg['content']}
+                    </div>
+                    """,
+              unsafe_allow_html=True,
+          )
+
+    # Asistana Soru Formu
+    with st.form("popover_coach_form", clear_on_submit=True):
+      lamp_input = st.text_input(
+          "Asistana soru sor...", key="lamp_query_input"
       )
-      curr_s = st.session_state.get("selected_subject", "Genel")
-      curr_u = st.session_state.get("selected_unit", "Genel Konu")
-      prompt = (
-          f"Sen 5. sınıf MEB müfredatı odaklı, sevimli ve bilgili akıllı koçsun."
-          f" Adın AdenMind. Öğrencinin dersi: {curr_s}, ünite: {curr_u}."
-          f" Öğrencinin sorusu: {lamp_input}. Kısa ve açıklayıcı rehberlik yap."
-      )
-      with st.spinner("AdenMind düşünüyor..."):
+      lamp_submitted = st.form_submit_button("Sor 🚀", use_container_width=True)
+      if lamp_submitted and lamp_input:
+        st.session_state["coach_messages"].append(
+            {"role": "user", "content": lamp_input}
+        )
+        curr_s = st.session_state.get("selected_subject", "Genel")
+        curr_u = st.session_state.get("selected_unit", "Genel Konu")
+        prompt = (
+            f"Sen 5. sınıf MEB müfredatı odaklı, sevimli ve bilgili akıllı koçsun."
+            f" Adın AdenMind. Öğrencinin dersi: {curr_s}, ünite: {curr_u}."
+            f" Öğrencinin sorusu: {lamp_input}. Kısa ve açıklayıcı rehberlik yap."
+        )
         response = ai_generate_content(prompt)
         if response:
           st.session_state["coach_messages"].append(
@@ -514,9 +464,16 @@ if st.session_state["coach_open"]:
                   "content": "Yanıt oluşturulamadı, tekrar dene!",
               }
           )
-      st.rerun()
+        st.rerun()
 
-  st.markdown("</div>", unsafe_allow_html=True)
+  st.markdown("---")
+  if st.button("🏠 Ana Sayfaya Dön", key="home_btn", use_container_width=True):
+    st.session_state["selected_subject"] = None
+    st.session_state["selected_unit"] = None
+    st.session_state["selected_game"] = None
+    st.session_state["game_started"] = False
+    st.rerun()
+
 
 # --- AŞAMA 1: DERS SEÇİMİ (KARTLARA DİREKT TIKLAMA) ---
 if st.session_state["selected_subject"] is None:
