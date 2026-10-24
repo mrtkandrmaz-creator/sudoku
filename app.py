@@ -15,20 +15,16 @@ st.set_page_config(
 
 
 def get_all_api_keys():
-  """Streamlit secrets içindeki [api_keys] tablosunu doğrudan ve hatasız okur."""
   gemini_keys = []
   groq_keys = []
-
   try:
     if hasattr(st, "secrets") and "api_keys" in st.secrets:
       api_block = st.secrets["api_keys"]
-
       if "groq_keys" in api_block:
         for k in api_block["groq_keys"]:
           if isinstance(k, str) and len(k.strip()) > 5:
             if k.strip() not in groq_keys:
               groq_keys.append(k.strip())
-
       if "gemini_keys" in api_block:
         for k in api_block["gemini_keys"]:
           if isinstance(k, str) and len(k.strip()) > 5:
@@ -70,7 +66,6 @@ except ImportError:
 
 
 def ai_generate_content(prompt_text):
-  """Önce Groq, ardından Gemini modellerini dener."""
   if has_groq and groq_keys:
     for gr_key in groq_keys:
       try:
@@ -111,7 +106,7 @@ def ai_generate_content(prompt_text):
 # --- 2. 5. SINIF MEB MÜFREDATI VE DERS RENKLERİ ---
 MEB_CURRICULUM = {
     "Türkçe": {
-        "renk": "#ff4b4b",
+        "renk": "linear-gradient(135deg, #ff416c, #ff4b2b)",
         "ikon": "📖",
         "uniteler": [
             "1. Tema: Sözcükte Anlam",
@@ -122,7 +117,7 @@ MEB_CURRICULUM = {
         ],
     },
     "Matematik": {
-        "renk": "#1c83e1",
+        "renk": "linear-gradient(135deg, #2193b0, #6dd5ed)",
         "ikon": "📐",
         "uniteler": [
             "1. Ünite: Doğal Sayılar",
@@ -133,7 +128,7 @@ MEB_CURRICULUM = {
         ],
     },
     "Fen Bilimleri": {
-        "renk": "#00cc96",
+        "renk": "linear-gradient(135deg, #11998e, #38ef7d)",
         "ikon": "🔬",
         "uniteler": [
             "1. Ünite: Güneş, Dünya ve Ay",
@@ -146,7 +141,7 @@ MEB_CURRICULUM = {
         ],
     },
     "Sosyal Bilgiler": {
-        "renk": "#ffa15a",
+        "renk": "linear-gradient(135deg, #f2994a, #f2c94c)",
         "ikon": "🌍",
         "uniteler": [
             "1. Ünite: Birlikte Yaşamak",
@@ -158,7 +153,7 @@ MEB_CURRICULUM = {
         ],
     },
     "Din Kültürü ve Ahlak Bilgisi": {
-        "renk": "#ab63fa",
+        "renk": "linear-gradient(135deg, #834d9b, #d04ed6)",
         "ikon": "🌙",
         "uniteler": [
             "1. Ünite: Allah İnancı",
@@ -169,7 +164,7 @@ MEB_CURRICULUM = {
         ],
     },
     "İngilizce": {
-        "renk": "#ff6692",
+        "renk": "linear-gradient(135deg, #ee0979, #ff6a00)",
         "ikon": "🗣️",
         "uniteler": [
             "Unit 1: Hello!",
@@ -183,7 +178,7 @@ MEB_CURRICULUM = {
         ],
     },
     "Almanca": {
-        "renk": "#b6e880",
+        "renk": "linear-gradient(135deg, #56ab2f, #a8e063)",
         "ikon": "🇩🇪",
         "uniteler": [
             "Lektion 1: Hallo! Ich heiße...",
@@ -195,30 +190,49 @@ MEB_CURRICULUM = {
     },
 }
 
-# --- 3. MEB TARZI BÜYÜK KART TASARIMI (CSS) ---
+# --- 3. MODERN MEB STİLLERİ (CSS) ---
 st.markdown(
     """
     <style>
     .main-header {
-        background: linear-gradient(135deg, #0056b3, #0080ff);
-        padding: 20px;
-        border-radius: 14px;
+        background: linear-gradient(135deg, #4e54c8, #8f94fb);
+        padding: 22px;
+        border-radius: 16px;
         color: white;
         text-align: center;
-        font-weight: bold;
-        font-size: 26px;
+        font-weight: 800;
+        font-size: 28px;
         margin-bottom: 25px;
-        box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+        box-shadow: 0 8px 25px rgba(78, 84, 200, 0.35);
+        letter-spacing: 0.5px;
     }
     .card-box {
-        padding: 24px;
-        border-radius: 14px;
+        padding: 26px;
+        border-radius: 16px;
         color: white;
         text-align: center;
         font-weight: bold;
         font-size: 22px;
-        margin-bottom: 10px;
-        box-shadow: 0 4px 10px rgba(0,0,0,0.18);
+        margin-bottom: 12px;
+        box-shadow: 0 6px 20px rgba(0,0,0,0.2);
+        transition: transform 0.3s ease;
+    }
+    .card-box:hover {
+        transform: translateY(-4px);
+    }
+    .stButton>button {
+        background: linear-gradient(135deg, #667eea, #764ba2);
+        color: white;
+        border-radius: 12px;
+        font-weight: bold;
+        border: none;
+        padding: 12px 24px;
+        box-shadow: 0 4px 15px rgba(102, 126, 234, 0.4);
+        transition: 0.3s;
+    }
+    .stButton>button:hover {
+        opacity: 0.92;
+        transform: scale(1.02);
     }
     </style>
     <div class="main-header">🎒 MEB 5. Sınıf Akıllı Eğitsel Oyun Merkezi (Murat KANDIRMAZ)</div>
@@ -226,7 +240,7 @@ st.markdown(
     unsafe_allow_html=True,
 )
 
-# --- 4. SOL MENÜ (API DURUM GÖSTERGESİ) ---
+# --- 4. SOL MENÜ ---
 with st.sidebar:
   st.subheader("⚙️ Sistem & API Durumu")
   if gemini_keys or groq_keys:
@@ -270,9 +284,9 @@ if st.session_state["selected_subject"] is None:
     with cols[col_idx]:
       st.markdown(
           f"""
-            <div class="card-box" style="background-color: {data['renk']};">
-                <div style="font-size: 38px;">{data['ikon']}</div>
-                <div style="margin-top: 8px;">{subj}</div>
+            <div class="card-box" style="background: {data['renk']};">
+                <div style="font-size: 40px;">{data['ikon']}</div>
+                <div style="margin-top: 10px;">{subj}</div>
             </div>
             """,
           unsafe_allow_html=True,
@@ -312,7 +326,7 @@ elif (
     with u_col:
       st.markdown(
           f"""
-            <div class="card-box" style="background-color: {curr_data['renk']}; opacity: 0.95;">
+            <div class="card-box" style="background: {curr_data['renk']}; opacity: 0.95;">
                 <div style="font-size: 20px;">📖 {unit_name}</div>
             </div>
             """,
@@ -337,7 +351,7 @@ elif (
 
   st.markdown(
       f"""
-        <div style="background-color: {curr_data['renk']}; padding: 14px; border-radius: 10px; color: white; margin-bottom: 20px; font-weight: bold; font-size: 18px;">
+        <div style="background: {curr_data['renk']}; padding: 16px; border-radius: 12px; color: white; margin-bottom: 20px; font-weight: bold; font-size: 18px; box-shadow: 0 4px 15px rgba(0,0,0,0.15);">
             <b>Seçilen Ders:</b> {curr_subj} &nbsp;|&nbsp; <b>Ünite:</b> {curr_unit}
         </div>
     """,
@@ -352,15 +366,31 @@ elif (
   st.markdown("### 🎮 Lütfen Bir Oyun / Soru Modülü Kartına Tıklayın")
 
   games = [
-      {"id": "balon", "isim": "🎈 Balon Patlatmaca", "renk": "#ff6b6b"},
+      {
+          "id": "balon",
+          "isim": "🎈 Balon Patlatmaca",
+          "renk": "linear-gradient(135deg, #ff416c, #ff4b2b)",
+      },
       {
           "id": "sinav10",
           "isim": "🧠 5 Soruluk MEB Kazanım Oyunu",
-          "renk": "#1c83e1",
+          "renk": "linear-gradient(135deg, #2193b0, #6dd5ed)",
       },
-      {"id": "acik", "isim": "✍️ Klasik Yazılı Simülatörü", "renk": "#00cc96"},
-      {"id": "kelime", "isim": "🔤 Kelime Avı & Bulmaca", "renk": "#ffa15a"},
-      {"id": "koc", "isim": "🤖 Yapay Zeka Koçum", "renk": "#ab63fa"},
+      {
+          "id": "acik",
+          "isim": "✍️ Klasik Yazılı Simülatörü",
+          "renk": "linear-gradient(135deg, #11998e, #38ef7d)",
+      },
+      {
+          "id": "kelime",
+          "isim": "🔤 Kelime Avı & Bulmaca",
+          "renk": "linear-gradient(135deg, #f2994a, #f2c94c)",
+      },
+      {
+          "id": "koc",
+          "isim": "🤖 Yapay Zeka Koçum",
+          "renk": "linear-gradient(135deg, #834d9b, #d04ed6)",
+      },
   ]
 
   g_cols = st.columns(3)
@@ -368,7 +398,7 @@ elif (
     with g_cols[g_idx % 3]:
       st.markdown(
           f"""
-            <div class="card-box" style="background-color: {g_item['renk']};">
+            <div class="card-box" style="background: {g_item['renk']};">
                 <div>{g_item['isim']}</div>
             </div>
             """,
@@ -439,11 +469,11 @@ else:
     if st.session_state["balloon_5_questions"]:
       if not st.session_state["game_started"]:
         st.success(
-            "✅ Sorular Başarıyla Üretildi! Oyunu başlatmak için aşağıdaki"
-            " butona tıklayın."
+            "✅ Sorular Başarıyla Üretildi! Oyunu tam ekran başlatmak için"
+            " aşağıdaki butona tıklayın."
         )
         if st.button(
-            "🎮 Oyunu Başlat ve Tam Ekrana Geç",
+            "✨ OYUNU BAŞLAT VE TAM EKRANA GEÇ 🎮",
             key="start_balloon_fullscreen",
             use_container_width=True,
         ):
@@ -462,7 +492,7 @@ else:
                 <meta charset="UTF-8">
                 <style>
                     body {
-                        background: linear-gradient(135deg, #1e1e2f, #2a2a40);
+                        background: linear-gradient(135deg, #0f172a, #1e293b);
                         color: white;
                         font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
                         text-align: center;
@@ -473,34 +503,34 @@ else:
                     #game-container {
                         position: relative;
                         width: 100%;
-                        height: 520px;
-                        background: radial-gradient(circle, #22223b 0%, #11111d 100%);
+                        height: 540px;
+                        background: radial-gradient(circle, #1e293b 0%, #0f172a 100%);
                         border-radius: 16px;
                         overflow: hidden;
-                        box-shadow: 0 8px 24px rgba(0,0,0,0.5);
-                        border: 3px solid #ff4b4b;
+                        box-shadow: 0 10px 30px rgba(0,0,0,0.6);
+                        border: 3px solid #6366f1;
                     }
                     .header-bar {
                         display: flex;
                         justify-content: space-between;
-                        padding: 12px 20px;
-                        background: rgba(0,0,0,0.4);
-                        font-size: 18px;
+                        padding: 14px 24px;
+                        background: rgba(0,0,0,0.5);
+                        font-size: 19px;
                         font-weight: bold;
                     }
                     .question-box {
-                        font-size: 20px;
+                        font-size: 21px;
                         font-weight: bold;
-                        padding: 15px 20px;
-                        background: rgba(255, 255, 255, 0.1);
-                        margin: 10px;
-                        border-radius: 10px;
-                        border-left: 5px solid #ff4b4b;
+                        padding: 16px 24px;
+                        background: rgba(255, 255, 255, 0.08);
+                        margin: 12px;
+                        border-radius: 12px;
+                        border-left: 6px solid #6366f1;
                     }
                     .balloon {
                         position: absolute;
-                        width: 95px;
-                        height: 115px;
+                        width: 105px;
+                        height: 125px;
                         border-radius: 50% 50% 50% 50% / 40% 40% 60% 60%;
                         display: flex;
                         align-items: center;
@@ -510,7 +540,7 @@ else:
                         font-size: 14px;
                         text-align: center;
                         cursor: pointer;
-                        box-shadow: inset -10px -10px 20px rgba(0,0,0,0.3), 0 5px 15px rgba(0,0,0,0.3);
+                        box-shadow: inset -12px -12px 25px rgba(0,0,0,0.35), 0 6px 18px rgba(0,0,0,0.35);
                         animation: floatUp 8s linear infinite;
                         padding: 10px;
                         user-select: none;
@@ -518,21 +548,21 @@ else:
                     .balloon::after {
                         content: "";
                         position: absolute;
-                        bottom: -12px;
-                        left: 45px;
+                        bottom: -14px;
+                        left: 50px;
                         width: 2px;
-                        height: 15px;
-                        background: #aaa;
+                        height: 16px;
+                        background: #cbd5e1;
                     }
                     @keyframes floatUp {
-                        0% { bottom: -130px; transform: scale(1); }
-                        50% { transform: scale(1.05); }
-                        100% { bottom: 500px; transform: scale(1); }
+                        0% { bottom: -140px; transform: scale(1); }
+                        50% { transform: scale(1.06); }
+                        100% { bottom: 520px; transform: scale(1); }
                     }
                     .feedback-overlay {
                         position: absolute;
                         top: 0; left: 0; width: 100%; height: 100%;
-                        background: rgba(0,0,0,0.85);
+                        background: rgba(15, 23, 42, 0.9);
                         display: flex;
                         flex-direction: column;
                         align-items: center;
@@ -546,17 +576,17 @@ else:
             <body>
                 <div class="header-bar">
                     <span id="q-counter">Soru: 1 / 5</span>
-                    <span id="timer" style="color: #ff4b4b;">Süre: 50 sn</span>
-                    <span id="score">Puan: 0</span>
+                    <span id="timer" style="color: #f43f5e;">Süre: 50 sn</span>
+                    <span id="score" style="color: #10b981;">Puan: 0</span>
                 </div>
                 
                 <div id="game-container">
                     <div class="question-box" id="question-text">Soru yükleniyor...</div>
-                    <div id="balloons-area" style="position:relative; width:100%; height:330px;"></div>
+                    <div id="balloons-area" style="position:relative; width:100%; height:340px;"></div>
                     
                     <div class="feedback-overlay" id="overlay">
-                        <div id="feedback-icon" style="font-size: 60px; margin-bottom: 10px;">🎉</div>
-                        <div id="feedback-msg" style="font-size: 22px; padding: 0 20px;">Tebrikler!</div>
+                        <div id="feedback-icon" style="font-size: 65px; margin-bottom: 12px;">🎉</div>
+                        <div id="feedback-msg" style="font-size: 24px; padding: 0 20px;">Tebrikler!</div>
                     </div>
                 </div>
 
@@ -571,7 +601,6 @@ else:
                             elem.msRequestFullscreen();
                         }
                     }
-                    // Başlat butonuna basılıp ekran açıldığı an tam ekrana geç
                     goFullScreen();
 
                     function exitFullScreen() {
@@ -600,8 +629,8 @@ else:
                         let osc = audioCtx.createOscillator();
                         let gain = audioCtx.createGain();
                         osc.type = 'sine';
-                        osc.frequency.setValueAtTime(400, audioCtx.currentTime);
-                        osc.frequency.exponentialRampToValueAtTime(800, audioCtx.currentTime + 0.3);
+                        osc.frequency.setValueAtTime(450, audioCtx.currentTime);
+                        osc.frequency.exponentialRampToValueAtTime(850, audioCtx.currentTime + 0.3);
                         gain.gain.setValueAtTime(0.4, audioCtx.currentTime);
                         gain.gain.linearRampToValueAtTime(0.01, audioCtx.currentTime + 0.3);
                         osc.connect(gain);
@@ -615,8 +644,8 @@ else:
                         let osc = audioCtx.createOscillator();
                         let gain = audioCtx.createGain();
                         osc.type = 'sawtooth';
-                        osc.frequency.setValueAtTime(150, audioCtx.currentTime);
-                        osc.frequency.setValueAtTime(100, audioCtx.currentTime + 0.15);
+                        osc.frequency.setValueAtTime(140, audioCtx.currentTime);
+                        osc.frequency.setValueAtTime(90, audioCtx.currentTime + 0.15);
                         gain.gain.setValueAtTime(0.4, audioCtx.currentTime);
                         gain.gain.linearRampToValueAtTime(0.01, audioCtx.currentTime + 0.3);
                         osc.connect(gain);
@@ -641,15 +670,15 @@ else:
                         let area = document.getElementById('balloons-area');
                         area.innerHTML = '';
 
-                        let colors = ['#ff4b4b', '#1c83e1', '#00cc96', '#ffa15a'];
+                        let colors = ['linear-gradient(135deg, #ff416c, #ff4b2b)', 'linear-gradient(135deg, #2193b0, #6dd5ed)', 'linear-gradient(135deg, #11998e, #38ef7d)', 'linear-gradient(135deg, #f2994a, #f2c94c)'];
                         
                         q.secenekler.forEach((opt, idx) => {
                             let b = document.createElement('div');
                             b.className = 'balloon';
-                            b.style.backgroundColor = colors[idx % colors.length];
-                            b.style.left = (12 + idx * 21) + '%';
+                            b.style.background = colors[idx % colors.length];
+                            b.style.left = (10 + idx * 22) + '%';
                             b.style.animationDuration = (6 + Math.random() * 4) + 's';
-                            b.style.animationDelay = (idx * 0.4) + 's';
+                            b.style.animationDelay = (idx * 0.35) + 's';
                             b.innerText = opt;
                             
                             b.onclick = () => {
@@ -670,11 +699,11 @@ else:
                                     score += 20;
                                     document.getElementById('score').innerText = "Puan: " + score;
                                     icon.innerText = "🎈💥 🎉";
-                                    msg.innerHTML = "Tebrikler! Doğru Balon!<br><span style='font-size:16px; color:#00cc96;'>" + q.aciklama + "</span>";
+                                    msg.innerHTML = "Tebrikler! Doğru Balon!<br><span style='font-size:16px; color:#10b981;'>" + q.aciklama + "</span>";
                                 } else {
                                     playWrongSound();
                                     icon.innerText = "❌ ⚠️";
-                                    msg.innerHTML = "Yanlış Balon!<br>Doğru Cevap: <b>" + q.dogru_cevap + "</b><br><span style='font-size:16px; color:#ff4b4b;'>" + q.aciklama + "</span>";
+                                    msg.innerHTML = "Yanlış Balon!<br>Doğru Cevap: <b>" + q.dogru_cevap + "</b><br><span style='font-size:16px; color:#f43f5e;'>" + q.aciklama + "</span>";
                                 }
 
                                 setTimeout(() => {
@@ -711,13 +740,13 @@ else:
                     }
 
                     function endGame() {
-                        exitFullScreen(); // Oyun bitince tam ekrandan çık ve eski boyuta dön
+                        exitFullScreen();
                         let area = document.getElementById('game-container');
                         area.innerHTML = `
-                            <div style="padding: 60px; font-size: 28px;">
+                            <div style="padding: 70px; font-size: 28px;">
                                 🏆 <b>Oyun Tamamlandı!</b><br><br>
-                                Toplam Puanınız: <span style="color: #00cc96; font-size: 38px;">${score} / 100</span><br><br>
-                                <button onclick="location.reload()" style="padding: 12px 24px; font-size: 20px; background: #00cc96; color: white; border: none; border-radius: 8px; cursor: pointer;">Tekrar Oyna 🔄</button>
+                                Toplam Puanınız: <span style="color: #10b981; font-size: 42px;">${score} / 100</span><br><br>
+                                <button onclick="location.reload()" style="padding: 12px 26px; font-size: 18px; background: #6366f1; color: white; border: none; border-radius: 10px; cursor: pointer; font-weight: bold; margin-right: 10px;">Tekrar Oyna 🔄</button>
                             </div>
                         `;
                     }
@@ -728,7 +757,14 @@ else:
             </html>
             """
         )
-        st.components.v1.html(html_balloon_game, height=560)
+        st.components.v1.html(html_balloon_game, height=580)
+        st.markdown("<br>", unsafe_allow_html=True)
+        if st.button("🏠 Ana Ekrana Dön", key="back_home_balloon"):
+          st.session_state["selected_subject"] = None
+          st.session_state["selected_unit"] = None
+          st.session_state["selected_game"] = None
+          st.session_state["game_started"] = False
+          st.rerun()
 
   # 2. 5 SORULUK MEB KAZANIM OYUNU
   elif curr_game == "sinav10":
@@ -766,11 +802,11 @@ else:
     if st.session_state["quiz_5_data"]:
       if not st.session_state["game_started"]:
         st.success(
-            "✅ Yarışma Soruları Hazır! Başlatmak için aşağıdaki butona"
-            " tıklayın."
+            "✅ Yarışma Soruları Hazır! Tam ekranda başlatmak için aşağıdaki"
+            " butona tıklayın."
         )
         if st.button(
-            "🧠 Yarışmayı Başlat ve Tam Ekrana Geç",
+            "✨ YARIŞMAYI BAŞLAT VE TAM Ekrana GEÇ 🧠",
             key="start_quiz_fullscreen",
             use_container_width=True,
         ):
@@ -797,41 +833,41 @@ else:
                     }
                     .quiz-card {
                         background: rgba(255, 255, 255, 0.05);
-                        border: 2px solid #1c83e1;
-                        border-radius: 14px;
-                        padding: 20px;
-                        max-width: 700px;
+                        border: 2px solid #38bdf8;
+                        border-radius: 16px;
+                        padding: 24px;
+                        max-width: 750px;
                         margin: 0 auto;
-                        box-shadow: 0 6px 20px rgba(0,0,0,0.4);
+                        box-shadow: 0 10px 30px rgba(0,0,0,0.5);
                     }
                     .opt-btn {
                         display: block;
                         width: 100%;
-                        padding: 12px;
-                        margin: 10px 0;
-                        background: #1c83e1;
+                        padding: 14px;
+                        margin: 12px 0;
+                        background: linear-gradient(135deg, #0284c7, #0369a1);
                         color: white;
                         border: none;
-                        border-radius: 8px;
+                        border-radius: 10px;
                         font-size: 18px;
                         font-weight: bold;
                         cursor: pointer;
                         transition: 0.2s;
                         text-align: left;
                     }
-                    .opt-btn:hover { background: #0056b3; transform: scale(1.01); }
+                    .opt-btn:hover { background: linear-gradient(135deg, #0369a1, #075985); transform: scale(1.01); }
                 </style>
             </head>
             <body>
                 <div class="quiz-card">
-                    <div style="display: flex; justify-content: space-between; font-weight: bold; margin-bottom: 15px;">
+                    <div style="display: flex; justify-content: space-between; font-weight: bold; margin-bottom: 18px; font-size: 18px;">
                         <span id="q-num">Soru: 1 / 5</span>
-                        <span id="q-timer" style="color: #ff4b4b;">Süre: 60 sn</span>
-                        <span id="q-score">Puan: 0</span>
+                        <span id="q-timer" style="color: #f43f5e;">Süre: 60 sn</span>
+                        <span id="q-score" style="color: #10b981;">Puan: 0</span>
                     </div>
-                    <div id="q-text" style="font-size: 20px; font-weight: bold; margin-bottom: 20px; text-align: left;">Yükleniyor...</div>
+                    <div id="q-text" style="font-size: 21px; font-weight: bold; margin-bottom: 22px; text-align: left;">Yükleniyor...</div>
                     <div id="options-area"></div>
-                    <div id="q-feedback" style="margin-top: 15px; font-size: 18px; font-weight: bold;"></div>
+                    <div id="q-feedback" style="margin-top: 18px; font-size: 18px; font-weight: bold;"></div>
                 </div>
 
                 <script>
@@ -883,11 +919,11 @@ else:
 
                     function loadQ() {
                         if (qIdx >= quizData.length || qIdx >= 5) {
-                            exitFullScreen(); // Yarışma bitince eski ekrana dön
+                            exitFullScreen();
                             document.querySelector('.quiz-card').innerHTML = `
                                 <h2>🏆 Yarışma Tamamlandı!</h2>
-                                <p style="font-size: 24px;">Toplam Puanınız: <span style="color: #00cc96;">${totalScore} / 100</span></p>
-                                <button onclick="location.reload()" class="opt-btn" style="text-align:center; background:#00cc96;">Yeniden Oyna 🔄</button>
+                                <p style="font-size: 24px;">Toplam Puanınız: <span style="color: #10b981; font-size: 40px;">${totalScore} / 100</span></p>
+                                <button onclick="location.reload()" class="opt-btn" style="text-align:center; background: #6366f1;">Yeniden Oyna 🔄</button>
                             `;
                             return;
                         }
@@ -919,7 +955,7 @@ else:
                                 if(active) {
                                     active = false;
                                     playSound('lose');
-                                    document.getElementById('q-feedback').innerHTML = "<span style='color:#ff4b4b;'>⏰ Süre Bitti! Doğru: " + q.dogru_cevap + "</span>";
+                                    document.getElementById('q-feedback').innerHTML = "<span style='color:#f43f5e;'>⏰ Süre Bitti! Doğru: " + q.dogru_cevap + "</span>";
                                     setTimeout(() => { qIdx++; loadQ(); }, 3000);
                                 }
                             }
@@ -939,10 +975,10 @@ else:
                             playSound('win');
                             totalScore += 20;
                             document.getElementById('q-score').innerText = "Puan: " + totalScore;
-                            fb.innerHTML = "<span style='color:#00cc96;'>🎉 Doğru! " + q.aciklama + "</span>";
+                            fb.innerHTML = "<span style='color:#10b981;'>🎉 Doğru! " + q.aciklama + "</span>";
                         } else {
                             playSound('lose');
-                            fb.innerHTML = "<span style='color:#ff4b4b;'>❌ Yanlış! Doğru Cevap: " + q.dogru_cevap + "<br>" + q.aciklama + "</span>";
+                            fb.innerHTML = "<span style='color:#f43f5e;'>❌ Yanlış! Doğru Cevap: " + q.dogru_cevap + "<br>" + q.aciklama + "</span>";
                         }
 
                         setTimeout(() => { qIdx++; loadQ(); }, 3500);
@@ -954,7 +990,14 @@ else:
             </html>
             """
         )
-        st.components.v1.html(html_quiz_game, height=480)
+        st.components.v1.html(html_quiz_game, height=500)
+        st.markdown("<br>", unsafe_allow_html=True)
+        if st.button("🏠 Ana Ekrana Dön", key="back_home_quiz"):
+          st.session_state["selected_subject"] = None
+          st.session_state["selected_unit"] = None
+          st.session_state["selected_game"] = None
+          st.session_state["game_started"] = False
+          st.rerun()
 
   # 3. KLASİK YAZILI SİMÜLATÖRÜ
   elif curr_game == "acik":
@@ -1010,6 +1053,12 @@ else:
                 st.info(f"**Soru {idx+1} Değerlendirmesi:**\n\n{eval_res}")
             else:
               st.warning(f"Soru {idx+1} boş bırakıldı (0 Puan).")
+      st.markdown("<br>", unsafe_allow_html=True)
+      if st.button("🏠 Ana Ekrana Dön", key="back_home_classic"):
+        st.session_state["selected_subject"] = None
+        st.session_state["selected_unit"] = None
+        st.session_state["selected_game"] = None
+        st.rerun()
 
   # 4. KELİME AVI & BULMACA
   elif curr_game == "kelime":
@@ -1065,6 +1114,12 @@ else:
               )
           st.balloons()
           st.info(f"🏆 Toplam Kelime Avı Puanı: {correct_count} / 100")
+      st.markdown("<br>", unsafe_allow_html=True)
+      if st.button("🏠 Ana Ekrana Dön", key="back_home_puz"):
+        st.session_state["selected_subject"] = None
+        st.session_state["selected_unit"] = None
+        st.session_state["selected_game"] = None
+        st.rerun()
 
   # 5. YAPAY ZEKA KOÇUM
   elif curr_game == "koc":
@@ -1079,3 +1134,11 @@ else:
           )
           if ans:
             st.success(ans)
+    st.markdown("<br>", unsafe_allow_html=True)
+    if st.button("🏠 Ana Ekrana Dön", key="back_home_coach"):
+      st.session_state["selected_subject"] = None
+      st.session_state["selected_unit"] = None
+      st.session_state["selected_game"] = None
+      st.rerun()
+
+<FollowUp/>
