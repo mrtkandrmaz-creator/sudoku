@@ -13,11 +13,10 @@ st.set_page_config(
 )
 
 
-# --- KESİN METİN TEMİZLEME MOTORU (CIRC VE HATALI KARAKTERLERİ YOK EDER) ---
+# --- KESİN METİN VE DERECE TEMİZLEME MOTORU ---
 def clean_math_text(text):
   if not isinstance(text, str):
     return text
-  # circ, \circ, &deg; kalıntılarını ve hatalı karakterleri tertemiz yapar
   text = re.sub(r"\\circ", "°", text)
   text = re.sub(r"\bcirc\b", "°", text, flags=re.IGNORECASE)
   text = re.sub(r"&deg;", "°", text)
@@ -98,7 +97,7 @@ def ai_generate_content(prompt_text):
         completion = client.chat.completions.create(
             model="llama-3.3-70b-versatile",
             messages=[{"role": "user", "content": prompt_text}],
-            temperature=0.99,
+            temperature=0.7,
         )
         if completion.choices[0].message.content:
           raw_res = completion.choices[0].message.content
@@ -111,10 +110,9 @@ def ai_generate_content(prompt_text):
       try:
         genai.configure(api_key=g_key)
         for model_name in [
-            "gemini-3.6-flash",
+            "gemini-2.5-flash",
             "gemini-1.5-flash",
             "gemini-1.5-pro",
-            "gemini-pro",
         ]:
           try:
             model = genai.GenerativeModel(model_name)
@@ -343,19 +341,28 @@ st.markdown(
 )
 
 
-# --- 6. KUSURSUZ METİN VE AÇI ÇİZİM MOTORU ---
+# --- 6. KUSURSUZ DİNAMİK GEOMETRİ VE ŞEKİL MOTORU ---
 def render_question_visual(gorsel_tipi, param):
   if not gorsel_tipi or gorsel_tipi == "yok":
     return
 
-  param_str = clean_math_text(str(param)).lower().strip()
+  param_str = clean_math_text(str(param)).strip()
 
-  if gorsel_tipi in ["ucgen", "aci"]:
-    deg_a, deg_b = "55°", "65°"
-    if "55" in param_str:
-      deg_a = "55°"
-    if "65" in param_str:
-      deg_b = "65°"
+  # 1. ÜÇGEN ÇİZİMİ (Dinamik Köşe ve Açı Ayrıştırma)
+  if gorsel_tipi == "ucgen":
+    p_upper = param_str.upper()
+    # Örn parametre: "ABC, A:50°, B:60°" veya "KLM, K:70°, L:50°"
+    match_letters = re.search(r"([A-Z]{3})", p_upper)
+    k1, k2, k3 = (
+        list(match_letters.group(1)) if match_letters else ["A", "B", "C"]
+    )
+
+    # Açı değerlerini bulalım
+    deg_matches = re.findall(r"([A-Z])\s*:\s*(\d+°)", param_str)
+    deg_dict = {m[0].upper(): m[1] for m in deg_matches}
+
+    val1 = deg_dict.get(k1, "50°")
+    val2 = deg_dict.get(k2, "60°")
 
     Ax, Ay = 140, 35
     Bx, By = 35, 150
@@ -372,24 +379,62 @@ def render_question_visual(gorsel_tipi, param):
                 </defs>
                 <polygon points="{Ax},{Ay} {Bx},{By} {Cx},{Cy}" fill="url(#triGrad)" stroke="#38bdf8" stroke-width="4" stroke-linejoin="round"/>
                 
-                <text x="{Ax}" y="{Ay - 10}" fill="#38bdf8" font-size="15" font-weight="bold" text-anchor="middle">A</text>
-                <text x="{Bx - 12}" y="{By + 15}" fill="#38bdf8" font-size="15" font-weight="bold" text-anchor="middle">B</text>
-                <text x="{Cx + 12}" y="{By + 15}" fill="#38bdf8" font-size="15" font-weight="bold" text-anchor="middle">C</text>
+                <!-- Köşe Harfleri -->
+                <text x="{Ax}" y="{Ay - 10}" fill="#38bdf8" font-size="15" font-weight="bold" text-anchor="middle">{k1}</text>
+                <text x="{Bx - 12}" y="{By + 15}" fill="#38bdf8" font-size="15" font-weight="bold" text-anchor="middle">{k2}</text>
+                <text x="{Cx + 12}" y="{By + 15}" fill="#38bdf8" font-size="15" font-weight="bold" text-anchor="middle">{k3}</text>
                 
+                <!-- 1. Köşe Açı Yayı ve Değeri -->
                 <path d="M 126 58 Q 140 73 154 58" fill="none" stroke="#facc15" stroke-width="3" stroke-linecap="round"/>
-                <text x="140" y="92" fill="#facc15" font-size="12" font-weight="bold" text-anchor="middle">{deg_a}</text>
+                <text x="140" y="92" fill="#facc15" font-size="12" font-weight="bold" text-anchor="middle">{val1}</text>
 
+                <!-- 2. Köşe Açı Yayı ve Değeri -->
                 <path d="M 52 135 Q 68 142 62 124" fill="none" stroke="#facc15" stroke-width="3" stroke-linecap="round"/>
-                <text x="75" y="128" fill="#facc15" font-size="12" font-weight="bold" text-anchor="middle">{deg_b}</text>
+                <text x="75" y="128" fill="#facc15" font-size="12" font-weight="bold" text-anchor="middle">{val2}</text>
             </svg>
         </div>
         """
     st.components.v1.html(svg_html, height=205)
 
+  # 2. DÖRTGEN / DİKDÖRTGEN / KARE ÇİZİMİ
+  elif gorsel_tipi in ["dortgen", "dikdortgen", "kare", "paralelkenar"]:
+    p_upper = param_str.upper()
+    match_letters = re.search(r"([A-Z]{4})", p_upper)
+    d_letters = (
+        list(match_letters.group(1)) if match_letters else ["A", "B", "C", "D"]
+    )
+
+    deg_matches = re.findall(r"([A-Z])\s*:\s*(\d+°|[\d\.]+cm)", param_str)
+    deg_dict = {m[0].upper(): m[1] for m in deg_matches}
+    lbl1 = deg_dict.get(d_letters[0], "90°")
+    lbl2 = deg_dict.get(d_letters[1], "8 cm")
+
+    svg_html = f"""
+        <div style="display: flex; justify-content: center; margin: 12px 0;">
+            <svg width="280" height="190" viewBox="0 0 280 190" style="background: linear-gradient(135deg, #0f172a, #1e293b); border-radius: 18px; border: 1.5px solid rgba(56, 189, 248, 0.4); box-shadow: 0 12px 30px rgba(0, 0, 0, 0.5);">
+                <rect x="50" y="45" width="180" height="100" fill="rgba(56, 189, 248, 0.1)" stroke="#38bdf8" stroke-width="4" rx="6"/>
+                
+                <!-- Köşe Harfleri -->
+                <text x="40" y="40" fill="#38bdf8" font-size="15" font-weight="bold" text-anchor="middle">{d_letters[0]}</text>
+                <text x="245" y="40" fill="#38bdf8" font-size="15" font-weight="bold" text-anchor="middle">{d_letters[1]}</text>
+                <text x="245" y="162" fill="#38bdf8" font-size="15" font-weight="bold" text-anchor="middle">{d_letters[2]}</text>
+                <text x="40" y="162" fill="#38bdf8" font-size="15" font-weight="bold" text-anchor="middle">{d_letters[3]}</text>
+                
+                <!-- Ölçü / Açı Etiketi -->
+                <rect x="105" y="84" width="70" height="24" fill="#0f172a" rx="6" stroke="#facc15" stroke-width="1.5"/>
+                <text x="140" y="101" fill="#facc15" font-size="13" font-weight="bold" text-anchor="middle">{lbl1}</text>
+            </svg>
+        </div>
+        """
+    st.components.v1.html(svg_html, height=205)
+
+  # 3. ÇEMBER VE DAİRE ÇİZİMİ
   elif gorsel_tipi == "cember":
-    val = "12"
+    val = "12 cm"
     try:
-      val = re.search(r"\d+", str(param)).group()
+      num_match = re.search(r"(\d+)\s*(cm|m)?", param_str, re.IGNORECASE)
+      if num_match:
+        val = num_match.group(0)
     except Exception:
       pass
 
@@ -400,52 +445,26 @@ def render_question_visual(gorsel_tipi, param):
                 <circle cx="140" cy="90" r="4" fill="#facc15"/>
                 <text x="148" y="85" fill="#facc15" font-size="13" font-weight="bold">O</text>
                 <line x1="80" y1="90" x2="200" y2="90" stroke="#f43f5e" stroke-width="2.5" stroke-dasharray="5,3"/>
-                <rect x="112" y="75" width="56" height="22" fill="#0f172a" rx="5" stroke="#f43f5e" stroke-width="1.5"/>
-                <text x="140" y="91" fill="#f43f5e" font-size="12" font-weight="bold" text-anchor="middle">{val} cm</text>
+                <rect x="105" y="75" width="70" height="22" fill="#0f172a" rx="5" stroke="#f43f5e" stroke-width="1.5"/>
+                <text x="140" y="91" fill="#f43f5e" font-size="12" font-weight="bold" text-anchor="middle">{val}</text>
             </svg>
         </div>
         """
     st.components.v1.html(svg_html, height=200)
 
+  # 4. FEN: AY EVRELERİ
   elif gorsel_tipi == "ay_evresi":
-    if "ilk_dordun" in param_str or "ilk dördün" in param_str:
-      moon_shadow = (
-          '<path d="M 140 30 A 50 50 0 0 0 140 130 Z"'
-          ' fill="rgba(10, 15, 30, 0.94)"/>'
-      )
-    elif "son_dordun" in param_str or "son dördün" in param_str:
-      moon_shadow = (
-          '<path d="M 140 30 A 50 50 0 0 1 140 130 Z"'
-          ' fill="rgba(10, 15, 30, 0.94)"/>'
-      )
-    elif "yeni_ay" in param_str or "yeni ay" in param_str:
-      moon_shadow = (
-          '<circle cx="140" cy="80" r="50" fill="rgba(10, 15, 30, 0.96)"'
-          ' stroke="#475569" stroke-width="1.5"/>'
-      )
-    elif "hilal" in param_str:
-      moon_shadow = (
-          '<path d="M 140 30 A 50 50 0 0 1 140 130 A 35 35 0 0 0 140 30 Z"'
-          ' fill="rgba(10, 15, 30, 0.94)"/>'
-      )
-    elif "siskin_ay" in param_str or "şişkin ay" in param_str:
-      moon_shadow = (
-          '<path d="M 140 30 A 50 50 0 0 0 140 130 A 24 24 0 0 1 140 30 Z"'
-          ' fill="rgba(10, 15, 30, 0.94)"/>'
-      )
-    else:
-      moon_shadow = ""
-
     svg_html = f"""
         <div style="display: flex; justify-content: center; margin: 12px 0;">
             <svg width="280" height="180" viewBox="0 0 280 180" style="background: linear-gradient(135deg, #020617, #0b1329); border-radius: 18px; border: 1.5px solid #38bdf8; box-shadow: 0 12px 30px rgba(0, 0, 0, 0.6);">
                 <circle cx="140" cy="80" r="50" fill="#f1f5f9"/>
-                {moon_shadow}
+                <path d="M 140 30 A 50 50 0 0 0 140 130 Z" fill="rgba(10, 15, 30, 0.94)"/>
             </svg>
         </div>
         """
     st.components.v1.html(svg_html, height=195)
 
+  # 5. FEN: GÜNEŞ
   elif gorsel_tipi == "gunes":
     svg_html = """
         <div style="display: flex; justify-content: center; margin: 12px 0;">
@@ -456,6 +475,7 @@ def render_question_visual(gorsel_tipi, param):
         """
     st.components.v1.html(svg_html, height=195)
 
+  # 6. FEN: DÜNYA
   elif gorsel_tipi == "dunya":
     svg_html = """
         <div style="display: flex; justify-content: center; margin: 12px 0;">
@@ -466,17 +486,20 @@ def render_question_visual(gorsel_tipi, param):
         """
     st.components.v1.html(svg_html, height=195)
 
+  # 7. FİZİK: DİNAMOMETRE
   elif gorsel_tipi == "dinamometre":
-    newton = 5
+    newton = "5 N"
     try:
-      newton = int(re.search(r"\d+", str(param)).group())
+      match_n = re.search(r"(\d+)\s*N", param_str, re.IGNORECASE)
+      if match_n:
+        newton = match_n.group(0)
     except Exception:
       pass
     svg_html = f"""
         <div style="display: flex; justify-content: center; margin: 12px 0;">
             <svg width="180" height="200" viewBox="0 0 180 200" style="background:#0f172a; border-radius:16px; border: 2px solid #38bdf8;">
                 <rect x="55" y="35" width="70" height="145" fill="rgba(56, 189, 248, 0.12)" stroke="#38bdf8" stroke-width="3" rx="8"/>
-                <text x="90" y="100" fill="#ffffff" font-size="14" font-weight="bold" text-anchor="middle">{newton} N</text>
+                <text x="90" y="100" fill="#ffffff" font-size="14" font-weight="bold" text-anchor="middle">{newton}</text>
             </svg>
         </div>
         """
@@ -761,8 +784,13 @@ else:
   st.markdown("---")
 
   visual_prompt_instruction = """
-  (MATEMATİKSEL METİN TALİMATI):
-  Açı gösterimlerinde kesinlikle 'circ'kelimesi kullanılmayacaktır. Yalnızca standart '55°', '65°' veya 's(A) = 55°' formatı kullanılacaktır.
+  (KUSURSUZ GÖRSEL VE METİN SENKRONİZASYONU TALİMATI):
+  1. Soruda geçen tüm harfler (Örn: ABC üçgeni, ABCD dörtgeni, KLM üçgeni vb.) ve açı/uzunluk değerleri (Örn: A:50°, B:65°, |AB|=8 cm) görsel parametresine birebir aktarılacaktır.
+  2. 'circ' veya benzeri hatalı simgeler kesinlikle kullanılmayacak, yalnızca standart derece işareti (°) kullanılacaktır.
+  3. Gorsel_parametre alanı şu formatta doldurulmalıdır: 
+     - Üçgenler için: "ABC, A:50°, B:65°"
+     - Dörtgenler için: "ABCD, A:90°, B:8cm"
+     - Çemberler için: "O, 12cm"
   """
 
   # 1. BALON PATLATMACA
@@ -790,7 +818,7 @@ else:
                     "dogru_cevap": "A",
                     "aciklama": "Açıklama",
                     "gorsel_tipi": "ucgen", 
-                    "gorsel_parametre": "A:55°, B:65°"
+                    "gorsel_parametre": "ABC, A:50°, B:60°"
                   }}
                 ]
                 """
@@ -908,7 +936,7 @@ else:
                     "dogru_cevap": "A", 
                     "aciklama": "...",
                     "gorsel_tipi": "ucgen",
-                    "gorsel_parametre": "A:55°, B:65°"
+                    "gorsel_parametre": "ABC, A:50°, B:60°"
                   }}
                 ]
                 """
