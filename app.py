@@ -329,10 +329,11 @@ def render_question_visual(gorsel_tipi, gorsel_parametre=""):
     param = gorsel_parametre
     param_str = str(param).lower()
     
+    # 1. ÜÇGEN VEYA AÇI ÖRNEĞİ (Eğer projenizde varsa)
     if gorsel_tipi in ["ucgen", "aci"]:
-        # Üçgen veya açı ile ilgili kodlarınız buradaysa aynı kalabilir
         pass
         
+    # 2. DÜNYA GÖRSELİ
     elif gorsel_tipi == "dunya":
         svg_html = """
         <div style="display: flex; justify-content: center; margin: 10px 0;">
@@ -352,9 +353,6 @@ def render_question_visual(gorsel_tipi, gorsel_parametre=""):
                         <feGaussianBlur stdDeviation="6" result="glow" />
                         <feComposite in="SourceGraphic" in2="glow" operator="over" />
                     </filter>
-                    <filter id="cloudBlur">
-                        <feGaussianBlur stdDeviation="2" />
-                    </filter>
                     <clipPath id="earthClip">
                         <circle cx="130" cy="80" r="44"/>
                     </clipPath>
@@ -362,8 +360,6 @@ def render_question_visual(gorsel_tipi, gorsel_parametre=""):
                 <circle cx="130" cy="80" r="70" fill="url(#spaceGlow)" />
                 <circle cx="45" cy="35" r="1.2" fill="#ffffff" opacity="0.9"/>
                 <circle cx="215" cy="45" r="1.8" fill="#ffffff" opacity="0.7"/>
-                <circle cx="225" cy="125" r="1.2" fill="#ffffff" opacity="0.95"/>
-                <circle cx="40" cy="115" r="1.5" fill="#ffffff" opacity="0.8"/>
                 <circle cx="130" cy="80" r="47" fill="none" stroke="#38bdf8" stroke-width="3" opacity="0.5" filter="url(#atmosphereGlow)" />
                 <circle cx="130" cy="80" r="44" fill="url(#earthOcean)"/>
                 <g clip-path="url(#earthClip)">
@@ -378,6 +374,7 @@ def render_question_visual(gorsel_tipi, gorsel_parametre=""):
         """
         st.components.v1.html(svg_html, height=195)
 
+    # 3. AY EVRESİ GÖRSELİ
     elif gorsel_tipi == "ay_evresi":
         faz = str(gorsel_parametre).lower().strip()
         shadow_path = ""
