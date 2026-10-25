@@ -325,7 +325,13 @@ def render_question_visual(gorsel_tipi, gorsel_parametre=""):
   if not gorsel_tipi or gorsel_tipi == "yok":
     return
 
-  param_str = str(param).lower()
+  # Fonksiyon tanımını bu şekilde güncelleyin (2 parametre alacak şekilde):
+def render_question_visual(gorsel_tipi, gorsel_parametre=""):
+    # Hata almamak için parametreyi eski değişken adınıza eşitleyelim:
+    param = gorsel_parametre
+    param_str = str(param).lower()
+    
+    # ... Bundan sonraki alt alta gelen if / elif kodlarınız (dunya, ay_evresi vb.) aynı kalabilir ...
 
   # 1. MATEMATİK: ÜÇGEN VE AÇI MOTORU
   if gorsel_tipi in ["ucgen", "aci"]:
