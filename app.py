@@ -124,10 +124,9 @@ MEB_CURRICULUM = {
             "2. Ünite: Geometrik Nicelikler",
             "3. Ünite: Geometrik Kavramlar ve Üçgenler",
             "4. Ünite: Doğal Sayılar",
-            "5. Ünite: Tümler ve Bütünler açı",
-            "6. Ünite: Kesirler",
-            "7. Ünite: Ondalık Gösterimler",
-            "8. Ünite: Veri İşleme",
+            "5. Ünite: Kesirler",
+            "6. Ünite: Ondalık Gösterimler",
+            "7. Ünite: Veri İşleme",
             
         ],
     },
@@ -136,14 +135,12 @@ MEB_CURRICULUM = {
         "ikon": "🔬",
         "uniteler": [
             "1. Ünite: Güneş, Dünya ve Ay",
-            "2. Ünite: Ayın Evreleri",
-            "3. Ünite: Kuveeti Tanıyalım",
-            "4. Ünite: Dinamometre",
-            "5. Ünite: Canlılar Dünyası",
-            "6. Ünite: Madde ve Değişim",
-            "7. Ünite: Işığın Yayılması",
-            "8. Ünite: İnsan ve Çevre",
-            "9. Ünite: Elektrik Devreleri",
+            "2. Ünite: Canlılar Dünyası",
+            "3. Ünite: Kuvvetin Etkisi",
+            "4. Ünite: Madde ve Değişim",
+            "5. Ünite: Işığın Yayılması",
+            "6. Ünite: İnsan ve Çevre",
+            "7. Ünite: Elektrik Devreleri",
         ],
     },
     "Sosyal Bilgiler": {
@@ -378,78 +375,19 @@ def render_question_visual(gorsel_tipi, param):
 
   # 2. FEN BİLİMLERİ: GERÇEKÇİ AY GÖRSELİ (EVRELER)
   elif gorsel_tipi == "ay_evresi":
-    # gorsel_parametre örneğin: "ilkdordun", "hilal", "dolunay", "sondordun", "yenisay"
-    faz = str(gorsel_parametre).lower().strip()
-    
-    # Evreye göre dinamik gölge / aydınlık maskesi belirleme
-    shadow_path = ""
-    phase_title = "Ay Evresi Modeli"
-    
-    if "dolunay" in faz:
-        shadow_path = "" # Tamamen aydınlık
-        phase_title = "🌕 Dolunay"
-    elif "ilkdordun" in faz:
-        # Sağ taraf aydınlık, sol taraf karanlık (İlk Dördün)
-        shadow_path = '<path d="M 130 40 A 40 40 0 0 0 130 120 Z" fill="rgba(2, 6, 23, 0.85)"/>'
-        phase_title = "🌓 İlk Dördün"
-    elif "sondordun" in faz:
-        # Sol taraf aydınlık, sağ taraf karanlık (Son Dördün)
-        shadow_path = '<path d="M 130 40 A 40 40 0 0 1 130 120 Z" fill="rgba(2, 6, 23, 0.85)"/>'
-        phase_title = "🌗 Son Dördün"
-    elif "hilal" in faz:
-        # Hilal görünümü (ince kavisli gölge veya aydınlık)
-        if "son" in faz or "sol" in faz:
-            shadow_path = '<path d="M 130 40 A 40 40 0 0 0 130 120 Q 115 80 130 40 Z" fill="rgba(2, 6, 23, 0.88)"/>'
-            phase_title = "🌙 Hilal (Kapanan)"
-        else:
-            shadow_path = '<path d="M 130 40 A 40 40 0 0 1 130 120 Q 145 80 130 40 Z" fill="rgba(2, 6, 23, 0.88)"/>'
-            phase_title = "🌙 Hilal (Büyüyen)"
-    else:
-        # Varsayılan / Diğer evreler için standart yarı gölge
-        shadow_path = '<path d="M 130 40 A 40 40 0 0 1 130 120 Z" fill="rgba(15, 23, 42, 0.75)"/>'
-        phase_title = f"🌑 Ay Evresi: {faz.capitalize()}"
-
     svg_html = f"""
         <div style="display: flex; justify-content: center; margin: 10px 0;">
-            <svg width="260" height="180" viewBox="0 0 260 180" style="background: radial-gradient(circle at 50% 50%, #0f172a 0%, #020617 100%); border-radius: 16px; border: 1px solid #38bdf8; overflow: hidden;">
-                <defs>
-                    <radialGradient id="moonGrad" cx="35%" cy="35%" r="65%">
-                        <stop offset="0%" stop-color="#cbd5e1" />
-                        <stop offset="70%" stop-color="#94a3b8" />
-                        <stop offset="100%" stop-color="#475569" />
-                    </radialGradient>
-                    <filter id="moonGlow" x="-20%" y="-20%" width="140%" height="140%">
-                        <feGaussianBlur stdDeviation="5" result="glow" />
-                        <feComposite in="SourceGraphic" in2="glow" operator="over" />
-                    </filter>
-                </defs>
-
-                <!-- Uzay Yıldızları -->
-                <circle cx="35" cy="30" r="1.2" fill="#fff" opacity="0.8"/>
-                <circle cx="225" cy="35" r="1.5" fill="#fff" opacity="0.6"/>
-                <circle cx="210" cy="135" r="1" fill="#fff" opacity="0.9"/>
-                <circle cx="45" cy="125" r="1.3" fill="#fff" opacity="0.7"/>
-
-                <!-- Ay Dış Atmosferik Parıltı -->
-                <circle cx="130" cy="80" r="42" fill="none" stroke="#94a3b8" stroke-width="2" opacity="0.3" filter="url(#moonGlow)"/>
-
-                <!-- Gerçekçi Ay Gövdesi -->
-                <circle cx="130" cy="80" r="40" fill="url(#moonGrad)" stroke="#cbd5e1" stroke-width="1.5"/>
-                
-                <!-- Ay Krater Dokuları (Detaylı) -->
-                <circle cx="115" cy="70" r="7" fill="#475569" opacity="0.35"/>
-                <circle cx="142" cy="92" r="9" fill="#475569" opacity="0.4"/>
-                <circle cx="128" cy="58" r="5" fill="#475569" opacity="0.3"/>
-                <circle cx="138" cy="65" r="4" fill="#475569" opacity="0.25"/>
-                <circle cx="112" cy="98" r="6" fill="#475569" opacity="0.35"/>
-                <circle cx="122" cy="85" r="3.5" fill="#475569" opacity="0.3"/>
-
-                <!-- Ay Evre Gölge Maskesi -->
-                {shadow_path}
-
-                <!-- Alt Bilgi Paneli -->
-                <rect x="0" y="150" width="260" height="30" fill="rgba(15, 23, 42, 0.9)" rx="0 0 16 16"/>
-                <text x="130" y="170" fill="#38bdf8" font-size="12" font-weight="bold" text-anchor="middle">{phase_title}</text>
+            <svg width="260" height="180" viewBox="0 0 260 180" style="background: linear-gradient(135deg, #0b1329, #1c2541); border-radius: 16px; border: 1px solid #38bdf8;">
+                <circle cx="30" cy="30" r="1" fill="#fff"/><circle cx="220" cy="40" r="1.5" fill="#fff"/><circle cx="200" cy="130" r="1" fill="#fff"/>
+                <!-- Gerçekçi Ay Gövdesi ve Krater Dokuları -->
+                <circle cx="130" cy="80" r="40" fill="#94a3b8" stroke="#cbd5e1" stroke-width="2"/>
+                <circle cx="115" cy="70" r="7" fill="#64748b" opacity="0.4"/>
+                <circle cx="145" cy="95" r="9" fill="#64748b" opacity="0.4"/>
+                <circle cx="130" cy="60" r="5" fill="#64748b" opacity="0.4"/>
+                <!-- Ayla ilgili gölge simülasyonu -->
+                <path d="M 130 40 A 40 40 0 0 1 130 120 Z" fill="rgba(15, 23, 42, 0.75)"/>
+                <rect x="0" y="150" width="260" height="30" fill="rgba(0,0,0,0.4)" rx="0 0 16 16"/>
+                <text x="130" y="170" fill="#38bdf8" font-size="12" font-weight="bold" text-anchor="middle">🌕 Gerçekçi Ay Gözlem Modeli</text>
             </svg>
         </div>
         """
@@ -486,92 +424,27 @@ def render_question_visual(gorsel_tipi, param):
   elif gorsel_tipi == "dunya":
     svg_html = """
         <div style="display: flex; justify-content: center; margin: 10px 0;">
-            <svg width="260" height="180" viewBox="0 0 260 180" style="background: radial-gradient(circle at 50% 50%, #0f172a 0%, #020617 100%); border-radius: 16px; border: 1px solid #38bdf8; overflow: hidden;">
+            <svg width="260" height="180" viewBox="0 0 260 180" style="background: linear-gradient(135deg, #0284c7, #0f172a); border-radius: 16px; border: 1px solid #38bdf8;">
                 <defs>
-                    <!-- Uzay Yıldız Efekti İçin Desen -->
-                    <radialGradient id="spaceGlow" cx="50%" cy="50%" r="50%">
-                        <stop offset="0%" stop-color="#0284c7" stop-opacity="0.35"/>
-                        <stop offset="100%" stop-color="#020617" stop-opacity="0"/>
-                    </radialGradient>
-                    
-                    <!-- Gerçekçi Okyanus Gradyanı (3D Küre Efekti) -->
-                    <radialGradient id="earthOcean" cx="35%" cy="35%" r="65%">
+                    <radialGradient id="earthGrad" cx="40%" cy="40%" r="60%">
                         <stop offset="0%" stop-color="#38bdf8" />
-                        <stop offset="50%" stop-color="#0284c7" />
-                        <stop offset="85%" stop-color="#0369a1" />
-                        <stop offset="100%" stop-color="#0f172a" />
+                        <stop offset="70%" stop-color="#0284c7" />
+                        <stop offset="100%" stop-color="#0369a1" />
                     </radialGradient>
-
-                    <!-- Atmosferik Parıltı (Glow) -->
-                    <filter id="atmosphereGlow" x="-20%" y="-20%" width="140%" height="140%">
-                        <feGaussianBlur stdDeviation="6" result="glow" />
-                        <feComposite in="SourceGraphic" in2="glow" operator="over" />
-                    </filter>
-                    
-                    <!-- Yoğun Bulut Yumuşatma -->
-                    <filter id="cloudBlur">
-                        <feGaussianBlur stdDeviation="2" />
-                    </filter>
-
-                    <!-- Dünya Kırpma Alanı (Küre Sınırı) -->
-                    <clipPath id="earthClip">
-                        <circle cx="130" cy="80" r="44"/>
-                    </clipPath>
                 </defs>
-
-                <!-- Uzay Arka Planı Yıldızlar ve Parlama -->
-                <circle cx="130" cy="80" r="70" fill="url(#spaceGlow)" />
-                <circle cx="45" cy="35" r="1.2" fill="#ffffff" opacity="0.9"/>
-                <circle cx="215" cy="45" r="1.8" fill="#ffffff" opacity="0.7"/>
-                <circle cx="225" cy="125" r="1.2" fill="#ffffff" opacity="0.95"/>
-                <circle cx="40" cy="115" r="1.5" fill="#ffffff" opacity="0.8"/>
-                <circle cx="95" cy="20" r="1" fill="#ffffff" opacity="0.6"/>
-                <circle cx="180" cy="140" r="1" fill="#ffffff" opacity="0.5"/>
-
-                <!-- Dünya Atmosfer Katmanı (Dış Parlama) -->
-                <circle cx="130" cy="80" r="47" fill="none" stroke="#38bdf8" stroke-width="3" opacity="0.5" filter="url(#atmosphereGlow)" />
-
-                <!-- Dünya Okyanus Tabanı -->
-                <circle cx="130" cy="80" r="44" fill="url(#earthOcean)"/>
-
-                <!-- Kıtalar ve Toprak Dokuları -->
-                <g clip-path="url(#earthClip)">
-                    <!-- Kuzey Amerika / Avrupa / Asya -->
-                    <path d="M 100 48 Q 118 32 138 45 Q 148 58 132 73 Q 112 85 98 62 Z" fill="#16a34a" opacity="0.9"/>
-                    <path d="M 120 38 Q 132 28 145 40 Q 140 52 125 48 Z" fill="#ca8a04" opacity="0.8"/>
-                    
-                    <!-- Afrika / Güney Amerika -->
-                    <path d="M 110 72 Q 130 68 148 88 Q 152 115 128 122 Q 112 110 108 88 Z" fill="#15803d" opacity="0.95"/>
-                    <path d="M 122 88 Q 138 82 142 102 Q 130 110 120 98 Z" fill="#ca8a04" opacity="0.7"/>
-                    
-                    <!-- Ekstra Ada ve Detaylar -->
-                    <path d="M 148 58 Q 158 52 162 66 Q 154 72 148 64 Z" fill="#16a34a" opacity="0.85"/>
-                    <path d="M 95 80 Q 102 75 106 85 Q 98 90 95 80 Z" fill="#15803d" opacity="0.8"/>
-                </g>
-
-                <!-- Yoğun Atmosferik ve Sarmal Bulut Katmanları -->
-                <g clip-path="url(#earthClip)" filter="url(#cloudBlur)">
-                    <!-- Üst Katman Bulutları -->
-                    <path d="M 92 50 Q 112 38 135 48 Q 152 42 165 58" fill="none" stroke="#ffffff" stroke-width="6" stroke-linecap="round" opacity="0.75"/>
-                    <!-- Orta Katman Sarmal Fırtına / Bulut Grubu -->
-                    <path d="M 105 82 Q 128 72 148 88 Q 162 82 172 92" fill="none" stroke="#ffffff" stroke-width="5.5" stroke-linecap="round" opacity="0.7"/>
-                    <!-- Alt Katman Yoğun Bulut Öbekleri -->
-                    <path d="M 98 102 Q 115 95 132 110 Q 148 105 158 118" fill="none" stroke="#ffffff" stroke-width="4" stroke-linecap="round" opacity="0.65"/>
-                    <path d="M 122 62 Q 135 58 148 68" fill="none" stroke="#ffffff" stroke-width="3" stroke-linecap="round" opacity="0.6"/>
-                </g>
-
-                <!-- Dünya Işık Gölge Efekti (3D Küresel Gölgelendirme) -->
-                <circle cx="130" cy="80" r="44" fill="radial-gradient(circle at 65% 65%, transparent 35%, rgba(2, 6, 23, 0.8) 95%)" pointer-events="none"/>
-
-                <!-- Belirginleştirilmiş 23.5 Derece Eksen Eğikliği Çizgisi -->
-                <line x1="106" y1="15" x2="154" y2="145" stroke="#facc15" stroke-width="2.5" stroke-dasharray="5,3" opacity="0.95"/>
-                <!-- Kuzey ve Güney Kutup Noktası İşaretleri -->
-                <circle cx="106" cy="15" r="2.5" fill="#facc15" />
-                <circle cx="154" cy="145" r="2.5" fill="#facc15" />
-                
-                <!-- Alt Bilgi Paneli -->
-                <rect x="0" y="150" width="260" height="30" fill="rgba(15, 23, 42, 0.9)" rx="0 0 16 16"/>
-                <text x="130" y="170" fill="#38bdf8" font-size="12" font-weight="bold" text-anchor="middle">🌍 Gelişmiş Eksen ve Bulut Modellemeli Dünya</text>
+                <!-- Dünya Küresi -->
+                <circle cx="130" cy="80" r="44" fill="url(#earthGrad)" stroke="#60a5fa" stroke-width="2"/>
+                <!-- Kıtalar (Gerçekçi Yeşil-Kahve Dokular) -->
+                <path d="M 105 60 Q 125 45 140 65 Q 130 90 105 75 Z" fill="#15803d" opacity="0.9"/>
+                <path d="M 125 95 Q 150 85 155 110 Q 130 115 120 95 Z" fill="#15803d" opacity="0.9"/>
+                <path d="M 110 95 Q 100 105 115 115 Z" fill="#15803d" opacity="0.8"/>
+                <!-- Bulut Katmanları -->
+                <path d="M 100 55 Q 110 50 120 55" fill="none" stroke="#ffffff" stroke-width="2" stroke-linecap="round" opacity="0.7"/>
+                <path d="M 135 95 Q 145 90 155 95" fill="none" stroke="#ffffff" stroke-width="2" stroke-linecap="round" opacity="0.7"/>
+                <!-- Eksen Eğikliği Çizgisi -->
+                <line x1="112" y1="25" x2="148" y2="135" stroke="#facc15" stroke-width="2" stroke-dasharray="4,4"/>
+                <rect x="0" y="150" width="260" height="30" fill="rgba(0,0,0,0.4)" rx="0 0 16 16"/>
+                <text x="130" y="170" fill="#38bdf8" font-size="12" font-weight="bold" text-anchor="middle">🌍 Gerçekçi Dünya ve Atmosfer Modeli</text>
             </svg>
         </div>
         """
@@ -1320,7 +1193,7 @@ else:
         prompt = f"""
                 Rastgelelik Kimliği: {random.randint(10000, 999999)}
                 5. Sınıf MEB, Ders: {curr_subj}, Ünite: {curr_unit}.
-                Cümle içinde boşluk bırakılmış, birbirini tekrar etmeyen tamamen bağımsız **8 adet** özgün soru üret. 
+                Cümle içinde boşluk bırakılmış 5 adet soru üret. 
                 {visual_prompt_instruction}
                 JSON liste formatında ver:
                 [
@@ -1379,8 +1252,7 @@ else:
                   use_container_width=True,
               ):
                 if opt_val == fq["dogru_kelime"]:
-                  # 8 soru için her doğru cevap 12.5 puan (Toplam 100)
-                  st.session_state["fill_score"] += 12.5
+                  st.session_state["fill_score"] += 20
                   st.session_state["fill_feedback"] = (
                       f"🎉 **Tebrikler, Doğru Cevap!**<br><span"
                       f" style='color:#10b981;'>Boşluğa gelebilecek en doğru"
@@ -1400,13 +1272,11 @@ else:
             st.session_state["fill_feedback"] = ""
             st.rerun()
       else:
-        # Puanın tamsayı görünmesi için küsuratı yuvarlayabiliriz
-        final_score = int(st.session_state['fill_score'])
         st.markdown(
             f"""
             <div style="background: rgba(255,255,255,0.06); padding: 40px; border-radius: 16px; text-align: center;">
                 <h2>🏆 Boşluk Doldurma Yarışması Tamamlandı!</h2>
-                <p style="font-size: 26px;">Toplam Puanınız: <span style="color: #10b981; font-size: 40px;">{final_score} / 100</span></p>
+                <p style="font-size: 26px;">Toplam Puanınız: <span style="color: #10b981; font-size: 40px;">{st.session_state['fill_score']} / 100</span></p>
             </div>
             """,
             unsafe_allow_html=True,
