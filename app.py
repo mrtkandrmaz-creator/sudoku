@@ -120,13 +120,14 @@ MEB_CURRICULUM = {
         "renk": "linear-gradient(135deg, #2193b0, #6dd5ed)",
         "ikon": "📐",
         "uniteler": [
+            "1. Ünite: Doğru, Doğru Parçası,Nokta,Işın,Dikme",
+            "2. Ünite: Geometrik Nicelikler",
+            "3. Ünite: Geometrik Kavramlar ve Üçgenler",
             "4. Ünite: Doğal Sayılar",
             "5. Ünite: Kesirler",
             "6. Ünite: Ondalık Gösterimler",
-            "3. Ünite: Geometrik Kavramlar ve Üçgenler",
-            "2. Ünite: Geometrik Nicelikler",
-            "1. Ünite: Doğru, Doğru Parçası,Nokta,Işın,Dikme",
             "7. Ünite: Veri İşleme",
+            
         ],
     },
     "Fen Bilimleri": {
