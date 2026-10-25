@@ -321,7 +321,7 @@ st.markdown(
 
 
 # --- 6. GERÇEKÇİ VE CEVABI İFŞA ETMEYEN GÖRSEL MOTORU ---
-def render_question_visual(gorsel_tipi, param):
+def render_question_visual(gorsel_tipi, gorsel_parametre=""):
   if not gorsel_tipi or gorsel_tipi == "yok":
     return
 
