@@ -378,19 +378,78 @@ def render_question_visual(gorsel_tipi, param):
 
   # 2. FEN BİLİMLERİ: GERÇEKÇİ AY GÖRSELİ (EVRELER)
   elif gorsel_tipi == "ay_evresi":
+    # gorsel_parametre örneğin: "ilkdordun", "hilal", "dolunay", "sondordun", "yenisay"
+    faz = str(gorsel_parametre).lower().strip()
+    
+    # Evreye göre dinamik gölge / aydınlık maskesi belirleme
+    shadow_path = ""
+    phase_title = "Ay Evresi Modeli"
+    
+    if "dolunay" in faz:
+        shadow_path = "" # Tamamen aydınlık
+        phase_title = "🌕 Dolunay"
+    elif "ilkdordun" in faz:
+        # Sağ taraf aydınlık, sol taraf karanlık (İlk Dördün)
+        shadow_path = '<path d="M 130 40 A 40 40 0 0 0 130 120 Z" fill="rgba(2, 6, 23, 0.85)"/>'
+        phase_title = "🌓 İlk Dördün"
+    elif "sondordun" in faz:
+        # Sol taraf aydınlık, sağ taraf karanlık (Son Dördün)
+        shadow_path = '<path d="M 130 40 A 40 40 0 0 1 130 120 Z" fill="rgba(2, 6, 23, 0.85)"/>'
+        phase_title = "🌗 Son Dördün"
+    elif "hilal" in faz:
+        # Hilal görünümü (ince kavisli gölge veya aydınlık)
+        if "son" in faz or "sol" in faz:
+            shadow_path = '<path d="M 130 40 A 40 40 0 0 0 130 120 Q 115 80 130 40 Z" fill="rgba(2, 6, 23, 0.88)"/>'
+            phase_title = "🌙 Hilal (Kapanan)"
+        else:
+            shadow_path = '<path d="M 130 40 A 40 40 0 0 1 130 120 Q 145 80 130 40 Z" fill="rgba(2, 6, 23, 0.88)"/>'
+            phase_title = "🌙 Hilal (Büyüyen)"
+    else:
+        # Varsayılan / Diğer evreler için standart yarı gölge
+        shadow_path = '<path d="M 130 40 A 40 40 0 0 1 130 120 Z" fill="rgba(15, 23, 42, 0.75)"/>'
+        phase_title = f"🌑 Ay Evresi: {faz.capitalize()}"
+
     svg_html = f"""
         <div style="display: flex; justify-content: center; margin: 10px 0;">
-            <svg width="260" height="180" viewBox="0 0 260 180" style="background: linear-gradient(135deg, #0b1329, #1c2541); border-radius: 16px; border: 1px solid #38bdf8;">
-                <circle cx="30" cy="30" r="1" fill="#fff"/><circle cx="220" cy="40" r="1.5" fill="#fff"/><circle cx="200" cy="130" r="1" fill="#fff"/>
-                <!-- Gerçekçi Ay Gövdesi ve Krater Dokuları -->
-                <circle cx="130" cy="80" r="40" fill="#94a3b8" stroke="#cbd5e1" stroke-width="2"/>
-                <circle cx="115" cy="70" r="7" fill="#64748b" opacity="0.4"/>
-                <circle cx="145" cy="95" r="9" fill="#64748b" opacity="0.4"/>
-                <circle cx="130" cy="60" r="5" fill="#64748b" opacity="0.4"/>
-                <!-- Ayla ilgili gölge simülasyonu -->
-                <path d="M 130 40 A 40 40 0 0 1 130 120 Z" fill="rgba(15, 23, 42, 0.75)"/>
-                <rect x="0" y="150" width="260" height="30" fill="rgba(0,0,0,0.4)" rx="0 0 16 16"/>
-                <text x="130" y="170" fill="#38bdf8" font-size="12" font-weight="bold" text-anchor="middle">🌕 Gerçekçi Ay Gözlem Modeli</text>
+            <svg width="260" height="180" viewBox="0 0 260 180" style="background: radial-gradient(circle at 50% 50%, #0f172a 0%, #020617 100%); border-radius: 16px; border: 1px solid #38bdf8; overflow: hidden;">
+                <defs>
+                    <radialGradient id="moonGrad" cx="35%" cy="35%" r="65%">
+                        <stop offset="0%" stop-color="#cbd5e1" />
+                        <stop offset="70%" stop-color="#94a3b8" />
+                        <stop offset="100%" stop-color="#475569" />
+                    </radialGradient>
+                    <filter id="moonGlow" x="-20%" y="-20%" width="140%" height="140%">
+                        <feGaussianBlur stdDeviation="5" result="glow" />
+                        <feComposite in="SourceGraphic" in2="glow" operator="over" />
+                    </filter>
+                </defs>
+
+                <!-- Uzay Yıldızları -->
+                <circle cx="35" cy="30" r="1.2" fill="#fff" opacity="0.8"/>
+                <circle cx="225" cy="35" r="1.5" fill="#fff" opacity="0.6"/>
+                <circle cx="210" cy="135" r="1" fill="#fff" opacity="0.9"/>
+                <circle cx="45" cy="125" r="1.3" fill="#fff" opacity="0.7"/>
+
+                <!-- Ay Dış Atmosferik Parıltı -->
+                <circle cx="130" cy="80" r="42" fill="none" stroke="#94a3b8" stroke-width="2" opacity="0.3" filter="url(#moonGlow)"/>
+
+                <!-- Gerçekçi Ay Gövdesi -->
+                <circle cx="130" cy="80" r="40" fill="url(#moonGrad)" stroke="#cbd5e1" stroke-width="1.5"/>
+                
+                <!-- Ay Krater Dokuları (Detaylı) -->
+                <circle cx="115" cy="70" r="7" fill="#475569" opacity="0.35"/>
+                <circle cx="142" cy="92" r="9" fill="#475569" opacity="0.4"/>
+                <circle cx="128" cy="58" r="5" fill="#475569" opacity="0.3"/>
+                <circle cx="138" cy="65" r="4" fill="#475569" opacity="0.25"/>
+                <circle cx="112" cy="98" r="6" fill="#475569" opacity="0.35"/>
+                <circle cx="122" cy="85" r="3.5" fill="#475569" opacity="0.3"/>
+
+                <!-- Ay Evre Gölge Maskesi -->
+                {shadow_path}
+
+                <!-- Alt Bilgi Paneli -->
+                <rect x="0" y="150" width="260" height="30" fill="rgba(15, 23, 42, 0.9)" rx="0 0 16 16"/>
+                <text x="130" y="170" fill="#38bdf8" font-size="12" font-weight="bold" text-anchor="middle">{phase_title}</text>
             </svg>
         </div>
         """
