@@ -124,7 +124,9 @@ MEB_CURRICULUM = {
             "2. Ünite: Kesirler",
             "3. Ünite: Ondalık Gösterimler",
             "4. Ünite: Geometrik Kavramlar ve Üçgenler",
-            "5. Ünite: Veri İşleme",
+            "5. Ünite: Geometrik Nicelikler",
+            "6. Ünite: Doğru, Doğru Parçası,Nokta,Işın,Dikme",
+            "7. Ünite: Veri İşleme",
         ],
     },
     "Fen Bilimleri": {
