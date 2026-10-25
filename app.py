@@ -373,25 +373,31 @@ def render_question_visual(gorsel_tipi, param):
         """
     st.components.v1.html(svg_html, height=195)
 
-  # 2. FEN BİLİMLERİ: GERÇEKÇİ AY GÖRSELİ (EVRELER)
-  elif gorsel_tipi == "ay_evresi":
-    svg_html = f"""
-        <div style="display: flex; justify-content: center; margin: 10px 0;">
-            <svg width="260" height="180" viewBox="0 0 260 180" style="background: linear-gradient(135deg, #0b1329, #1c2541); border-radius: 16px; border: 1px solid #38bdf8;">
-                <circle cx="30" cy="30" r="1" fill="#fff"/><circle cx="220" cy="40" r="1.5" fill="#fff"/><circle cx="200" cy="130" r="1" fill="#fff"/>
-                <!-- Gerçekçi Ay Gövdesi ve Krater Dokuları -->
-                <circle cx="130" cy="80" r="40" fill="#94a3b8" stroke="#cbd5e1" stroke-width="2"/>
-                <circle cx="115" cy="70" r="7" fill="#64748b" opacity="0.4"/>
-                <circle cx="145" cy="95" r="9" fill="#64748b" opacity="0.4"/>
-                <circle cx="130" cy="60" r="5" fill="#64748b" opacity="0.4"/>
-                <!-- Ayla ilgili gölge simülasyonu -->
-                <path d="M 130 40 A 40 40 0 0 1 130 120 Z" fill="rgba(15, 23, 42, 0.75)"/>
-                <rect x="0" y="150" width="260" height="30" fill="rgba(0,0,0,0.4)" rx="0 0 16 16"/>
-                <text x="130" y="170" fill="#38bdf8" font-size="12" font-weight="bold" text-anchor="middle">🌕 Gerçekçi Ay Gözlem Modeli</text>
-            </svg>
-        </div>
-        """
-    st.components.v1.html(svg_html, height=195)
+  # 4. AY EVRESİ GÖRSELİ (Hilal, İlkdördün, Dolunay, Sondördün)
+    elif gorsel_tipi == "ay_evresi":
+        faz = str(gorsel_parametre).lower().strip()
+        shadow_path = ""
+        phase_title = "Ay Evresi Modeli"
+        
+        if "dolunay" in faz:
+            shadow_path = ""
+            phase_title = "🌕 Dolunay"
+        elif "ilkdordun" in faz:
+            shadow_path = '<path d="M 130 40 A 40 40 0 0 0 130 120 Z" fill="rgba(2, 6, 23, 0.85)"/>'
+            phase_title = "🌓 İlk Dördün"
+        elif "sondordun" in faz:
+            shadow_path = '<path d="M 130 40 A 40 40 0 0 1 130 120 Z" fill="rgba(2, 6, 23, 0.85)"/>'
+            phase_title = "🌗 Son Dördün"
+        elif "hilal" in faz:
+            if "son" in faz or "sol" in faz:
+                shadow_path = '<path d="M 130 40 A 40 40 0 0 0 130 120 Q 115 80 130 40 Z" fill="rgba(2, 6, 23, 0.88)"/>'
+                phase_title = "🌙 Hilal (Kapanan)"
+            else:
+                shadow_path = '<path d="M 130 40 A 40 40 0 0 1 130 120 Q 145 80 130 40 Z" fill="rgba(2, 6, 23, 0.88)"/>'
+                phase_title = "🌙 Hilal (Büyüyen)"
+        else:
+            shadow_path = '<path d="M 130 40 A 40 40 0 0 1 130 120 Z" fill="rgba(15, 23, 42, 0.75)"/>'
+            phase_title = f"🌑 Ay Evresi: {faz.capitalize()}"
 
   # 3. FEN BİLİMLERİ: GERÇEKÇİ GÜNEŞ GÖRSELİ
   elif gorsel_tipi == "gunes":
