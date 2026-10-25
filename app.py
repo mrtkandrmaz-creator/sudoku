@@ -54,9 +54,8 @@ def safe_parse_json(raw_text):
       return None
 
 
-# --- SECRETS.TOML OKUYAN AKILLI MOTOR ---
+# --- SECRETS.TOML OKUYAN ÇOKLU GROQ ANAHTAR MOTORU ---
 def get_all_api_keys():
-  gemini_keys = []
   groq_keys = []
   try:
     if hasattr(st, "secrets") and "api_keys" in st.secrets:
@@ -69,58 +68,60 @@ def get_all_api_keys():
   except Exception:
     pass
 
-  # Manuel eklenenler
   if "manual_groq" in st.session_state and st.session_state["manual_groq"]:
     mg = st.session_state["manual_groq"].strip()
     if mg and mg not in groq_keys:
       groq_keys.append(mg)
 
-  return gemini_keys, groq_keys
+  return groq_keys
 
 
-# --- GERÇEK ZAMANLI YAPAY ZEKA SORU ÜRETİCİ (GROQ ÖNCELİKLİ) ---
+# --- GERÇEK ZAMANLI YAPAY ZEKA SORU ÜRETİCİ (ÇOKLU ANAHTAR VE MODEL DÖNGÜSÜ) ---
 def ai_generate_content(prompt_text):
   raw_res = None
-  _, groq_keys = get_all_api_keys()
+  groq_keys = get_all_api_keys()
 
-  # Groq Anahtarları ile İstek Atma
-  if groq_keys:
-    try:
-      from groq import Groq
+  if not groq_keys:
+    return None
 
-      for gr_key in groq_keys:
-        try:
-          client = Groq(api_key=gr_key)
-          groq_models = [
-              "llama-3.3-70b-versatile",
-              "llama-3.1-70b-versatile",
-              "llama-3.1-8b-instant",
-              "llama3-70b-8192",
-              "mixtral-8x7b-32768",
-              "gemma2-9b-it",
-          ]
-          for g_model in groq_models:
-            try:
-              completion = client.chat.completions.create(
-                  model=g_model,
-                  messages=[{"role": "user", "content": prompt_text}],
-                  temperature=0.95,
-              )
-              if (
-                  completion
-                  and completion.choices
-                  and completion.choices[0].message.content
-              ):
-                raw_res = completion.choices[0].message.content
-                break
-            except Exception:
-              continue
-          if raw_res:
-            break
-        except Exception:
-          continue
-    except Exception:
-      pass
+  try:
+    from groq import Groq
+
+    # Tüm Groq anahtarlarını sırayla dene
+    for gr_key in groq_keys:
+      try:
+        client = Groq(api_key=gr_key)
+        groq_models = [
+            "llama-3.3-70b-versatile",
+            "llama-3.1-70b-versatile",
+            "llama-3.1-8b-instant",
+            "llama3-70b-8192",
+            "mixtral-8x7b-32768",
+            "gemma2-9b-it",
+        ]
+        # Her anahtar için desteklenen modelleri dene
+        for g_model in groq_models:
+          try:
+            completion = client.chat.completions.create(
+                model=g_model,
+                messages=[{"role": "user", "content": prompt_text}],
+                temperature=0.9,
+            )
+            if (
+                completion
+                and completion.choices
+                and completion.choices[0].message.content
+            ):
+              raw_res = completion.choices[0].message.content
+              break
+          except Exception:
+            continue
+        if raw_res:
+          break
+      except Exception:
+        continue
+  except Exception:
+    pass
 
   return clean_math_text(raw_res) if raw_res else None
 
@@ -692,6 +693,7 @@ else:
         prompt = f"""
                 5. Sınıf MEB, Ders: {curr_subj}, Tema: {curr_unit}.
                 TAM 5 ADET tamamen birbirinden farklı, özgün ve çeşitli çoktan seçmeli soru üret.
+                Asla 'circ' kelimesi kullanma, yalnızca standart derece işareti (°) kullan.
                 JSON formatında geçerli bir liste olarak ver:
                 [
                   {{
@@ -809,6 +811,7 @@ else:
         prompt = f"""
                 5. Sınıf MEB, Ders: {curr_subj}, Tema: {curr_unit}.
                 TAM 5 ADET birbirini tekrar etmeyen, farklı alt başlıklardan çoktan seçmeli soru üret. 
+                Asla 'circ' kelimesi kullanma, yalnızca standart derece işareti (°) kullan.
                 JSON liste formatında şu yapıda ver:
                 [
                   {{
@@ -1219,7 +1222,7 @@ else:
       else:
         st.error("Tekrar deneyin.")
 
-  # 9. KLASİK YAZILI SİMÜLATÖRÜ
+  # 9. KLASİK YZ SİMÜLATÖRÜ
   elif curr_game == "acik":
     st.subheader(f"✍️ {curr_subj} — Klasik Yazılı Simülatörü")
     with st.form("classic_form"):
@@ -1229,7 +1232,11 @@ else:
       )
       ans = st.text_area("Yazılı Cevabınız:")
       if st.form_submit_button("Kağıdı Puanlat"):
-        st.info(
-            "📝 **Değerlendirme:** Cevabınız 5. sınıf MEB kazanımlarına uygundur."
-            " Puan: 100/100"
-        )
+        if ans.strip():
+          eval_prompt = f"5. Sınıf MEB {curr_subj} dersi {curr_unit} için öğrencinin yanıtı: '{ans}'. Bu yanıtı kısa ve yapıcı bir şekilde değerlendir, puan ver (0-100 arası)."
+          feedback = ai_generate_content(eval_prompt)
+          st.info(
+              f"📝 **Değerlendirme:**\n\n{feedback if feedback else 'Cevabınız 5. sınıf MEB kazanımlarına uygundur. Puan: 100/100'}"
+          )
+        else:
+          st.warning("Lütfen bir cevap yazın.")
