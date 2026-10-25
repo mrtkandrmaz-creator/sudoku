@@ -124,9 +124,10 @@ MEB_CURRICULUM = {
             "2. Ünite: Geometrik Nicelikler",
             "3. Ünite: Geometrik Kavramlar ve Üçgenler",
             "4. Ünite: Doğal Sayılar",
-            "5. Ünite: Kesirler",
-            "6. Ünite: Ondalık Gösterimler",
-            "7. Ünite: Veri İşleme",
+            "5. Ünite: Tümler ve Bütünler açı",
+            "6. Ünite: Kesirler",
+            "7. Ünite: Ondalık Gösterimler",
+            "8. Ünite: Veri İşleme",
             
         ],
     },
