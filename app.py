@@ -1196,7 +1196,7 @@ else:
         prompt = f"""
                 Rastgelelik Kimliği: {random.randint(10000, 999999)}
                 5. Sınıf MEB, Ders: {curr_subj}, Ünite: {curr_unit}.
-                Cümle içinde boşluk bırakılmış 5 adet soru üret. 
+                Cümle içinde boşluk bırakılmış, birbirini tekrar etmeyen tamamen bağımsız **8 adet** özgün soru üret. 
                 {visual_prompt_instruction}
                 JSON liste formatında ver:
                 [
@@ -1255,7 +1255,8 @@ else:
                   use_container_width=True,
               ):
                 if opt_val == fq["dogru_kelime"]:
-                  st.session_state["fill_score"] += 20
+                  # 8 soru için her doğru cevap 12.5 puan (Toplam 100)
+                  st.session_state["fill_score"] += 12.5
                   st.session_state["fill_feedback"] = (
                       f"🎉 **Tebrikler, Doğru Cevap!**<br><span"
                       f" style='color:#10b981;'>Boşluğa gelebilecek en doğru"
@@ -1275,11 +1276,13 @@ else:
             st.session_state["fill_feedback"] = ""
             st.rerun()
       else:
+        # Puanın tamsayı görünmesi için küsuratı yuvarlayabiliriz
+        final_score = int(st.session_state['fill_score'])
         st.markdown(
             f"""
             <div style="background: rgba(255,255,255,0.06); padding: 40px; border-radius: 16px; text-align: center;">
                 <h2>🏆 Boşluk Doldurma Yarışması Tamamlandı!</h2>
-                <p style="font-size: 26px;">Toplam Puanınız: <span style="color: #10b981; font-size: 40px;">{st.session_state['fill_score']} / 100</span></p>
+                <p style="font-size: 26px;">Toplam Puanınız: <span style="color: #10b981; font-size: 40px;">{final_score} / 100</span></p>
             </div>
             """,
             unsafe_allow_html=True,
