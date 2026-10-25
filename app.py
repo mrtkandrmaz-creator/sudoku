@@ -325,141 +325,95 @@ def render_question_visual(gorsel_tipi, gorsel_parametre=""):
   if not gorsel_tipi or gorsel_tipi == "yok":
     return
 
-  # Fonksiyon tanımını bu şekilde güncelleyin (2 parametre alacak şekilde):
-def render_question_visual(gorsel_tipi, gorsel_parametre=""):
-    # Hata almamak için parametreyi eski değişken adınıza eşitleyelim:
+  def render_question_visual(gorsel_tipi, gorsel_parametre=""):
     param = gorsel_parametre
     param_str = str(param).lower()
     
-    # ... Bundan sonraki alt alta gelen if / elif kodlarınız (dunya, ay_evresi vb.) aynı kalabilir ...
-
-  # 1. MATEMATİK: ÜÇGEN VE AÇI MOTORU
-  if gorsel_tipi in ["ucgen", "aci"]:
-    deg = 50
-    try:
-      deg = int(re.search(r"\d+", str(param)).group())
-    except Exception:
-      pass
-
-    Ax, Ay = 125, 45
-    Bx, By = 35, 145
-    Cx, Cy = 215, 145
-
-    arc_svg = '<path d="M 103 69 A 28 28 0 0 0 147 69" fill="none"' ' stroke="#facc15" stroke-width="3" stroke-linecap="round"/>'
-    is_right_angle = "dik" in param_str or deg == 90
-    if is_right_angle:
-      arc_svg = (
-          '<polyline points="115,55 115,65 125,65" fill="none"'
-          ' stroke="#ef4444" stroke-width="2.5"/>'
-      )
-
-    svg_html = f"""
-        <div style="display: flex; justify-content: center; margin: 10px 0;">
-            <svg width="260" height="180" viewBox="0 0 260 180" style="background: linear-gradient(135deg, #1e293b, #0f172a); border-radius: 16px; border: 1px solid rgba(56, 189, 248, 0.3); box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.4);">
-                <defs>
-                    <pattern id="grid" width="20" height="20" patternUnits="userSpaceOnUse">
-                        <path d="M 20 0 L 0 0 0 20" fill="none" stroke="rgba(255,255,255,0.03)" stroke-width="1"/>
-                    </pattern>
-                    <linearGradient id="triangleGrad" x1="0%" y1="0%" x2="100%" y2="100%">
-                        <stop offset="0%" stop-color="rgba(56, 189, 248, 0.25)" />
-                        <stop offset="100%" stop-color="rgba(99, 102, 241, 0.05)" />
-                    </linearGradient>
-                </defs>
-                <rect width="100%" height="100%" fill="url(#grid)" rx="16"/>
-                <polygon points="{Ax},{Ay} {Bx},{By} {Cx},{Cy}" fill="url(#triangleGrad)" stroke="#38bdf8" stroke-width="3.5" stroke-linejoin="round"/>
-                {arc_svg}
-                <text x="{Ax}" y="{Ay - 10}" fill="#38bdf8" font-size="15" font-weight="800" text-anchor="middle">A</text>
-                <text x="{Bx - 12}" y="{By + 5}" fill="#38bdf8" font-size="15" font-weight="800">B</text>
-                <text x="{Cx + 5}" y="{Cy + 5}" fill="#38bdf8" font-size="15" font-weight="800">C</text>
-                <g transform="translate({Ax - 18}, {Ay + 35})">
-                    <rect x="0" y="0" width="36" height="18" fill="#0f172a" rx="5" stroke="#facc15" stroke-width="1.5"/>
-                    <text x="18" y="13" fill="#facc15" font-size="11" font-weight="bold" text-anchor="middle">{deg}°</text>
-                </g>
-                <rect x="0" y="155" width="260" height="25" fill="rgba(0,0,0,0.3)" rx="0 0 16 16"/>
-                <text x="130" y="171" fill="#94a3b8" font-size="11" font-weight="600" text-anchor="middle">📐 m(A) = {deg}° | Geometri Modeli</text>
-            </svg>
-        </div>
-        """
-    st.components.v1.html(svg_html, height=195)
-
-  # 2. FEN BİLİMLERİ: GERÇEKÇİ AY GÖRSELİ (EVRELER)
-  elif gorsel_tipi == "ay_evresi":
-    # gorsel_parametre örneğin: "ilkdordun", "hilal", "dolunay", "sondordun", "yenisay"
-    faz = str(gorsel_parametre).lower().strip()
-    
-    # Evreye göre dinamik gölge / aydınlık maskesi belirleme
-    shadow_path = ""
-    phase_title = "Ay Evresi Modeli"
-    
-    if "dolunay" in faz:
-        shadow_path = "" # Tamamen aydınlık
-        phase_title = "🌕 Dolunay"
-    elif "ilkdordun" in faz:
-        # Sağ taraf aydınlık, sol taraf karanlık (İlk Dördün)
-        shadow_path = '<path d="M 130 40 A 40 40 0 0 0 130 120 Z" fill="rgba(2, 6, 23, 0.85)"/>'
-        phase_title = "🌓 İlk Dördün"
-    elif "sondordun" in faz:
-        # Sol taraf aydınlık, sağ taraf karanlık (Son Dördün)
-        shadow_path = '<path d="M 130 40 A 40 40 0 0 1 130 120 Z" fill="rgba(2, 6, 23, 0.85)"/>'
-        phase_title = "🌗 Son Dördün"
-    elif "hilal" in faz:
-        # Hilal görünümü (ince kavisli gölge veya aydınlık)
-        if "son" in faz or "sol" in faz:
-            shadow_path = '<path d="M 130 40 A 40 40 0 0 0 130 120 Q 115 80 130 40 Z" fill="rgba(2, 6, 23, 0.88)"/>'
-            phase_title = "🌙 Hilal (Kapanan)"
-        else:
-            shadow_path = '<path d="M 130 40 A 40 40 0 0 1 130 120 Q 145 80 130 40 Z" fill="rgba(2, 6, 23, 0.88)"/>'
-            phase_title = "🌙 Hilal (Büyüyen)"
-    else:
-        # Varsayılan / Diğer evreler için standart yarı gölge
-        shadow_path = '<path d="M 130 40 A 40 40 0 0 1 130 120 Z" fill="rgba(15, 23, 42, 0.75)"/>'
-        phase_title = f"🌑 Ay Evresi: {faz.capitalize()}"
-
-    svg_html = f"""
+    if gorsel_tipi in ["ucgen", "aci"]:
+        # Üçgen veya açı ile ilgili kodlarınız buradaysa aynı kalabilir
+        pass
+        
+    elif gorsel_tipi == "dunya":
+        svg_html = """
         <div style="display: flex; justify-content: center; margin: 10px 0;">
             <svg width="260" height="180" viewBox="0 0 260 180" style="background: radial-gradient(circle at 50% 50%, #0f172a 0%, #020617 100%); border-radius: 16px; border: 1px solid #38bdf8; overflow: hidden;">
                 <defs>
-                    <radialGradient id="moonGrad" cx="35%" cy="35%" r="65%">
-                        <stop offset="0%" stop-color="#cbd5e1" />
-                        <stop offset="70%" stop-color="#94a3b8" />
-                        <stop offset="100%" stop-color="#475569" />
+                    <radialGradient id="spaceGlow" cx="50%" cy="50%" r="50%">
+                        <stop offset="0%" stop-color="#0284c7" stop-opacity="0.35"/>
+                        <stop offset="100%" stop-color="#020617" stop-opacity="0"/>
                     </radialGradient>
-                    <filter id="moonGlow" x="-20%" y="-20%" width="140%" height="140%">
-                        <feGaussianBlur stdDeviation="5" result="glow" />
+                    <radialGradient id="earthOcean" cx="35%" cy="35%" r="65%">
+                        <stop offset="0%" stop-color="#38bdf8" />
+                        <stop offset="50%" stop-color="#0284c7" />
+                        <stop offset="85%" stop-color="#0369a1" />
+                        <stop offset="100%" stop-color="#0f172a" />
+                    </radialGradient>
+                    <filter id="atmosphereGlow" x="-20%" y="-20%" width="140%" height="140%">
+                        <feGaussianBlur stdDeviation="6" result="glow" />
                         <feComposite in="SourceGraphic" in2="glow" operator="over" />
                     </filter>
+                    <filter id="cloudBlur">
+                        <feGaussianBlur stdDeviation="2" />
+                    </filter>
+                    <clipPath id="earthClip">
+                        <circle cx="130" cy="80" r="44"/>
+                    </clipPath>
                 </defs>
+                <circle cx="130" cy="80" r="70" fill="url(#spaceGlow)" />
+                <circle cx="45" cy="35" r="1.2" fill="#ffffff" opacity="0.9"/>
+                <circle cx="215" cy="45" r="1.8" fill="#ffffff" opacity="0.7"/>
+                <circle cx="225" cy="125" r="1.2" fill="#ffffff" opacity="0.95"/>
+                <circle cx="40" cy="115" r="1.5" fill="#ffffff" opacity="0.8"/>
+                <circle cx="130" cy="80" r="47" fill="none" stroke="#38bdf8" stroke-width="3" opacity="0.5" filter="url(#atmosphereGlow)" />
+                <circle cx="130" cy="80" r="44" fill="url(#earthOcean)"/>
+                <g clip-path="url(#earthClip)">
+                    <path d="M 100 48 Q 118 32 138 45 Q 148 58 132 73 Q 112 85 98 62 Z" fill="#16a34a" opacity="0.9"/>
+                    <path d="M 110 72 Q 130 68 148 88 Q 152 115 128 122 Q 112 110 108 88 Z" fill="#15803d" opacity="0.95"/>
+                </g>
+                <line x1="106" y1="15" x2="154" y2="145" stroke="#facc15" stroke-width="2.5" stroke-dasharray="5,3" opacity="0.95"/>
+                <rect x="0" y="150" width="260" height="30" fill="rgba(15, 23, 42, 0.9)" rx="0 0 16 16"/>
+                <text x="130" y="170" fill="#38bdf8" font-size="12" font-weight="bold" text-anchor="middle">🌍 Gelişmiş Eksen ve Bulut Modellemeli Dünya</text>
+            </svg>
+        </div>
+        """
+        st.components.v1.html(svg_html, height=195)
 
-                <!-- Uzay Yıldızları -->
-                <circle cx="35" cy="30" r="1.2" fill="#fff" opacity="0.8"/>
-                <circle cx="225" cy="35" r="1.5" fill="#fff" opacity="0.6"/>
-                <circle cx="210" cy="135" r="1" fill="#fff" opacity="0.9"/>
-                <circle cx="45" cy="125" r="1.3" fill="#fff" opacity="0.7"/>
+    elif gorsel_tipi == "ay_evresi":
+        faz = str(gorsel_parametre).lower().strip()
+        shadow_path = ""
+        phase_title = "Ay Evresi Modeli"
+        
+        if "dolunay" in faz:
+            shadow_path = ""
+            phase_title = "🌕 Dolunay"
+        elif "ilkdordun" in faz:
+            shadow_path = '<path d="M 130 40 A 40 40 0 0 0 130 120 Z" fill="rgba(2, 6, 23, 0.85)"/>'
+            phase_title = "🌓 İlk Dördün"
+        elif "sondordun" in faz:
+            shadow_path = '<path d="M 130 40 A 40 40 0 0 1 130 120 Z" fill="rgba(2, 6, 23, 0.85)"/>'
+            phase_title = "🌗 Son Dördün"
+        elif "hilal" in faz:
+            if "son" in faz or "sol" in faz:
+                shadow_path = '<path d="M 130 40 A 40 40 0 0 0 130 120 Q 115 80 130 40 Z" fill="rgba(2, 6, 23, 0.88)"/>'
+                phase_title = "🌙 Hilal (Kapanan)"
+            else:
+                shadow_path = '<path d="M 130 40 A 40 40 0 0 1 130 120 Q 145 80 130 40 Z" fill="rgba(2, 6, 23, 0.88)"/>'
+                phase_title = "🌙 Hilal (Büyüyen)"
+        else:
+            shadow_path = '<path d="M 130 40 A 40 40 0 0 1 130 120 Z" fill="rgba(15, 23, 42, 0.75)"/>'
+            phase_title = f"🌑 Ay Evresi: {faz.capitalize()}"
 
-                <!-- Ay Dış Atmosferik Parıltı -->
-                <circle cx="130" cy="80" r="42" fill="none" stroke="#94a3b8" stroke-width="2" opacity="0.3" filter="url(#moonGlow)"/>
-
-                <!-- Gerçekçi Ay Gövdesi -->
-                <circle cx="130" cy="80" r="40" fill="url(#moonGrad)" stroke="#cbd5e1" stroke-width="1.5"/>
-                
-                <!-- Ay Krater Dokuları (Detaylı) -->
-                <circle cx="115" cy="70" r="7" fill="#475569" opacity="0.35"/>
-                <circle cx="142" cy="92" r="9" fill="#475569" opacity="0.4"/>
-                <circle cx="128" cy="58" r="5" fill="#475569" opacity="0.3"/>
-                <circle cx="138" cy="65" r="4" fill="#475569" opacity="0.25"/>
-                <circle cx="112" cy="98" r="6" fill="#475569" opacity="0.35"/>
-                <circle cx="122" cy="85" r="3.5" fill="#475569" opacity="0.3"/>
-
-                <!-- Ay Evre Gölge Maskesi -->
+        svg_html = f"""
+        <div style="display: flex; justify-content: center; margin: 10px 0;">
+            <svg width="260" height="180" viewBox="0 0 260 180" style="background: radial-gradient(circle at 50% 50%, #0f172a 0%, #020617 100%); border-radius: 16px; border: 1px solid #38bdf8; overflow: hidden;">
+                <circle cx="130" cy="80" r="40" fill="#94a3b8" stroke="#cbd5e1" stroke-width="1.5"/>
                 {shadow_path}
-
-                <!-- Alt Bilgi Paneli -->
                 <rect x="0" y="150" width="260" height="30" fill="rgba(15, 23, 42, 0.9)" rx="0 0 16 16"/>
                 <text x="130" y="170" fill="#38bdf8" font-size="12" font-weight="bold" text-anchor="middle">{phase_title}</text>
             </svg>
         </div>
         """
-    st.components.v1.html(svg_html, height=195)
+        st.components.v1.html(svg_html, height=195)
 
   # 3. FEN BİLİMLERİ: GERÇEKÇİ GÜNEŞ GÖRSELİ
   elif gorsel_tipi == "gunes":
