@@ -427,27 +427,92 @@ def render_question_visual(gorsel_tipi, param):
   elif gorsel_tipi == "dunya":
     svg_html = """
         <div style="display: flex; justify-content: center; margin: 10px 0;">
-            <svg width="260" height="180" viewBox="0 0 260 180" style="background: linear-gradient(135deg, #0284c7, #0f172a); border-radius: 16px; border: 1px solid #38bdf8;">
+            <svg width="260" height="180" viewBox="0 0 260 180" style="background: radial-gradient(circle at 50% 50%, #0f172a 0%, #020617 100%); border-radius: 16px; border: 1px solid #38bdf8; overflow: hidden;">
                 <defs>
-                    <radialGradient id="earthGrad" cx="40%" cy="40%" r="60%">
-                        <stop offset="0%" stop-color="#38bdf8" />
-                        <stop offset="70%" stop-color="#0284c7" />
-                        <stop offset="100%" stop-color="#0369a1" />
+                    <!-- Uzay Yıldız Efekti İçin Desen -->
+                    <radialGradient id="spaceGlow" cx="50%" cy="50%" r="50%">
+                        <stop offset="0%" stop-color="#0284c7" stop-opacity="0.35"/>
+                        <stop offset="100%" stop-color="#020617" stop-opacity="0"/>
                     </radialGradient>
+                    
+                    <!-- Gerçekçi Okyanus Gradyanı (3D Küre Efekti) -->
+                    <radialGradient id="earthOcean" cx="35%" cy="35%" r="65%">
+                        <stop offset="0%" stop-color="#38bdf8" />
+                        <stop offset="50%" stop-color="#0284c7" />
+                        <stop offset="85%" stop-color="#0369a1" />
+                        <stop offset="100%" stop-color="#0f172a" />
+                    </radialGradient>
+
+                    <!-- Atmosferik Parıltı (Glow) -->
+                    <filter id="atmosphereGlow" x="-20%" y="-20%" width="140%" height="140%">
+                        <feGaussianBlur stdDeviation="6" result="glow" />
+                        <feComposite in="SourceGraphic" in2="glow" operator="over" />
+                    </filter>
+                    
+                    <!-- Yoğun Bulut Yumuşatma -->
+                    <filter id="cloudBlur">
+                        <feGaussianBlur stdDeviation="2" />
+                    </filter>
+
+                    <!-- Dünya Kırpma Alanı (Küre Sınırı) -->
+                    <clipPath id="earthClip">
+                        <circle cx="130" cy="80" r="44"/>
+                    </clipPath>
                 </defs>
-                <!-- Dünya Küresi -->
-                <circle cx="130" cy="80" r="44" fill="url(#earthGrad)" stroke="#60a5fa" stroke-width="2"/>
-                <!-- Kıtalar (Gerçekçi Yeşil-Kahve Dokular) -->
-                <path d="M 105 60 Q 125 45 140 65 Q 130 90 105 75 Z" fill="#15803d" opacity="0.9"/>
-                <path d="M 125 95 Q 150 85 155 110 Q 130 115 120 95 Z" fill="#15803d" opacity="0.9"/>
-                <path d="M 110 95 Q 100 105 115 115 Z" fill="#15803d" opacity="0.8"/>
-                <!-- Bulut Katmanları -->
-                <path d="M 100 55 Q 110 50 120 55" fill="none" stroke="#ffffff" stroke-width="2" stroke-linecap="round" opacity="0.7"/>
-                <path d="M 135 95 Q 145 90 155 95" fill="none" stroke="#ffffff" stroke-width="2" stroke-linecap="round" opacity="0.7"/>
-                <!-- Eksen Eğikliği Çizgisi -->
-                <line x1="112" y1="25" x2="148" y2="135" stroke="#facc15" stroke-width="2" stroke-dasharray="4,4"/>
-                <rect x="0" y="150" width="260" height="30" fill="rgba(0,0,0,0.4)" rx="0 0 16 16"/>
-                <text x="130" y="170" fill="#38bdf8" font-size="12" font-weight="bold" text-anchor="middle">🌍 Gerçekçi Dünya ve Atmosfer Modeli</text>
+
+                <!-- Uzay Arka Planı Yıldızlar ve Parlama -->
+                <circle cx="130" cy="80" r="70" fill="url(#spaceGlow)" />
+                <circle cx="45" cy="35" r="1.2" fill="#ffffff" opacity="0.9"/>
+                <circle cx="215" cy="45" r="1.8" fill="#ffffff" opacity="0.7"/>
+                <circle cx="225" cy="125" r="1.2" fill="#ffffff" opacity="0.95"/>
+                <circle cx="40" cy="115" r="1.5" fill="#ffffff" opacity="0.8"/>
+                <circle cx="95" cy="20" r="1" fill="#ffffff" opacity="0.6"/>
+                <circle cx="180" cy="140" r="1" fill="#ffffff" opacity="0.5"/>
+
+                <!-- Dünya Atmosfer Katmanı (Dış Parlama) -->
+                <circle cx="130" cy="80" r="47" fill="none" stroke="#38bdf8" stroke-width="3" opacity="0.5" filter="url(#atmosphereGlow)" />
+
+                <!-- Dünya Okyanus Tabanı -->
+                <circle cx="130" cy="80" r="44" fill="url(#earthOcean)"/>
+
+                <!-- Kıtalar ve Toprak Dokuları -->
+                <g clip-path="url(#earthClip)">
+                    <!-- Kuzey Amerika / Avrupa / Asya -->
+                    <path d="M 100 48 Q 118 32 138 45 Q 148 58 132 73 Q 112 85 98 62 Z" fill="#16a34a" opacity="0.9"/>
+                    <path d="M 120 38 Q 132 28 145 40 Q 140 52 125 48 Z" fill="#ca8a04" opacity="0.8"/>
+                    
+                    <!-- Afrika / Güney Amerika -->
+                    <path d="M 110 72 Q 130 68 148 88 Q 152 115 128 122 Q 112 110 108 88 Z" fill="#15803d" opacity="0.95"/>
+                    <path d="M 122 88 Q 138 82 142 102 Q 130 110 120 98 Z" fill="#ca8a04" opacity="0.7"/>
+                    
+                    <!-- Ekstra Ada ve Detaylar -->
+                    <path d="M 148 58 Q 158 52 162 66 Q 154 72 148 64 Z" fill="#16a34a" opacity="0.85"/>
+                    <path d="M 95 80 Q 102 75 106 85 Q 98 90 95 80 Z" fill="#15803d" opacity="0.8"/>
+                </g>
+
+                <!-- Yoğun Atmosferik ve Sarmal Bulut Katmanları -->
+                <g clip-path="url(#earthClip)" filter="url(#cloudBlur)">
+                    <!-- Üst Katman Bulutları -->
+                    <path d="M 92 50 Q 112 38 135 48 Q 152 42 165 58" fill="none" stroke="#ffffff" stroke-width="6" stroke-linecap="round" opacity="0.75"/>
+                    <!-- Orta Katman Sarmal Fırtına / Bulut Grubu -->
+                    <path d="M 105 82 Q 128 72 148 88 Q 162 82 172 92" fill="none" stroke="#ffffff" stroke-width="5.5" stroke-linecap="round" opacity="0.7"/>
+                    <!-- Alt Katman Yoğun Bulut Öbekleri -->
+                    <path d="M 98 102 Q 115 95 132 110 Q 148 105 158 118" fill="none" stroke="#ffffff" stroke-width="4" stroke-linecap="round" opacity="0.65"/>
+                    <path d="M 122 62 Q 135 58 148 68" fill="none" stroke="#ffffff" stroke-width="3" stroke-linecap="round" opacity="0.6"/>
+                </g>
+
+                <!-- Dünya Işık Gölge Efekti (3D Küresel Gölgelendirme) -->
+                <circle cx="130" cy="80" r="44" fill="radial-gradient(circle at 65% 65%, transparent 35%, rgba(2, 6, 23, 0.8) 95%)" pointer-events="none"/>
+
+                <!-- Belirginleştirilmiş 23.5 Derece Eksen Eğikliği Çizgisi -->
+                <line x1="106" y1="15" x2="154" y2="145" stroke="#facc15" stroke-width="2.5" stroke-dasharray="5,3" opacity="0.95"/>
+                <!-- Kuzey ve Güney Kutup Noktası İşaretleri -->
+                <circle cx="106" cy="15" r="2.5" fill="#facc15" />
+                <circle cx="154" cy="145" r="2.5" fill="#facc15" />
+                
+                <!-- Alt Bilgi Paneli -->
+                <rect x="0" y="150" width="260" height="30" fill="rgba(15, 23, 42, 0.9)" rx="0 0 16 16"/>
+                <text x="130" y="170" fill="#38bdf8" font-size="12" font-weight="bold" text-anchor="middle">🌍 Gelişmiş Eksen ve Bulut Modellemeli Dünya</text>
             </svg>
         </div>
         """
