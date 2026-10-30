@@ -1,3 +1,4 @@
+import base64
 import json
 import random
 import re
@@ -6,6 +7,9 @@ from html import escape as esc
 import streamlit as st
 import streamlit.components.v1 as components
 
+# =============================================================================
+# SAYFA AYARI
+# =============================================================================
 st.set_page_config(
     page_title="MEB 5. Sınıf Akıllı Eğitsel Oyun Merkezi",
     page_icon="🎒",
@@ -13,153 +17,443 @@ st.set_page_config(
     initial_sidebar_state="expanded",
 )
 
-import ai_engine as ai  # noqa: E402
-import content  # noqa: E402
-import games_html as gh  # noqa: E402
-import store  # noqa: E402
-from avatar import adenmind_avatar  # noqa: E402
-from curriculum import GAME_INFO, GAMES, MEB_CURRICULUM  # noqa: E402
-from styles import BASE_CSS, EXTRA_CSS, GAME_CSS, HTMLGAME_CSS  # noqa: E402
-from visuals import render_question_visual  # noqa: E402
+# =============================================================================
+# 1. API ANAHTARLARI VE YAPAY ZEKA MOTORU
+# =============================================================================
 
-SS = st.session_state
-for _k, _v in {
-    "selected_subject": None, "selected_unit": None, "selected_game": None, "view": "play",
-    "player": "Misafir", "sound_on": True, "toasts": [], "am_pending": None, "plan": None,
-    "coach_messages": [{"role": "assistant", "content": "Merhaba ben AdenMind, sana yardımcı olmak için buradayım! ✨"}],
-}.items():
-    SS.setdefault(_k, _v)
+
+def get_all_api_keys():
+    gemini_keys, groq_keys = [], []
+    try:
+        if hasattr(st, "secrets") and "api_keys" in st.secrets:
+            block = st.secrets["api_keys"]
+            for name, target in (("groq_keys", groq_keys), ("gemini_keys", gemini_keys)):
+                if name in block:
+                    for k in block[name]:
+                        if isinstance(k, str) and len(k.strip()) > 5 and k.strip() not in target:
+                            target.append(k.strip())
+    except Exception:
+        pass
+    if st.session_state.get("manual_gemini") and st.session_state["manual_gemini"] not in gemini_keys:
+        gemini_keys.append(st.session_state["manual_gemini"])
+    if st.session_state.get("manual_groq") and st.session_state["manual_groq"] not in groq_keys:
+        groq_keys.append(st.session_state["manual_groq"])
+    return gemini_keys, groq_keys
+
+
+gemini_keys, groq_keys = get_all_api_keys()
+has_gemini = False
+has_groq = False
+
+try:
+    import google.generativeai as genai
+
+    has_gemini = bool(gemini_keys)
+except ImportError:
+    pass
+
+try:
+    from groq import Groq
+
+    has_groq = bool(groq_keys)
+except ImportError:
+    pass
+
+
+def ai_generate_content(prompt_text):
+    if has_groq:
+        for gr_key in groq_keys:
+            try:
+                client = Groq(api_key=gr_key)
+                completion = client.chat.completions.create(
+                    model="llama-3.3-70b-versatile",
+                    messages=[{"role": "user", "content": prompt_text}],
+                    temperature=0.95,
+                )
+                if completion.choices[0].message.content:
+                    return completion.choices[0].message.content
+            except Exception:
+                continue
+    if has_gemini:
+        for g_key in gemini_keys:
+            try:
+                genai.configure(api_key=g_key)
+                for model_name in ["gemini-3.6-flash", "gemini-1.5-flash", "gemini-1.5-pro", "gemini-pro"]:
+                    try:
+                        response = genai.GenerativeModel(model_name).generate_content(prompt_text)
+                        if response and response.text:
+                            return response.text
+                    except Exception:
+                        continue
+            except Exception:
+                continue
+    return None
+
+
+def parse_json(text):
+    """Yapay zeka cevabından JSON'u güvenle ayıklar."""
+    if not text:
+        return None
+    cleaned = re.sub(r"```json|```", "", text).strip()
+    try:
+        return json.loads(cleaned)
+    except Exception:
+        pass
+    m = re.search(r"(\[.*\]|\{.*\})", cleaned, re.S)
+    if m:
+        try:
+            return json.loads(m.group(1))
+        except Exception:
+            return None
+    return None
+
+
+def is_valid(data, expect, required=()):
+    if expect is str:
+        return isinstance(data, str) and bool(data.strip())
+    if not isinstance(data, expect) or not data:
+        return False
+    items = data if isinstance(data, list) else [data]
+    return all(isinstance(i, dict) and set(required) <= set(i) for i in items)
+
 
 # =============================================================================
-# DURUM VE GEZİNME (geri çağrılar: tek tıkla geçiş)
+# 2. MEB 5. SINIF MÜFREDATI
+# =============================================================================
+MEB_CURRICULUM = {
+    "Türkçe": {
+        "renk": "linear-gradient(135deg, #ff6b81, #ff9a76)",
+        "ikon": "📖",
+        "uniteler": [
+            "1. Tema: Sözcükte Anlam",
+            "2. Tema: Cümlede Anlam",
+            "3. Tema: Parçada Anlam",
+            "4. Tema: Metin Türleri",
+            "5. Tema: Noktalama İşaretleri",
+        ],
+    },
+    "Matematik": {
+        "renk": "linear-gradient(135deg, #06b6d4, #3b82f6)",
+        "ikon": "📐",
+        "uniteler": [
+            "1. Ünite: Doğru, Doğru Parçası, Nokta, Işın, Dikme",
+            "2. Ünite: Geometrik Nicelikler",
+            "3. Ünite: Geometrik Kavramlar ve Üçgenler",
+            "4. Ünite: Doğal Sayılar",
+            "5. Ünite: Kesirler",
+            "6. Ünite: Ondalık Gösterimler",
+            "7. Ünite: Veri İşleme",
+        ],
+    },
+    "Fen Bilimleri": {
+        "renk": "linear-gradient(135deg, #10b981, #2dd4bf)",
+        "ikon": "🔬",
+        "uniteler": [
+            "1. Ünite: Güneş, Dünya ve Ay",
+            "2. Ünite: Canlılar Dünyası",
+            "3. Ünite: Kuvvetin Etkisi",
+            "4. Ünite: Madde ve Değişim",
+            "5. Ünite: Işığın Yayılması",
+            "6. Ünite: İnsan ve Çevre",
+            "7. Ünite: Elektrik Devreleri",
+        ],
+    },
+    "Sosyal Bilgiler": {
+        "renk": "linear-gradient(135deg, #f59e0b, #fbbf24)",
+        "ikon": "🌍",
+        "uniteler": [
+            "1. Ünite: Birlikte Yaşamak",
+            "2. Ünite: Evimiz Dünya",
+            "3. Ünite: Kültür ve Miras",
+            "4. Ünite: Yaşayan Türkiye",
+            "5. Ünite: Üreten Türkiye",
+            "6. Ünite: Yönetime Katılıyorum",
+        ],
+    },
+    "Din Kültürü ve Ahlak Bilgisi": {
+        "renk": "linear-gradient(135deg, #8b5cf6, #c084fc)",
+        "ikon": "🌙",
+        "uniteler": [
+            "1. Ünite: Allah İnancı",
+            "2. Ünite: Ramazan ve Oruç",
+            "3. Ünite: Hz. Muhammed ve Aile Hayatı",
+            "4. Ünite: Çevremizde Dinin İzleri",
+            "5. Ünite: Ahlaki Değerler",
+        ],
+    },
+    "İngilizce": {
+        "renk": "linear-gradient(135deg, #ec4899, #fb7185)",
+        "ikon": "🗣️",
+        "uniteler": [
+            "Unit 1: Hello!",
+            "Unit 2: My Town",
+            "Unit 3: Games and Hobbies",
+            "Unit 4: My Daily Routine",
+            "Unit 5: Health",
+            "Unit 6: Movies",
+            "Unit 7: Party Time",
+            "Unit 8: Fitness",
+        ],
+    },
+    "Almanca": {
+        "renk": "linear-gradient(135deg, #84cc16, #22c55e)",
+        "ikon": "🇩🇪",
+        "uniteler": [
+            "Lektion 1: Hallo! Ich heiße...",
+            "Lektion 2: Meine Familie",
+            "Lektion 3: Meine Schulsachen",
+            "Lektion 4: Zahlen und Farben",
+            "Lektion 5: Hobbys und Freizeit",
+        ],
+    },
+}
+
+GAMES = [
+    ("balon", "🎈", "Balon Patlatmaca", "linear-gradient(135deg, #f43f5e, #fb923c)"),
+    ("sinav10", "🧠", "5 Soruluk Kazanım Yarışması", "linear-gradient(135deg, #06b6d4, #2563eb)"),
+    ("dogruyanlis", "✅", "Doğru / Yanlış Meydan Okuması", "linear-gradient(135deg, #10b981, #14b8a6)"),
+    ("bosluk", "📝", "Boşluk Doldurma Yarışması", "linear-gradient(135deg, #f59e0b, #f97316)"),
+    ("kartlar", "🃏", "Soru Kartları", "linear-gradient(135deg, #8b5cf6, #d946ef)"),
+    ("oynayarak", "🎯", "Oynayarak Öğren", "linear-gradient(135deg, #0ea5e9, #6366f1)"),
+    ("etkinlik", "📚", "Etkinliklerle Öğren", "linear-gradient(135deg, #22c55e, #84cc16)"),
+    ("kelime", "🔤", "Kelime Avı Bulmacası", "linear-gradient(135deg, #eab308, #f59e0b)"),
+    ("acik", "✍️", "Klasik Yazılı Simülatörü", "linear-gradient(135deg, #6366f1, #a855f7)"),
+]
+GAME_INFO = {g[0]: g for g in GAMES}
+
+# =============================================================================
+# 3. DURUM (SESSION STATE)
 # =============================================================================
 
 
 def new_gs():
+    """Her oyunun kendi geçici durumu."""
     return {
-        "data": None, "failed": False, "idx": 0, "correct": 0, "feedback": None, "show": False,
-        "choice": None, "eval": None, "results": None, "guess": [], "used": [], "pool": [], "pool_for": -1,
-        "msg": None, "nonce": random.randint(1000, 999999), "recorded": False,
+        "data": None, "failed": False, "idx": 0, "score": 0, "feedback": None,
+        "show": False, "choice": None, "eval": None, "results": None,
+        "guess": [], "used": [], "pool": [], "pool_for": -1, "msg": None,
+        "nonce": random.randint(1000, 999999),
     }
 
 
-def reset_gs():
-    SS["gs_ident"] = None
+for _k, _v in {
+    "selected_subject": None,
+    "selected_unit": None,
+    "selected_game": None,
+    "coach_messages": [
+        {"role": "assistant", "content": "Merhaba ben AdenMind, sana yardımcı olmak için buradayım! ✨"}
+    ],
+}.items():
+    st.session_state.setdefault(_k, _v)
 
 
 def get_gs(game):
-    ident = (SS["selected_subject"], SS["selected_unit"], game)
-    if SS.get("gs_ident") != ident or "gs" not in SS:
-        SS["gs_ident"] = ident
-        SS["gs"] = new_gs()
-    return SS["gs"]
+    ident = (st.session_state["selected_subject"], st.session_state["selected_unit"], game)
+    if st.session_state.get("gs_ident") != ident or "gs" not in st.session_state:
+        st.session_state["gs_ident"] = ident
+        st.session_state["gs"] = new_gs()
+    return st.session_state["gs"]
 
 
+# --- Gezinme geri çağrıları (tek tıkla geçiş için) ---
 def go_home():
-    SS.update(selected_subject=None, selected_unit=None, selected_game=None, view="play")
-    reset_gs()
-
-
-def go_karne():
-    SS.update(view="karne", selected_game=None)
-    reset_gs()
+    st.session_state.update(selected_subject=None, selected_unit=None, selected_game=None)
 
 
 def pick_subject(s):
-    SS.update(selected_subject=s, selected_unit=None, selected_game=None, view="play")
-    reset_gs()
+    st.session_state.update(selected_subject=s, selected_unit=None, selected_game=None)
 
 
 def pick_unit(u):
-    SS.update(selected_unit=u, selected_game=None)
-    reset_gs()
+    st.session_state.update(selected_unit=u, selected_game=None)
 
 
 def pick_game(g):
-    SS["selected_game"] = g
-    reset_gs()
-
-
-def go_unit(s, u):
-    SS.update(selected_subject=s, selected_unit=u, selected_game=None, view="play")
-    reset_gs()
+    st.session_state["selected_game"] = g
 
 
 def back_to_units():
-    SS.update(selected_unit=None, selected_game=None)
-    reset_gs()
+    st.session_state.update(selected_unit=None, selected_game=None)
 
 
 def back_to_games():
-    SS["selected_game"] = None
-    reset_gs()
+    st.session_state["selected_game"] = None
 
 
 def regen():
-    SS["gs"] = new_gs()
-
-
-def set_player():
-    SS["player"] = store.clean_name(SS.get("player_input"))
-    SS["plan"] = None
-
-
-def set_sound():
-    SS["sound_on"] = bool(SS.get("sound_toggle"))
-
-
-def _save_keys():
-    # Kenar çubuğu oyun sırasında çizilmediği için widget değeri kaybolur; kalıcı kopyasını tut.
-    SS["manual_groq_saved"] = SS.get("manual_groq", "")
-    SS["manual_gemini_saved"] = SS.get("manual_gemini", "")
-
-
-def P():
-    return store.prof(SS["player"])
-
-
-def flush_toasts():
-    for t in SS.pop("toasts", []):
-        st.toast(t)
-    SS["toasts"] = []
+    st.session_state["gs"] = new_gs()
 
 
 # =============================================================================
-# SES EFEKTİ (Streamlit tarafı oyunlar için)
+# 4. ADENMIND AVATARI (turkuaz, modern)
 # =============================================================================
-SFX_HTML = """<script>(function(){try{
-var W=window.parent,C=W.AudioContext||W.webkitAudioContext||window.AudioContext;
-if(!W.__am_ac){W.__am_ac=new C();} var a=W.__am_ac; if(a.state==='suspended')a.resume();
-function t(f,s,d,ty,v){var o=a.createOscillator(),g=a.createGain();o.type=ty||'sine';o.frequency.value=f;
-g.gain.setValueAtTime(0.0001,a.currentTime+s);g.gain.exponentialRampToValueAtTime(v||0.18,a.currentTime+s+0.02);
-g.gain.exponentialRampToValueAtTime(0.0001,a.currentTime+s+d);o.connect(g);g.connect(a.destination);
-o.start(a.currentTime+s);o.stop(a.currentTime+s+d+0.05);}
-var k="__K__";
-if(k==="ok"){t(660,0,.12);t(880,.1,.18);}
-else if(k==="bad"){t(220,0,.22,'sawtooth',.12);t(160,.16,.28,'sawtooth',.12);try{W.navigator.vibrate&&W.navigator.vibrate(120)}catch(e){}}
-else if(k==="win"){[523,659,784,1047].forEach(function(f,i){t(f,i*.12,.22)})}
-}catch(e){}})();</script><!--__N__-->"""
+AVATAR_SVG = """<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 120">
+<defs>
+<linearGradient id="bg" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#5eead4"/><stop offset="1" stop-color="#0891b2"/></linearGradient>
+<linearGradient id="face" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#f0fdfa"/><stop offset="1" stop-color="#99f6e4"/></linearGradient>
+<radialGradient id="eye" cx="50%" cy="38%" r="65%"><stop offset="0" stop-color="#ecfeff"/><stop offset="1" stop-color="#22d3ee"/></radialGradient>
+</defs>
+<circle cx="60" cy="60" r="58" fill="url(#bg)"/>
+<circle cx="60" cy="60" r="52" fill="none" stroke="#ffffff" stroke-opacity=".25" stroke-width="2"/>
+<polygon points="26,54 31,16 60,38" fill="#0f766e"/>
+<polygon points="94,54 89,16 60,38" fill="#0f766e"/>
+<polygon points="33,44 35,26 51,38" fill="#5eead4"/>
+<polygon points="87,44 85,26 69,38" fill="#5eead4"/>
+<rect x="21" y="36" width="78" height="64" rx="31" fill="url(#face)"/>
+<rect x="29" y="51" width="62" height="35" rx="17" fill="#0b3b4a"/>
+<ellipse cx="46" cy="68" rx="8.5" ry="10.5" fill="url(#eye)"/>
+<ellipse cx="74" cy="68" rx="8.5" ry="10.5" fill="url(#eye)"/>
+<circle cx="43" cy="64" r="2.8" fill="#fff"/>
+<circle cx="71" cy="64" r="2.8" fill="#fff"/>
+<path d="M52 92 Q60 99 68 92" fill="none" stroke="#0e7490" stroke-width="3.2" stroke-linecap="round"/>
+<circle cx="30" cy="92" r="4.5" fill="#2dd4bf" opacity=".55"/>
+<circle cx="90" cy="92" r="4.5" fill="#2dd4bf" opacity=".55"/>
+<path d="M96 22 l2.4 6 6 2.4 -6 2.4 -2.4 6 -2.4 -6 -6 -2.4 6 -2.4z" fill="#fef08a"/>
+</svg>"""
+AVATAR_B64 = base64.b64encode(AVATAR_SVG.encode("utf-8")).decode()
 
 
-def sfx(kind):
-    if not SS.get("sound_on", True):
-        return
-    with st.container(key="sfx"):
-        components.html(SFX_HTML.replace("__K__", kind).replace("__N__", str(random.random())), height=0)
-
-
-def flush_sound(gs):
-    k = gs.pop("sound", None)
-    if k:
-        sfx(k)
+def adenmind_avatar(size=44):
+    return (
+        f'<img class="am-avatar" src="data:image/svg+xml;base64,{AVATAR_B64}" '
+        f'width="{size}" height="{size}" alt="AdenMind">'
+    )
 
 
 # =============================================================================
-# KART IZGARASI
+# 5. STİLLER
 # =============================================================================
+BASE_CSS = """
+.stApp{
+  background:
+    radial-gradient(circle, rgba(94,234,212,.09) 2px, transparent 2.6px) 0 0/40px 40px,
+    radial-gradient(700px 420px at 6% -4%, rgba(45,212,191,.24), transparent 62%),
+    radial-gradient(640px 420px at 100% 8%, rgba(6,182,212,.20), transparent 62%),
+    radial-gradient(560px 380px at 60% 112%, rgba(16,185,129,.15), transparent 62%),
+    #071a24 !important;
+  background-attachment: fixed;
+  color:#e6fffb;
+}
+.stApp, .stApp p, .stApp li, .stApp label, .stApp h1, .stApp h2, .stApp h3, .stApp h4,
+[data-testid="stMarkdownContainer"]{color:#e6fffb}
+[data-testid="stHeader"]{background:transparent}
+.block-container{padding-top:2.2rem;max-width:1250px}
+section[data-testid="stSidebar"]{background:linear-gradient(180deg,#06222c,#0a3340);border-right:1px solid rgba(94,234,212,.2)}
+
+/* ---- Başlık ---- */
+.hero{position:relative;overflow:hidden;display:flex;align-items:center;gap:18px;padding:22px 28px;
+  border-radius:30px;color:#fff;margin-bottom:26px;
+  background:linear-gradient(135deg,#0d9488 0%,#06b6d4 55%,#22d3ee 100%);
+  box-shadow:0 10px 0 rgba(4,47,46,.55),0 26px 50px rgba(6,182,212,.25)}
+.hero:before,.hero:after{content:"";position:absolute;background:rgba(255,255,255,.14)}
+.hero:before{width:190px;height:190px;border-radius:50%;right:-45px;top:-80px}
+.hero:after{width:110px;height:110px;border-radius:30px;transform:rotate(22deg);right:150px;bottom:-60px}
+.hero .badge{font-size:2.2rem;background:rgba(255,255,255,.2);border-radius:22px;padding:8px 14px;
+  box-shadow:0 5px 0 rgba(0,0,0,.18)}
+.hero h1{margin:0;font-size:1.6rem;font-weight:800;color:#fff !important;line-height:1.2}
+.hero small{opacity:.92;font-weight:600;color:#fff}
+
+.crumb{display:flex;flex-wrap:wrap;gap:10px;align-items:center;margin:4px 0 14px;font-weight:700}
+.pill{padding:8px 16px;border-radius:999px;background:linear-gradient(135deg,#14b8a6,#06b6d4);color:#042f2e;
+  box-shadow:0 4px 0 #0f766e}
+.pill.alt{background:rgba(255,255,255,.1);color:#e6fffb;border:1px solid rgba(94,234,212,.4);box-shadow:none}
+.section-title{font-size:1.35rem;font-weight:800;margin:6px 0 14px}
+
+/* ---- Butonlar ---- */
+.stButton>button,.stFormSubmitButton>button{
+  width:100%;min-height:48px;border-radius:18px;font-weight:800;border:0 !important;padding:.6rem 1.1rem;
+  display:flex;align-items:center;justify-content:center;text-align:center;
+  color:#042f2e !important;background:linear-gradient(135deg,#5eead4,#22d3ee) !important;
+  box-shadow:0 5px 0 #0f766e;transition:transform .15s,box-shadow .15s,filter .15s}
+.stButton>button p,.stFormSubmitButton>button p{color:inherit !important;margin:0}
+.stButton>button:hover{transform:translateY(-2px);filter:brightness(1.06);box-shadow:0 7px 0 #0f766e}
+.stButton>button:active{transform:translateY(4px);box-shadow:0 1px 0 #0f766e}
+.stButton>button:disabled{opacity:.45;filter:grayscale(.4)}
+[class*="st-key-back"] button,[class*="st-key-pass"] button,[class*="st-key-home"] button{
+  background:rgba(255,255,255,.08) !important;color:#e6fffb !important;
+  border:1px solid rgba(94,234,212,.4) !important;box-shadow:0 4px 0 rgba(0,0,0,.35) !important}
+.st-key-optbox button,.st-key-letters button{
+  background:rgba(255,255,255,.07) !important;color:#e6fffb !important;
+  border:2px solid rgba(94,234,212,.45) !important;box-shadow:0 5px 0 rgba(0,0,0,.35) !important;
+  min-height:72px;border-radius:22px;font-size:1.05rem;justify-content:flex-start;text-align:left}
+.st-key-optbox button:hover,.st-key-letters button:hover{
+  background:linear-gradient(135deg,#14b8a6,#06b6d4) !important;color:#042f2e !important}
+.st-key-letters button{min-height:58px;justify-content:center;text-align:center;font-size:1.3rem;padding:0}
+[data-testid="stPopover"] button{
+  background:linear-gradient(135deg,#14b8a6,#06b6d4) !important;color:#042f2e !important;font-weight:800;
+  border-radius:18px !important;border:0 !important;min-height:48px;box-shadow:0 5px 0 #0f766e}
+div[data-testid="stHorizontalBlock"]{gap:1.1rem}
+
+/* ---- Girdiler ---- */
+.stTextInput input,.stTextArea textarea{background:rgba(255,255,255,.08) !important;color:#e6fffb !important;
+  border:1.5px solid rgba(94,234,212,.4) !important;border-radius:14px !important}
+[data-testid="stAlert"]{background:rgba(94,234,212,.10) !important;border:1px solid rgba(94,234,212,.35);border-radius:16px}
+[data-testid="stForm"]{border:1px solid rgba(94,234,212,.3);border-radius:22px;background:rgba(255,255,255,.04)}
+
+/* ---- Soru kartı ---- */
+.qcard{background:linear-gradient(160deg,rgba(255,255,255,.09),rgba(255,255,255,.03));
+  border:2px solid rgba(94,234,212,.45);border-radius:28px;padding:24px 28px;margin:8px 0 16px;
+  box-shadow:0 8px 0 rgba(0,0,0,.28),0 20px 40px rgba(0,0,0,.25)}
+.qmeta{display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;font-weight:800;color:#5eead4}
+.score-chip{background:#fef08a;color:#713f12;padding:5px 14px;border-radius:999px;font-weight:800}
+.qtext{font-size:clamp(1.15rem,2.4vw,1.7rem);font-weight:800;line-height:1.4;color:#f0fdfa}
+.fb{border-radius:24px;padding:18px 22px;margin:10px 0 14px;font-size:1.05rem;color:#fff;
+  box-shadow:0 6px 0 rgba(0,0,0,.28)}
+.fb.ok{background:linear-gradient(135deg,#059669,#14b8a6)}
+.fb.bad{background:linear-gradient(135deg,#e11d48,#fb7185)}
+.fb div{margin-top:6px;opacity:.95;font-weight:600}
+.result{text-align:center;padding:44px 20px;border-radius:32px;margin:12px 0 18px;
+  background:linear-gradient(160deg,rgba(45,212,191,.22),rgba(6,182,212,.10));border:2px solid rgba(94,234,212,.5)}
+.result .trophy{font-size:4.5rem;animation:amfloat 2.6s ease-in-out infinite}
+.result .big{font-size:3.4rem;font-weight:900;color:#5eead4}
+.result .big small{font-size:1.3rem;color:#99f6e4}
+.flash{border-radius:30px;padding:46px 30px;text-align:center;color:#fff;margin:10px 0 18px;
+  box-shadow:0 10px 0 rgba(0,0,0,.3),0 24px 44px rgba(0,0,0,.3)}
+.flash .tag{font-size:.9rem;font-weight:800;opacity:.85;margin-bottom:10px}
+.flash .txt{font-size:clamp(1.2rem,2.6vw,1.9rem);font-weight:800;line-height:1.4}
+.tiles{display:flex;flex-wrap:wrap;gap:10px;justify-content:center;margin:12px 0 18px}
+.tile{width:54px;height:62px;border-radius:16px;display:flex;align-items:center;justify-content:center;
+  font-size:1.7rem;font-weight:900;background:rgba(255,255,255,.08);border:2px dashed rgba(94,234,212,.5);color:#fef08a}
+.tile.on{background:linear-gradient(135deg,#14b8a6,#06b6d4);border:2px solid #5eead4;color:#042f2e;
+  box-shadow:0 5px 0 #0f766e}
+.gamebar-title{padding:12px 18px;border-radius:18px;background:rgba(255,255,255,.07);
+  border:1px solid rgba(94,234,212,.35);font-weight:800;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+
+/* ---- AdenMind ---- */
+.am-card{display:flex;align-items:center;gap:14px;padding:14px;border-radius:24px;margin-bottom:12px;
+  background:linear-gradient(135deg,rgba(45,212,191,.25),rgba(6,182,212,.12));
+  border:1px solid rgba(94,234,212,.4);box-shadow:0 6px 0 rgba(0,0,0,.25)}
+.am-wrap{position:relative;animation:amfloat 3.2s ease-in-out infinite}
+.am-avatar{border-radius:50%;box-shadow:0 0 0 3px rgba(94,234,212,.55),0 8px 22px rgba(6,182,212,.45);vertical-align:middle}
+.am-dot{position:absolute;right:1px;bottom:3px;width:14px;height:14px;border-radius:50%;background:#34d399;
+  border:2.5px solid #06222c;animation:ampulse 1.8s infinite}
+.am-name{font-weight:900;font-size:1.15rem;color:#f0fdfa}
+.am-sub{font-size:.78rem;color:#99f6e4;font-weight:600}
+.msg{display:flex;gap:8px;margin:9px 0;align-items:flex-end}
+.msg.me{justify-content:flex-end}
+.bub{max-width:82%;padding:9px 13px;border-radius:18px;font-size:.85rem;line-height:1.45}
+.msg.ai .bub{background:rgba(94,234,212,.12);border:1px solid rgba(94,234,212,.3);border-bottom-left-radius:5px;color:#e6fffb}
+.msg.me .bub{background:linear-gradient(135deg,#2dd4bf,#06b6d4);color:#042f2e;font-weight:700;border-bottom-right-radius:5px}
+@keyframes amfloat{0%,100%{transform:translateY(0)}50%{transform:translateY(-5px)}}
+@keyframes ampulse{0%{box-shadow:0 0 0 0 rgba(52,211,153,.7)}70%{box-shadow:0 0 0 9px rgba(52,211,153,0)}100%{box-shadow:0 0 0 0 rgba(52,211,153,0)}}
+"""
+
+# Oyun modu: kenar çubuğu ve üst bar gizlenir, oyun tüm ekranı kaplar
+GAME_CSS = """
+section[data-testid="stSidebar"],[data-testid="stSidebarCollapsedControl"],[data-testid="collapsedControl"],
+[data-testid="stHeader"],[data-testid="stToolbar"],footer{display:none !important}
+.block-container{max-width:1100px !important;padding:.8rem 1.2rem 1.5rem !important;min-height:100vh}
+"""
+
+BALLOON_CSS = """
+.block-container{max-width:100% !important;padding:.6rem .8rem !important}
+.st-key-balloon_wrap iframe{height:calc(100vh - 96px) !important;width:100% !important;border-radius:26px;
+  border:2px solid rgba(94,234,212,.35)}
+"""
 
 
 def card_css(key, gradient, height):
+    """Bir butonu tamamen oyun kartına çevirir (tek tıkla seçim)."""
     return (
         f".st-key-{key}{{margin-bottom:10px}}"
         f".st-key-{key} button{{position:relative;overflow:hidden;min-height:{height}px;"
@@ -171,181 +465,163 @@ def card_css(key, gradient, height):
         f"border-radius:22px;transform:rotate(25deg);background:rgba(255,255,255,.12);pointer-events:none}}"
         f".st-key-{key} button:hover{{transform:translateY(-6px) scale(1.015)}}"
         f".st-key-{key} button:active{{transform:translateY(5px);box-shadow:0 2px 0 rgba(0,0,0,.30) !important}}"
-        f".st-key-{key} button p{{color:#fff !important;font-size:1.05rem !important;line-height:1.25 !important;"
+        f".st-key-{key} button p{{color:#fff !important;font-size:1.1rem !important;line-height:1.25 !important;"
         f"margin:0 !important;text-shadow:0 2px 6px rgba(0,0,0,.25)}}"
-        f".st-key-{key} button p:first-child{{font-size:2.6rem !important;line-height:1.15 !important}}"
-        f".st-key-{key} button p:nth-child(3){{font-size:.78rem !important;font-weight:600 !important;opacity:.92}}"
+        f".st-key-{key} button p:first-child{{font-size:2.7rem !important;line-height:1.15 !important}}"
     )
 
 
-def md_safe(text):
-    text = str(text)
-    for ch in ("\\", "*", "_", "`", "~", "$"):
-        text = text.replace(ch, "\\" + ch)
-    return re.sub(r"^(\s*\d+)([.)])", r"\1\\\2", text)
-
-
 def card_grid(items, cols_n, prefix, on_pick, height):
-    """items: (değer, ikon, ad, gradyan[, açıklama]). Karta tıklamak doğrudan seçer."""
+    """items: [(değer, ikon, ad, gradyan)]. Karta tıklamak doğrudan seçer."""
     css = "".join(card_css(f"{prefix}_{i}", it[3], height) for i, it in enumerate(items))
     st.markdown(f"<style>{css}</style>", unsafe_allow_html=True)
     for r in range(0, len(items), cols_n):
         cols = st.columns(cols_n)
         for j, it in enumerate(items[r:r + cols_n]):
             i = r + j
-            label = f"{it[1]}\n\n**{md_safe(it[2])}**"
-            if len(it) > 4 and it[4]:
-                label += f"\n\n{md_safe(it[4])}"
             with cols[j]:
-                st.button(label, key=f"{prefix}_{i}", on_click=on_pick, args=(it[0],))
+                st.button(f"{it[1]}\n\n**{it[2]}**", key=f"{prefix}_{i}", on_click=on_pick, args=(it[0],))
+
+
+def md_safe(text):
+    """Buton etiketlerinde markdown/LaTeX karışmasını önler."""
+    text = str(text).replace("$", "\\$")
+    return re.sub(r"^(\s*\d+)([.)])", r"\1\\\2", text)
+
+
+def tr_upper(s):
+    return s.replace("i", "İ").replace("ı", "I").upper()
 
 
 # =============================================================================
-# PROFİL, ROZET, KARNE
+# 6. SORU GÖRSELLERİ (cevabı ifşa etmeyen illüstrasyonlar)
 # =============================================================================
 
 
-def stat_strip():
-    p = P()
-    lvl, into, need = store.level_info(p["xp"])
-    goal = 3
-    done = min(goal, store.games_today(p))
-    streak = store.current_streak(p)
-    acc = round(100 * p["correct"] / p["total"]) if p["total"] else 0
-    st.markdown(
-        '<div class="stats">'
-        f'<div class="stat"><div class="k">👤 {esc(SS["player"])}</div><div class="v">Seviye {lvl}</div>'
-        f'<div class="track"><div class="fill" style="width:{round(100 * into / need)}%"></div></div>'
-        f'<div class="k" style="margin-top:4px">{p["xp"]} XP · sonraki seviyeye {need - into}</div></div>'
-        f'<div class="stat"><div class="k">🔥 Günlük seri</div><div class="v">{streak} gün</div>'
-        f'<div class="k">En iyi: {p["best_streak"]} gün</div></div>'
-        f'<div class="stat"><div class="k">📅 Bugünkü hedef</div><div class="v">{done} / {goal} oyun</div>'
-        f'<div class="track"><div class="fill" style="width:{round(100 * done / goal)}%"></div></div></div>'
-        f'<div class="stat"><div class="k">🎯 Doğruluk</div><div class="v">%{acc}</div>'
-        f'<div class="k">🏅 {len(p["badges"])} / {len(store.BADGES)} rozet</div></div>'
-        "</div>",
-        unsafe_allow_html=True,
+def _frame(inner, caption, cap_color, bg, border, w=260, h=180):
+    body = (
+        '<div style="display:flex;justify-content:center;margin:6px 0">'
+        f'<svg width="{w}" height="{h}" viewBox="0 0 {w} {h}" '
+        f'style="background:{bg};border-radius:16px;border:1px solid {border}">'
+        f'{inner}<rect x="0" y="{h - 30}" width="{w}" height="30" fill="rgba(0,0,0,0.4)"/>'
+        f'<text x="{w // 2}" y="{h - 11}" fill="{cap_color}" font-size="12" font-weight="bold" '
+        f'text-anchor="middle">{caption}</text></svg></div>'
     )
+    components.html(body, height=h + 16)
 
 
-def _plan():
-    p = P()
-    weak = weak_units(p)
-    if not weak:
-        SS["plan"] = "Şu an zayıf bir ünite görünmüyor. Harika gidiyorsun! Yeni ünitelerle kendini denemeye devam et. 🌟"
+def render_question_visual(tip, param):
+    if not tip or tip == "yok":
         return
-    lines = "\n".join(f"- {s} / {u}: %{pct} doğruluk" for s, u, pct in weak[:5])
-    prompt = (
-        "Sen AdenMind adlı sevimli bir 5. sınıf koçusun. Öğrencinin zayıf kaldığı üniteler:\n" + lines +
-        "\nBu öğrenci için 3 günlük, her gün 15-20 dakikalık kısa ve motive edici bir tekrar planı yaz. "
-        "Her güne bir ünite ve yapılacak 2 küçük etkinlik koy. Kısa maddeler kullan."
-    )
-    SS["plan"] = ai.generate(prompt, 0.7) or "Plan oluşturulamadı, biraz sonra tekrar dene."
+    p = str(param).lower()
 
+    if tip in ("ucgen", "aci"):
+        deg = 50
+        try:
+            deg = int(re.search(r"\d+", str(param)).group())
+        except Exception:
+            pass
+        if "dik" in p or deg == 90:
+            arc = '<polyline points="115,55 115,65 125,65" fill="none" stroke="#ef4444" stroke-width="2.5"/>'
+        else:
+            arc = '<path d="M 103 69 A 28 28 0 0 0 147 69" fill="none" stroke="#facc15" stroke-width="3" stroke-linecap="round"/>'
+        inner = f"""
+        <defs><linearGradient id="tg" x1="0%" y1="0%" x2="100%" y2="100%">
+        <stop offset="0%" stop-color="rgba(56,189,248,.25)"/><stop offset="100%" stop-color="rgba(99,102,241,.05)"/></linearGradient></defs>
+        <polygon points="125,45 35,145 215,145" fill="url(#tg)" stroke="#38bdf8" stroke-width="3.5" stroke-linejoin="round"/>
+        {arc}
+        <text x="125" y="35" fill="#38bdf8" font-size="15" font-weight="800" text-anchor="middle">A</text>
+        <text x="23" y="150" fill="#38bdf8" font-size="15" font-weight="800">B</text>
+        <text x="220" y="150" fill="#38bdf8" font-size="15" font-weight="800">C</text>
+        <g transform="translate(107,80)"><rect width="36" height="18" fill="#0f172a" rx="5" stroke="#facc15" stroke-width="1.5"/>
+        <text x="18" y="13" fill="#facc15" font-size="11" font-weight="bold" text-anchor="middle">{deg}°</text></g>"""
+        _frame(inner, f"📐 m(A) = {deg}° | Geometri Modeli", "#94a3b8",
+               "linear-gradient(135deg,#1e293b,#0f172a)", "rgba(56,189,248,.3)")
 
-def weak_units(p):
-    out = []
-    for key, v in p["stats"].items():
-        if v["t"] >= 3 and v["c"] / v["t"] < 0.6:
-            s, u = key.split("|", 1)
-            out.append((s, u, round(100 * v["c"] / v["t"])))
-    return sorted(out, key=lambda x: x[2])
+    elif tip == "ay_evresi":
+        inner = """
+        <circle cx="30" cy="30" r="1" fill="#fff"/><circle cx="220" cy="40" r="1.5" fill="#fff"/><circle cx="200" cy="130" r="1" fill="#fff"/>
+        <circle cx="130" cy="80" r="40" fill="#94a3b8" stroke="#cbd5e1" stroke-width="2"/>
+        <circle cx="115" cy="70" r="7" fill="#64748b" opacity=".4"/><circle cx="145" cy="95" r="9" fill="#64748b" opacity=".4"/>
+        <circle cx="130" cy="60" r="5" fill="#64748b" opacity=".4"/>
+        <path d="M 130 40 A 40 40 0 0 1 130 120 Z" fill="rgba(15,23,42,.75)"/>"""
+        _frame(inner, "🌕 Ay Gözlem Modeli", "#38bdf8", "linear-gradient(135deg,#0b1329,#1c2541)", "#38bdf8")
 
+    elif tip == "gunes":
+        inner = """
+        <defs><radialGradient id="sun" cx="50%" cy="50%" r="50%"><stop offset="0%" stop-color="#fffbeb"/>
+        <stop offset="40%" stop-color="#f59e0b"/><stop offset="90%" stop-color="#ea580c"/><stop offset="100%" stop-color="#b91c1c"/></radialGradient></defs>
+        <circle cx="130" cy="80" r="54" fill="none" stroke="#fde047" stroke-width="3" stroke-dasharray="8,6" opacity=".7"/>
+        <circle cx="130" cy="80" r="45" fill="url(#sun)"/>
+        <circle cx="115" cy="70" r="4" fill="#7f1d1d" opacity=".8"/><circle cx="145" cy="90" r="5" fill="#7f1d1d" opacity=".8"/>
+        <circle cx="130" cy="95" r="3" fill="#7f1d1d" opacity=".8"/>"""
+        _frame(inner, "☀️ Güneş Yüzeyi ve Katmanları", "#facc15", "linear-gradient(135deg,#0f172a,#2e1005)", "#f59e0b")
 
-def render_karne():
-    p = P()
-    st.button("⬅️ Ana Sayfa", key="back_karne", on_click=go_home)
-    st.markdown(f'<div class="section-title">📊 {esc(SS["player"])} · Karnem</div>', unsafe_allow_html=True)
-    stat_strip()
+    elif tip == "dunya":
+        inner = """
+        <defs><radialGradient id="earth" cx="40%" cy="40%" r="60%"><stop offset="0%" stop-color="#38bdf8"/>
+        <stop offset="70%" stop-color="#0284c7"/><stop offset="100%" stop-color="#0369a1"/></radialGradient></defs>
+        <circle cx="130" cy="80" r="44" fill="url(#earth)" stroke="#60a5fa" stroke-width="2"/>
+        <path d="M 105 60 Q 125 45 140 65 Q 130 90 105 75 Z" fill="#15803d" opacity=".9"/>
+        <path d="M 125 95 Q 150 85 155 110 Q 130 115 120 95 Z" fill="#15803d" opacity=".9"/>
+        <path d="M 100 55 Q 110 50 120 55" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round" opacity=".7"/>
+        <path d="M 135 95 Q 145 90 155 95" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round" opacity=".7"/>
+        <line x1="112" y1="25" x2="148" y2="135" stroke="#facc15" stroke-width="2" stroke-dasharray="4,4"/>"""
+        _frame(inner, "🌍 Dünya ve Atmosfer Modeli", "#38bdf8", "linear-gradient(135deg,#0284c7,#0f172a)", "#38bdf8")
 
-    st.markdown('<div class="section-title">🏅 Rozetlerim</div>', unsafe_allow_html=True)
-    html = '<div class="badges">'
-    for bid, (icon, title, desc, _fn) in store.BADGES.items():
-        on = bid in p["badges"]
-        html += (f'<div class="bdg {"on" if on else "off"}"><div class="i">{icon if on else "🔒"}</div>'
-                 f'<div class="t">{esc(title)}</div><div class="d">{esc(desc)}</div></div>')
-    st.markdown(html + "</div>", unsafe_allow_html=True)
+    elif tip == "karsilastirma":
+        inner = """
+        <circle cx="55" cy="80" r="36" fill="#f59e0b" stroke="#facc15" stroke-width="2"/>
+        <circle cx="55" cy="80" r="28" fill="#ea580c" opacity=".5"/>
+        <text x="55" y="84" fill="#fff" font-size="10" font-weight="bold" text-anchor="middle">Güneş</text>
+        <circle cx="155" cy="80" r="15" fill="#0284c7" stroke="#38bdf8" stroke-width="1.5"/>
+        <path d="M 150 75 Q 155 72 160 78 Z" fill="#15803d"/>
+        <text x="155" y="106" fill="#38bdf8" font-size="10" font-weight="bold" text-anchor="middle">Dünya</text>
+        <circle cx="215" cy="80" r="6" fill="#94a3b8" stroke="#cbd5e1" stroke-width="1"/>
+        <text x="215" y="100" fill="#cbd5e1" font-size="9" font-weight="bold" text-anchor="middle">Ay</text>"""
+        _frame(inner, "🔭 Boyut Karşılaştırma Modeli", "#c084fc", "linear-gradient(135deg,#0b1329,#1c2541)", "#a855f7")
 
-    agg = {}
-    for key, v in p["stats"].items():
-        s = key.split("|", 1)[0]
-        a = agg.setdefault(s, [0, 0])
-        a[0] += v["c"]
-        a[1] += v["t"]
-    st.markdown('<div class="section-title">📈 Derslere Göre Başarım</div>', unsafe_allow_html=True)
-    if not agg:
-        st.info("Henüz puanlı bir oyun oynamadın. Bir oyun oyna, karnen burada dolsun! 🎮")
-    else:
-        bars = ""
-        for s, (c, t) in sorted(agg.items(), key=lambda x: -x[1][1]):
-            pct = round(100 * c / t) if t else 0
-            bars += (f'<div class="bar"><span>{esc(s)}</span><div class="track"><div class="fill'
-                     f'{" warn" if pct < 60 else ""}" style="width:{pct}%"></div></div><b>%{pct}</b></div>')
-        st.markdown(bars, unsafe_allow_html=True)
+    elif tip == "tutulma":
+        inner = """
+        <polygon points="35,80 140,65 140,95" fill="rgba(250,204,21,.15)"/>
+        <circle cx="35" cy="80" r="22" fill="#f59e0b" stroke="#fde047" stroke-width="1.5"/>
+        <circle cx="130" cy="80" r="8" fill="#94a3b8" stroke="#cbd5e1" stroke-width="1"/>
+        <circle cx="205" cy="80" r="16" fill="#0284c7" stroke="#38bdf8" stroke-width="1.5"/>
+        <path d="M 200 75 Q 205 72 210 78 Z" fill="#15803d"/>"""
+        _frame(inner, "🪐 Gök Cisimlerinin Dizilimi", "#f87171", "linear-gradient(135deg,#0f172a,#030712)", "#ef4444")
 
-    st.markdown('<div class="section-title">🎯 Tekrar Etmen Gereken Üniteler</div>', unsafe_allow_html=True)
-    weak = weak_units(p)
-    if not weak:
-        st.success("Zayıf kaldığın bir ünite yok. Böyle devam! 🌟")
-    for i, (s, u, pct) in enumerate(weak[:6]):
-        st.button(f"🎯 {s} · {u} — %{pct} · Hemen çalış", key=f"weak_{i}", on_click=go_unit, args=(s, u))
-    st.button("🦊 AdenMind'den Tekrar Planı İste", key="plan_btn", on_click=_plan)
-    if SS.get("plan"):
-        with st.container(border=True):
-            st.markdown(SS["plan"])
+    elif tip == "dinamometre":
+        newton = 5
+        try:
+            newton = int(re.search(r"\d+", str(param)).group())
+        except Exception:
+            pass
+        sy = 40 + min(newton * 7, 75)
+        inner = f"""
+        <circle cx="90" cy="15" r="8" fill="none" stroke="#94a3b8" stroke-width="3"/>
+        <rect x="75" y="23" width="30" height="12" fill="#64748b" rx="3"/>
+        <rect x="55" y="35" width="70" height="135" fill="rgba(56,189,248,.1)" stroke="#38bdf8" stroke-width="3" rx="8"/>
+        <line x1="60" y1="50" x2="70" y2="50" stroke="#94a3b8" stroke-width="2"/><line x1="60" y1="70" x2="70" y2="70" stroke="#94a3b8" stroke-width="2"/>
+        <line x1="60" y1="90" x2="70" y2="90" stroke="#94a3b8" stroke-width="2"/><line x1="60" y1="110" x2="70" y2="110" stroke="#94a3b8" stroke-width="2"/>
+        <line x1="60" y1="130" x2="70" y2="130" stroke="#94a3b8" stroke-width="2"/>
+        <path d="M 90 35 Q 65 {35 + sy / 4} 115 {35 + sy / 2} Q 65 {35 + 3 * sy / 4} 90 {35 + sy}" fill="none" stroke="#facc15" stroke-width="3.5"/>
+        <rect x="65" y="{35 + sy}" width="50" height="20" fill="#f43f5e" rx="4"/>
+        <text x="90" y="{49 + sy}" fill="#fff" font-size="12" font-weight="bold" text-anchor="middle">{newton} N</text>
+        <path d="M 90 {55 + sy} L 90 {75 + sy}" fill="none" stroke="#94a3b8" stroke-width="3"/>"""
+        _frame(inner, "⚙️ Dinamometre", "#38bdf8", "#0f172a", "#38bdf8", w=180, h=240)
 
 
 # =============================================================================
-# ADENMIND CANLI ASİSTAN
+# 7. ADENMIND CANLI ASİSTAN
 # =============================================================================
-QUICK = [
-    ("📝 Üniteyi özetle", "Bu üniteyi 5 kısa maddede özetle."),
-    ("💡 İpucu ver", "Bu ünitede çalışırken bana işe yarayan bir ipucu ver."),
-    ("🎯 Beni test et", "Bana bu üniteden tek bir soru sor, cevabı hemen söyleme."),
-    ("🌟 Motive et", "Bana kısa ve içten bir motivasyon sözü söyle."),
-]
 
 
-def _am_queue(text):
-    SS["am_pending"] = text
-
-
-def am_reply(text):
-    msgs = SS["coach_messages"]
-    msgs.append({"role": "user", "content": text})
-    hist = "\n".join(
-        f"{'Öğrenci' if m['role'] == 'user' else 'AdenMind'}: {m['content']}" for m in msgs[-9:-1]
-    )
-    prompt = (
-        "Sen AdenMind'sin: 5. sınıf MEB müfredatında öğrencilere yardım eden sevimli, cesaretlendirici bir yapay zekâ koçusun. "
-        "Türkçe, sade ve en fazla 5 cümleyle konuş. Öğrenci açıkça istemedikçe cevabı hemen verme; önce ipucu ver.\n"
-        f"Öğrencinin dersi: {SS.get('selected_subject') or 'Genel'}, ünitesi: {SS.get('selected_unit') or 'Genel konu'}.\n"
-        f"Önceki konuşma:\n{hist}\nÖğrenci: {text}\nAdenMind:"
-    )
-    msgs.append({"role": "assistant", "content": ai.generate(prompt, 0.7) or "Şu an yanıt veremedim, biraz sonra tekrar dene!"})
-
-
-def chat_bubble(role, text):
-    text = esc(text).replace("\n", "<br>")
+def chat_bubble(role, content):
+    text = esc(content).replace("\n", "<br>")
     text = re.sub(r"\*\*(.+?)\*\*", r"<b>\1</b>", text)
     if role == "assistant":
         return f'<div class="msg ai">{adenmind_avatar(30)}<div class="bub">{text}</div></div>'
     return f'<div class="msg me"><div class="bub">{text}</div></div>'
-
-
-def speak_html(text):
-    clean = re.sub(r"[*_`#]", "", text)
-    payload = json.dumps(clean, ensure_ascii=False).replace("</", "<\\/")
-    return (
-        '<body style="margin:0;background:transparent"><button id="b" style="width:100%;height:40px;border:0;'
-        'border-radius:14px;font-weight:800;cursor:pointer;font-family:system-ui;color:#042f2e;'
-        'background:linear-gradient(135deg,#5eead4,#22d3ee)">🔊 Sesli Dinle</button><script>'
-        f'const T={payload};const b=document.getElementById("b");'
-        'b.onclick=function(){try{const s=window.speechSynthesis;if(s.speaking){s.cancel();b.textContent="🔊 Sesli Dinle";return}'
-        'const u=new SpeechSynthesisUtterance(T);u.lang="tr-TR";u.rate=0.95;u.onend=function(){b.textContent="🔊 Sesli Dinle"};'
-        's.cancel();s.speak(u);b.textContent="⏹️ Durdur"}catch(e){b.textContent="Tarayıcın sesi desteklemiyor"}};'
-        "</script></body>"
-    )
 
 
 def render_adenmind(ns):
@@ -354,617 +630,30 @@ def render_adenmind(ns):
         '<div><div class="am-name">AdenMind</div><div class="am-sub">Canlı Asistan · çevrimiçi</div></div></div>',
         unsafe_allow_html=True,
     )
-    qc = st.columns(2)
-    for i, (label, text) in enumerate(QUICK):
-        with qc[i % 2]:
-            st.button(label, key=f"qk_{ns}_{i}", on_click=_am_queue, args=(text,))
-    box = st.container(height=280)
-    pend = SS.pop("am_pending", None)
-    if pend:
-        with st.spinner("AdenMind düşünüyor..."):
-            am_reply(pend)
+    box = st.container(height=300)
     with st.form(f"chat_form_{ns}", clear_on_submit=True):
-        user_msg = st.text_input("Mesaj", label_visibility="collapsed", key=f"chat_in_{ns}",
-                                 placeholder="AdenMind'e bir şey sor...")
+        user_msg = st.text_input(
+            "Mesaj", label_visibility="collapsed", key=f"chat_in_{ns}", placeholder="AdenMind'e bir şey sor..."
+        )
         sent = st.form_submit_button("Gönder 🚀")
+    msgs = st.session_state["coach_messages"]
     if sent and user_msg.strip():
+        msgs.append({"role": "user", "content": user_msg.strip()})
+        prompt = (
+            "Sen 5. sınıf MEB müfredatı odaklı, sevimli ve bilgili akıllı koçsun. Adın AdenMind. "
+            f"Öğrencinin dersi: {st.session_state.get('selected_subject') or 'Genel'}, "
+            f"ünite: {st.session_state.get('selected_unit') or 'Genel Konu'}. "
+            f"Öğrencinin sorusu: {user_msg.strip()}. Kısa ve sevimli rehberlik yap."
+        )
         with st.spinner("AdenMind düşünüyor..."):
-            am_reply(user_msg.strip())
-    msgs = SS["coach_messages"]
+            reply = ai_generate_content(prompt)
+        msgs.append({"role": "assistant", "content": reply or "Yanıt oluşturulamadı, tekrar dene!"})
     with box:
         st.markdown("".join(chat_bubble(m["role"], m["content"]) for m in msgs), unsafe_allow_html=True)
-    last = next((m["content"] for m in reversed(msgs) if m["role"] == "assistant"), "")
-    components.html(speak_html(last), height=46)
-
-
-def render_sidebar():
-    with st.sidebar:
-        st.button("🏠 Ana Sayfa", key="home_btn", on_click=go_home)
-        st.button("📊 Karnem ve Rozetlerim", key="karne_btn", on_click=go_karne)
-        st.text_input("👤 Takma adın", value=SS["player"], key="player_input", on_change=set_player, max_chars=20)
-        st.toggle("🔊 Ses efektleri", value=SS["sound_on"], key="sound_toggle", on_change=set_sound)
-        st.markdown("---")
-        render_adenmind("side")
-        with st.expander("🔑 Yapay zekâ bağlantısı"):
-            s = ai.status()
-            st.caption(
-                f"Groq anahtarı: **{s['groq_keys']}** · Gemini anahtarı: **{s['gemini_keys']}**\n\n"
-                "Sıra: önce tüm Groq anahtarları, sonra Gemini anahtarları denenir."
-            )
-            if s["last"]:
-                st.caption(f"Son yanıt: {s['last']}")
-            if s["error"]:
-                st.caption(f"Son hata: {s['error']}")
-            st.text_input("Groq anahtarı ekle", type="password", key="manual_groq", on_change=_save_keys)
-            st.text_input("Gemini anahtarı ekle", type="password", key="manual_gemini", on_change=_save_keys)
-            st.caption("Kalıcı kullanım için anahtarları `.streamlit/secrets.toml` içine yaz.")
 
 
 # =============================================================================
-# İÇERİK ÜRETİMİ (tekrarsız)
-# =============================================================================
-TR_LANG_SUBJECTS = ("İngilizce", "Almanca")
-
-
-def get_items(gs, game, msg):
-    """Oyun için içerik üretir: farklı alt konular, daha önce sorulanlar tekrarlanmaz."""
-    if gs["data"] is not None:
-        return gs["data"]
-    kind, n, task = content.TASKS[game]
-    if not gs["failed"]:
-        spec = content.KINDS[kind]
-        subject, unit = SS["selected_subject"], SS["selected_unit"]
-        scope = f"{subject}|{unit}"
-        seen_all = store.seen_stems(SS["player"], scope, 40)
-        visual = subject in ("Fen Bilimleri", "Matematik")
-        collected, stems = [], []
-        with st.spinner(msg):
-            for _ in range(2):
-                need = n - len(collected)
-                if need <= 0:
-                    break
-                prompt = content.build_prompt(subject, unit, kind, need, task, (seen_all + stems)[-30:], visual)
-                data = ai.parse_json(ai.generate(prompt, 0.95))
-                for raw in content.unwrap(data, spec["single"]):
-                    it = spec["norm"](raw)
-                    if not it:
-                        continue
-                    if not visual and "gorsel_tipi" in it:
-                        it["gorsel_tipi"], it["gorsel_parametre"] = "yok", ""
-                    stem = spec["stem"](it)
-                    if content.is_dup(stem, seen_all + stems):
-                        continue
-                    collected.append(it)
-                    stems.append(stem)
-        minimum = 1 if spec["single"] else max(3, n // 2)
-        if len(collected) >= minimum:
-            items = collected[:n]
-            store.mark_seen(SS["player"], scope, stems[:n])
-            store.bank_add(f"{scope}|{kind}", items)
-            gs.update(data=items, idx=0, correct=0, feedback=None)
-            st.rerun()
-        banked = store.bank_get(f"{scope}|{kind}")  # internet/anahtar yoksa: daha önce üretilenlerden
-        if len(banked) >= minimum:
-            gs.update(data=random.sample(banked, min(n, len(banked))), idx=0, correct=0, feedback=None, offline=True)
-            st.rerun()
-        gs["failed"] = True
-    st.error("İçerik üretilemedi. `.streamlit/secrets.toml` içindeki Groq/Gemini anahtarlarını kontrol edip tekrar dene.")
-    if SS.get("last_ai_error"):
-        st.caption(f"Ayrıntı: {SS['last_ai_error']}")
-    st.button("🔄 Tekrar Dene", key="retry", on_click=lambda: gs.update(failed=False))
-    return None
-
-
-def get_text(gs, prompt, msg):
-    if gs["data"] is not None:
-        return gs["data"]
-    if not gs["failed"]:
-        with st.spinner(msg):
-            raw = ai.generate(prompt, 0.9)
-        if raw and raw.strip():
-            gs["data"] = raw.strip()
-            st.rerun()
-        gs["failed"] = True
-    st.error("İçerik üretilemedi. Anahtarlarını kontrol edip tekrar dene.")
-    st.button("🔄 Tekrar Dene", key="retry_t", on_click=lambda: gs.update(failed=False))
-    return None
-
-
-def get_dict(gs, prompt, required, msg):
-    if gs["data"] is not None:
-        return gs["data"]
-    if not gs["failed"]:
-        with st.spinner(msg):
-            data = ai.parse_json(ai.generate(prompt, 0.9))
-        if isinstance(data, dict) and all(k in data for k in required):
-            gs["data"] = data
-            st.rerun()
-        gs["failed"] = True
-    st.error("İçerik üretilemedi. Anahtarlarını kontrol edip tekrar dene.")
-    st.button("🔄 Tekrar Dene", key="retry_d", on_click=lambda: gs.update(failed=False))
-    return None
-
-
-def ctx():
-    lang = content.LANG_NOTE.get(SS["selected_subject"], "")
-    return (f"Rastgelelik kimliği: {random.randint(10000, 999999)}\n"
-            f"5. sınıf MEB müfredatı, Ders: {SS['selected_subject']}, Ünite: {SS['selected_unit']}.\n{lang}\n")
-
-
-# =============================================================================
-# SONUÇ KAYDI
-# =============================================================================
-
-
-def _record(game, correct, total, score):
-    res = store.record_result(SS["player"], SS["selected_subject"], SS["selected_unit"], game, correct, total, score)
-    for b in res["badges"]:
-        SS["toasts"].append(f"🏅 Yeni rozet: {b}")
-    if res["level_up"]:
-        SS["toasts"].append("⬆️ Seviye atladın! Harikasın!")
-    return res
-
-
-def finish_game(gs, game, correct, total, score=None):
-    if gs.get("recorded"):
-        return
-    if score is None:
-        score = round(correct * 100 / total) if total else 0
-    gs["xp_gain"] = _record(game, correct, total, score)["xp"]
-    gs["recorded"] = True
-    gs["sound"] = "win"
-    flush_toasts()
-
-
-def _report(game, score, total):
-    """HTML oyunlarından gelen sonuç (gizli düğme tıklaması)."""
-    _record(game, round(score * total / 100), total, score)
-
-
-def result_card(gs, score, sub, title="Oyun Tamamlandı!"):
-    stars = "⭐" * max(1, round(score / 20)) if score > 0 else "💪"
-    st.markdown(
-        f'<div class="result"><div class="trophy">🏆</div><h2>{esc(title)}</h2>'
-        f'<div class="big">{score}<small> / 100</small></div><div style="font-size:2rem">{stars}</div>'
-        f'<div>{esc(sub)}</div><div class="xp">+{gs.get("xp_gain", 0)} XP</div></div>',
-        unsafe_allow_html=True,
-    )
-
-
-# =============================================================================
-# TEK SORULUK YARIŞ MOTORU (Kazanım, Doğru/Yanlış, Boşluk Doldurma)
-# =============================================================================
-
-
-def _same(a, b):
-    return str(a).strip().lower() == str(b).strip().lower()
-
-
-def _answer(gs, value, q):
-    ok = _same(value, q["correct"])
-    if ok:
-        gs["correct"] += 1
-    label = next((lab for lab, val in q["options"] if _same(val, q["correct"])), q["correct"])
-    gs["feedback"] = {"ok": ok, "label": label, "expl": q["expl"]}
-    gs["sound"] = "ok" if ok else "bad"
-
-
-def _next(gs):
-    gs["idx"] += 1
-    gs["feedback"] = None
-
-
-def run_quiz(gs, game, items, build):
-    total = len(items)
-    idx = gs["idx"]
-    if idx >= total:
-        score = round(gs["correct"] * 100 / total)
-        finish_game(gs, game, gs["correct"], total, score)
-        result_card(gs, score, f"{gs['correct']} / {total} doğru")
-        st.button("🔄 Yeni Sorularla Tekrar Oyna", key="again", on_click=regen)
-        return
-
-    q = build(items[idx])
-    st.progress(idx / total)
-    st.markdown(
-        f'<div class="qcard"><div class="qmeta"><span>Soru {idx + 1} / {total}</span>'
-        f'<span class="score-chip">✔ {gs["correct"]} doğru</span></div>'
-        f'<div class="qtext">{esc(str(q["text"]))}</div></div>',
-        unsafe_allow_html=True,
-    )
-    vt, vp = q["visual"]
-    if vt and vt != "yok":
-        render_question_visual(vt, vp)
-
-    fb = gs["feedback"]
-    if fb:
-        head, cls = ("🎉 Harika, doğru cevap!", "ok") if fb["ok"] else (
-            f"❌ Olmadı! Doğru cevap: {esc(str(fb['label']))}", "bad")
-        st.markdown(f'<div class="fb {cls}"><b>{head}</b><div>{esc(str(fb["expl"]))}</div></div>', unsafe_allow_html=True)
-        st.button("➡️ Sonraki Soru" if idx < total - 1 else "🏆 Sonucu Gör",
-                  key=f"next_{idx}", on_click=_next, args=(gs,))
-    else:
-        with st.container(key="optbox"):
-            ocols = st.columns(2)
-            for i, (label, value) in enumerate(q["options"]):
-                with ocols[i % 2]:
-                    st.button(md_safe(label), key=f"opt_{idx}_{i}", on_click=_answer, args=(gs, value, q))
-        st.button("⏭️ Pas Geç", key=f"pass_{idx}", on_click=_next, args=(gs,))
-
-
-def build_mcq(q):
-    return {"text": q["soru"], "options": [(o, o[0]) for o in q["secenekler"]], "correct": q["dogru_cevap"],
-            "expl": q.get("aciklama", ""), "visual": (q.get("gorsel_tipi"), q.get("gorsel_parametre", ""))}
-
-
-def build_tf(q):
-    return {"text": q["ifade"], "options": [("✅ DOĞRU", "D"), ("❌ YANLIŞ", "Y")], "correct": q["cevap"],
-            "expl": q.get("aciklama", ""), "visual": (q.get("gorsel_tipi"), q.get("gorsel_parametre", ""))}
-
-
-def build_fill(q):
-    return {"text": q["cumle"], "options": [(o, o) for o in q["secenekler"]], "correct": q["dogru_kelime"],
-            "expl": f"Doğru kelime: {q['dogru_kelime']}",
-            "visual": (q.get("gorsel_tipi"), q.get("gorsel_parametre", ""))}
-
-
-# =============================================================================
-# ÖZEL OYUNLAR
-# =============================================================================
-def game_matching(gs, game):
-    d = gs["data"][0]
-    pairs = d["ciftler"]
-    n = len(pairs)
-    if "rorder" not in gs:
-        gs.update(rorder=random.sample(range(n), n), sel=None, done=[], mist=0)
-
-    def _ml(i):
-        gs["sel"], gs["msg"] = i, None
-
-    def _mr(j):
-        if gs["sel"] is None:
-            gs["msg"] = ("bad", "Önce soldan bir terim seç 👈")
-        elif gs["sel"] == j:
-            gs["done"].append(j)
-            gs["sel"], gs["msg"], gs["sound"] = None, ("ok", "🎉 Doğru eşleşme!"), "ok"
-        else:
-            gs["mist"] += 1
-            gs["sel"], gs["msg"], gs["sound"] = None, ("bad", "❌ Bu eşleşme değil, tekrar dene."), "bad"
-
-    if len(gs["done"]) >= n:
-        score = max(20, 100 - 10 * gs["mist"])
-        finish_game(gs, game, max(0, n - gs["mist"]), n, score)
-        result_card(gs, score, f"{gs['mist']} yanlış deneme")
-        st.button("🔄 Yeni Eşleştirme", key="again", on_click=regen)
-        return
-    st.progress(len(gs["done"]) / n)
-    st.markdown(
-        f'<div class="qcard"><div class="qmeta"><span>🔗 {len(gs["done"])} / {n} eşleşti</span>'
-        f'<span class="score-chip">❌ {gs["mist"]} hata</span></div>'
-        f'<div class="qtext">{esc(d["baslik"] or "Terimleri karşılıklarıyla eşleştir")}</div>'
-        '<div class="k" style="margin-top:6px;color:#99f6e4">Önce soldan terimi, sonra sağdan karşılığını seç.</div></div>',
-        unsafe_allow_html=True,
-    )
-    if gs["msg"]:
-        (st.success if gs["msg"][0] == "ok" else st.error)(gs["msg"][1])
-    cl, cr = st.columns(2)
-    with cl, st.container(key="matchL"):
-        for i, (left, _r) in enumerate(pairs):
-            if i in gs["done"]:
-                st.button(f"✅ {md_safe(left)}", key=f"ml_{i}", disabled=True)
-            else:
-                st.button(("👉 " if gs["sel"] == i else "") + md_safe(left), key=f"ml_{i}", on_click=_ml, args=(i,))
-    with cr, st.container(key="matchR"):
-        for j in gs["rorder"]:
-            if j in gs["done"]:
-                st.button(f"✅ {md_safe(pairs[j][1])}", key=f"mr_{j}", disabled=True)
-            else:
-                st.button(md_safe(pairs[j][1]), key=f"mr_{j}", on_click=_mr, args=(j,))
-
-
-def game_ordering(gs, game):
-    d = gs["data"][0]
-    steps = d["adimlar"]
-    n = len(steps)
-    if "opool" not in gs:
-        gs.update(opool=random.sample(range(n), n), pick=[], mist=0)
-        if gs["opool"] == list(range(n)):
-            gs["opool"].reverse()
-
-    def _pick(k):
-        if k == len(gs["pick"]):
-            gs["pick"].append(k)
-            gs["msg"], gs["sound"] = ("ok", "✅ Doğru sıra!"), "ok"
-        else:
-            gs["mist"] += 1
-            gs["msg"], gs["sound"] = ("bad", "❌ Bu adım şimdi gelmez, başka bir adım dene."), "bad"
-
-    def _reset():
-        gs["pick"], gs["msg"] = [], None
-
-    if len(gs["pick"]) >= n:
-        score = max(20, 100 - 15 * gs["mist"])
-        finish_game(gs, game, max(0, n - gs["mist"]), n, score)
-        result_card(gs, score, f"{gs['mist']} yanlış deneme")
-        st.markdown("".join(f'<div class="ochip"><b>{i + 1}</b>{esc(s)}</div>' for i, s in enumerate(steps)),
-                    unsafe_allow_html=True)
-        st.button("🔄 Yeni Sıralama", key="again", on_click=regen)
-        return
-    st.progress(len(gs["pick"]) / n)
-    st.markdown(
-        f'<div class="qcard"><div class="qmeta"><span>🧩 {len(gs["pick"])} / {n}</span>'
-        f'<span class="score-chip">❌ {gs["mist"]} hata</span></div>'
-        f'<div class="qtext">{esc(d["gorev"])}</div></div>',
-        unsafe_allow_html=True,
-    )
-    if gs["pick"]:
-        st.markdown("".join(f'<div class="ochip"><b>{i + 1}</b>{esc(steps[k])}</div>' for i, k in enumerate(gs["pick"])),
-                    unsafe_allow_html=True)
-    if gs["msg"]:
-        (st.success if gs["msg"][0] == "ok" else st.error)(gs["msg"][1])
-    st.markdown(f"**{len(gs['pick']) + 1}. adım hangisi?**")
-    with st.container(key="orderpool"):
-        for k in gs["opool"]:
-            if k not in gs["pick"]:
-                st.button(md_safe(steps[k]), key=f"op_{k}", on_click=_pick, args=(k,))
-    st.button("↺ Baştan Başla", key="o_reset", on_click=_reset)
-
-
-def game_memory(gs, game):
-    d = gs["data"][0]
-    pairs = d["ciftler"]
-    n = len(pairs)
-    if "cards" not in gs:
-        cards = [(i, p[0]) for i, p in enumerate(pairs)] + [(i, p[1]) for i, p in enumerate(pairs)]
-        random.shuffle(cards)
-        gs.update(cards=cards, flipped=[], matched=[], moves=0)
-
-    def _flip(i):
-        if len(gs["flipped"]) >= 2:
-            gs["flipped"] = []
-        if i in gs["flipped"] or i in gs["matched"]:
-            return
-        gs["flipped"].append(i)
-        if len(gs["flipped"]) == 2:
-            gs["moves"] += 1
-            a, b = gs["flipped"]
-            if gs["cards"][a][0] == gs["cards"][b][0]:
-                gs["matched"] += [a, b]
-                gs["flipped"] = []
-                gs["msg"], gs["sound"] = ("ok", "🎉 Çifti buldun!"), "ok"
-            else:
-                gs["msg"], gs["sound"] = ("bad", "Eşleşmedi, bir sonraki kartta ikisi de kapanır."), "bad"
-
-    if len(gs["matched"]) >= 2 * n:
-        score = max(30, min(100, 100 - (gs["moves"] - n) * 8))
-        finish_game(gs, game, round(score * n / 100), n, score)
-        result_card(gs, score, f"{gs['moves']} hamlede bitirdin")
-        st.button("🔄 Yeni Kartlar", key="again", on_click=regen)
-        return
-    st.markdown(
-        f'<div class="qcard"><div class="qmeta"><span>🃏 {len(gs["matched"]) // 2} / {n} çift</span>'
-        f'<span class="score-chip">🎯 {gs["moves"]} hamle</span></div>'
-        f'<div class="qtext">{esc(d["baslik"] or "Terim ile karşılığını bul")}</div></div>',
-        unsafe_allow_html=True,
-    )
-    if gs["msg"]:
-        (st.success if gs["msg"][0] == "ok" else st.warning)(gs["msg"][1])
-    with st.container(key="mem"):
-        for r in range(0, len(gs["cards"]), 4):
-            cols = st.columns(4)
-            for j, (pid, text) in enumerate(gs["cards"][r:r + 4]):
-                i = r + j
-                shown = i in gs["flipped"] or i in gs["matched"]
-                with cols[j]:
-                    st.button(("✅ " if i in gs["matched"] else "") + md_safe(text) if shown else "❓",
-                              key=f"mem_{i}", disabled=i in gs["matched"], on_click=_flip, args=(i,))
-
-
-def game_flashcards(gs, game):
-    data = gs["data"]
-    idx = gs["idx"]
-
-    def _move(d):
-        gs["idx"] = max(0, gs["idx"] + d)
-        gs["show"] = False
-
-    def _toggle():
-        gs["show"] = not gs["show"]
-
-    if idx >= len(data):
-        finish_game(gs, game, 0, 0)
-        st.markdown(f'<div class="result"><div class="trophy">🎉</div><h2>Tüm kartları gözden geçirdin!</h2>'
-                    f'<div class="xp">+{gs.get("xp_gain", 0)} XP</div></div>', unsafe_allow_html=True)
-        st.button("🔄 Başa Dön", key="again", on_click=lambda: gs.update(idx=0, show=False))
-        return
-    card = data[idx]
-    st.progress(idx / len(data))
-    st.markdown(f'<div class="flash" style="background:linear-gradient(135deg,#0d9488,#06b6d4)">'
-                f'<div class="tag">Kart {idx + 1} / {len(data)}</div><div class="txt">❓ {esc(card["on_yuz"])}</div></div>',
-                unsafe_allow_html=True)
-    if gs["show"]:
-        st.markdown(f'<div class="flash" style="background:linear-gradient(135deg,#7c3aed,#d946ef)">'
-                    f'<div class="tag">Cevap / Açıklama</div><div class="txt">💡 {esc(card["arka_yuz"])}</div></div>',
-                    unsafe_allow_html=True)
-    c1, c2, c3 = st.columns(3)
-    with c1:
-        st.button("⬅️ Önceki", key="fc_prev", disabled=idx == 0, on_click=_move, args=(-1,))
-    with c2:
-        st.button("🙈 Cevabı Gizle" if gs["show"] else "👀 Cevabı Göster", key="fc_toggle", on_click=_toggle)
-    with c3:
-        st.button("Sonraki ➡️", key="fc_next", on_click=_move, args=(1,))
-
-
-def game_words(gs, game):
-    data = gs["data"]
-    idx = gs["idx"]
-    lang_plain = SS["selected_subject"] in TR_LANG_SUBJECTS
-    up = (lambda s: s.upper()) if lang_plain else content.tr_upper
-    alphabet = "ABCDEFGHIJKLMNOPQRSTUVWXYZ" if lang_plain else "ABCÇDEFGĞHIİJKLMNOÖPRSŞTUÜVYZ"
-    if idx >= len(data):
-        score = round(gs["correct"] * 100 / len(data))
-        finish_game(gs, game, gs["correct"], len(data), score)
-        result_card(gs, score, f"{gs['correct']} / {len(data)} kelime", "Tüm bulmacaları tamamladın!")
-        st.button("🔄 Yeni Bulmaca", key="again", on_click=regen)
-        return
-    item = data[idx]
-    word = up(item["kelime"])
-    if gs["pool_for"] != idx:
-        pool = list(word)
-        extras = [c for c in alphabet if c not in pool]
-        pool += random.sample(extras, min(3, len(extras)))
-        random.shuffle(pool)
-        gs.update(pool=pool, pool_for=idx, guess=[], used=[], msg=None)
-
-    def _add(i, ch):
-        if len(gs["guess"]) < len(word):
-            gs["guess"].append(ch)
-            gs["used"].append(i)
-            gs["msg"] = None
-
-    def _undo():
-        if gs["guess"]:
-            gs["guess"].pop()
-            gs["used"].pop()
-
-    def _clear():
-        gs["guess"], gs["used"] = [], []
-
-    def _skip():
-        gs["idx"] += 1
-        gs["msg"] = None
-
-    def _check():
-        if "".join(gs["guess"]) == word:
-            gs["correct"] += 1
-            gs["idx"] += 1
-            gs["msg"], gs["sound"] = None, "ok"
-        else:
-            gs["msg"], gs["sound"] = ("bad", "❌ Eksik veya yanlış harf! Son harfi silip düzeltebilirsin."), "bad"
-
-    st.progress(idx / len(data))
-    st.markdown(
-        f'<div class="qcard"><div class="qmeta"><span>Bulmaca {idx + 1} / {len(data)} · {len(word)} harf</span>'
-        f'<span class="score-chip">✔ {gs["correct"]} doğru</span></div>'
-        f'<div class="qtext">💡 {esc(item["ipucu"])}</div></div>',
-        unsafe_allow_html=True,
-    )
-    tiles = "".join(
-        f'<div class="tile {"on" if i < len(gs["guess"]) else ""}">{esc(gs["guess"][i]) if i < len(gs["guess"]) else ""}</div>'
-        for i in range(len(word)))
-    st.markdown(f'<div class="tiles">{tiles}</div>', unsafe_allow_html=True)
-    if gs["msg"]:
-        st.error(gs["msg"][1])
-    with st.container(key="letters"):
-        for r in range(0, len(gs["pool"]), 8):
-            cols = st.columns(8)
-            for j, ch in enumerate(gs["pool"][r:r + 8]):
-                i = r + j
-                with cols[j]:
-                    st.button("✔" if i in gs["used"] else ch, key=f"ch_{idx}_{i}", disabled=i in gs["used"],
-                              on_click=_add, args=(i, ch))
-    c1, c2, c3, c4 = st.columns(4)
-    with c1:
-        st.button("🔄 Sıfırla", key="k_clear", on_click=_clear)
-    with c2:
-        st.button("↩️ Son Harfi Sil", key="k_undo", on_click=_undo)
-    with c3:
-        st.button("⏭️ Pas Geç", key="pass_k", on_click=_skip)
-    with c4:
-        st.button("✅ Kontrol Et", key="k_check", on_click=_check)
-
-
-def game_scenario(gs, game):
-    prompt = (ctx() + "Gerçek hayattan esinlenen, daha önce işlenmemiş özgün bir karar verme senaryosu ve çoktan seçmeli mini görev üret. "
-              'Yalnızca geçerli JSON döndür: {"senaryo":"...","gorev_sorusu":"...",'
-              '"secenekler":["A) ...","B) ...","C) ...","D) ..."],"ipucu":"..."}')
-    iq = get_dict(gs, prompt, ("senaryo", "gorev_sorusu", "secenekler"), "Macera hazırlanıyor...")
-    if not iq:
-        return
-    st.markdown(
-        f'<div class="qcard"><div class="qmeta"><span>📖 Görev Senaryosu</span></div>'
-        f'<div style="font-size:1.1rem;line-height:1.6">{esc(str(iq["senaryo"]))}</div>'
-        f'<hr style="border-color:rgba(94,234,212,.3);margin:16px 0"><div class="qmeta"><span>🎯 Karar Noktası</span></div>'
-        f'<div class="qtext">{esc(str(iq["gorev_sorusu"]))}</div></div>',
-        unsafe_allow_html=True,
-    )
-
-    def _choose(opt):
-        gs["choice"], gs["eval"] = opt, None
-
-    def _hint():
-        gs["show"] = not gs["show"]
-
-    if gs["choice"] is None:
-        with st.container(key="optbox"):
-            cols = st.columns(2)
-            for i, o in enumerate(iq["secenekler"]):
-                with cols[i % 2]:
-                    st.button(md_safe(o), key=f"iq_{i}", on_click=_choose, args=(o,))
-    else:
-        st.markdown(f'<div class="pill">Seçimin: {esc(str(gs["choice"]))}</div>', unsafe_allow_html=True)
-        if gs["eval"] is None:
-            with st.spinner("AdenMind değerlendiriyor..."):
-                gs["eval"] = ai.generate(
-                    f"Ders: {SS['selected_subject']}, Ünite: {SS['selected_unit']}.\nGörev Sorusu: {iq['gorev_sorusu']}\n"
-                    f"Öğrencinin Seçtiği Şık: {gs['choice']}\n"
-                    "Bu seçimin doğru olup olmadığını değerlendir, nedenini sevimli bir dille kısaca açıkla.", 0.5
-                ) or "Değerlendirme yapılamadı, tekrar dene."
-            finish_game(gs, game, 0, 0)
-        st.info(gs["eval"])
-        st.button("↩️ Başka Şık Dene", key="iq_retry", on_click=_choose, args=(None,))
-    st.button("💡 AdenMind'den İpucu", key="iq_hint", on_click=_hint)
-    if gs["show"]:
-        st.info(f"🦊 **İpucu:** {iq.get('ipucu', '')}")
-
-
-def game_activities(gs, game):
-    prompt = (ctx() + "Evde veya sınıfta yapılabilecek, daha önce önerilmemiş 3 yaratıcı öğrenme etkinliği/deney öner. "
-              "Her biri için gerekli malzemeleri ve adımları kısa maddelerle yaz. Markdown kullan.")
-    text = get_text(gs, prompt, "Etkinlikler hazırlanıyor...")
-    if text:
-        with st.container(border=True):
-            st.markdown(text)
-
-
-def game_classic(gs, game):
-    items = get_items(gs, game, "Yazılı soruları hazırlanıyor...")
-    if not items:
-        return
-    with st.form("classic_form"):
-        answers = []
-        for i, cq in enumerate(items):
-            st.markdown(
-                f'<div class="qcard" style="padding:16px 22px"><div class="qmeta"><span>Soru {i + 1}</span></div>'
-                f'<div class="qtext" style="font-size:1.15rem">{esc(str(cq["soru"]))}</div></div>',
-                unsafe_allow_html=True)
-            answers.append(st.text_area(f"Cevabın ({i + 1})", key=f"ans_{gs['nonce']}_{i}"))
-        submitted = st.form_submit_button("📨 Yazılı Kâğıdını Puanlat")
-    if submitted:
-        gs["results"], total = [], 0
-        with st.spinner("AdenMind kâğıdını okuyor..."):
-            for i, cq in enumerate(items):
-                pts = 0
-                if answers[i].strip():
-                    res = ai.generate(
-                        f"Soru: {cq['soru']}\nİdeal cevap: {cq['beklenen_cevap']}\nÖğrenci: {answers[i]}\n"
-                        "İlk satıra yalnızca 'PUAN: x/20' yaz (x 0-20 arası tam sayı). Sonra kısa, cesaretlendirici bir açıklama yaz.", 0.3)
-                    m = re.search(r"PUAN\s*:\s*(\d+)", res or "")
-                    pts = min(20, int(m.group(1))) if m else 0
-                    gs["results"].append((i, res or "Değerlendirme yapılamadı."))
-                total += pts
-        score = round(total * 100 / (20 * len(items)))
-        finish_game(gs, game, round(score * len(items) / 100), len(items), score)
-        gs["final"] = score
-    if gs["results"]:
-        for i, res in gs["results"]:
-            st.info(f"**Soru {i + 1} Değerlendirmesi**\n\n{res}")
-        if gs.get("final") is not None:
-            result_card(gs, gs["final"], "Yazılı sonucun", "Yazılı Tamamlandı!")
-
-
-# =============================================================================
-# OYUN ÜST BARI VE TAM EKRAN
+# 8. ORTAK OYUN YARDIMCILARI
 # =============================================================================
 FS_BUTTON = """<!DOCTYPE html><html><body style="margin:0;background:transparent">
 <button id="fs" style="width:100%;height:46px;border:0;border-radius:18px;font-weight:800;font-size:15px;cursor:pointer;
@@ -996,90 +685,598 @@ def game_topbar(title):
             render_adenmind("pop")
 
 
-# =============================================================================
-# ANA AKIŞ
-# =============================================================================
-subj, unit, game = SS["selected_subject"], SS["selected_unit"], SS["selected_game"]
-in_game = bool(SS["view"] == "play" and subj and unit and game)
+def _retry(gs):
+    gs["failed"] = False
 
-css = BASE_CSS + EXTRA_CSS + (GAME_CSS if in_game else "") + (HTMLGAME_CSS if in_game and game in ("balon", "blitz") else "")
+
+def load_data(gs, prompt, expect, required=(), msg="Hazırlanıyor..."):
+    """Veri yoksa yapay zekadan otomatik üretir (tek tıkla oyun açılır)."""
+    if gs["data"] is not None:
+        return gs["data"]
+    if not gs["failed"]:
+        with st.spinner(msg):
+            raw = ai_generate_content(prompt)
+        data = raw.strip() if (expect is str and raw) else parse_json(raw)
+        if is_valid(data, expect, required):
+            gs.update(data=data, idx=0, score=0, feedback=None)
+            st.rerun()
+        gs["failed"] = True
+    st.error("İçerik üretilemedi. API anahtarlarını kontrol edip tekrar deneyin.")
+    st.button("🔄 Tekrar Dene", key="retry", on_click=_retry, args=(gs,))
+    return None
+
+
+def ctx():
+    return (
+        f"Rastgelelik Kimliği: {random.randint(10000, 999999)}\n"
+        f"5. Sınıf MEB müfredatı, Ders: {st.session_state['selected_subject']}, "
+        f"Ünite: {st.session_state['selected_unit']}.\n"
+    )
+
+
+VISUAL_RULES = """
+GÖRSEL VE NESNE KURALLARI:
+1. K, L, M gibi soyut harfler yerine gerçek nesne adlarını kullan (Dünya, Ay, Güneş, Dinamometre vb.).
+2. Görsel asla doğru cevabı ifşa etmemeli; yalnızca konuyu betimlemeli.
+3. Sadece konuya gerçekten uygunsa 'gorsel_tipi' alanına şunlardan birini yaz:
+   'gunes','dunya','ay_evresi','karsilastirma','tutulma','dinamometre' (Fen Bilimleri),
+   'ucgen' (Matematik, üçgen/açı; gorsel_parametre örn. '50 derece').
+4. Görsel gerekmeyen tüm sorularda gorsel_tipi: 'yok', gorsel_parametre: '' yaz.
+"""
+
+MCQ_FORMAT = """
+Yalnızca geçerli JSON liste döndür, başka metin yazma:
+[{"soru":"...","secenekler":["A) ...","B) ...","C) ...","D) ..."],"dogru_cevap":"A","aciklama":"...","gorsel_tipi":"yok","gorsel_parametre":""}]
+"""
+
+
+# --- Tek soru modu motoru (Kazanım, Doğru/Yanlış, Boşluk Doldurma) ---
+def _same(a, b):
+    return str(a).strip().lower() == str(b).strip().lower()
+
+
+def _answer(gs, value, q, per_q):
+    ok = _same(value, q["correct"])
+    if ok:
+        gs["score"] += per_q
+    label = next((lab for lab, val in q["options"] if _same(val, q["correct"])), q["correct"])
+    gs["feedback"] = {"ok": ok, "label": label, "expl": q["expl"]}
+
+
+def _next(gs):
+    gs["idx"] += 1
+    gs["feedback"] = None
+
+
+def run_quiz(gs, items, build):
+    total = len(items)
+    idx = gs["idx"]
+    per_q = max(1, 100 // total)
+
+    if idx >= total:
+        score = gs["score"]
+        stars = "⭐" * max(1, round(score / 20)) if score > 0 else "💪"
+        st.markdown(
+            f'<div class="result"><div class="trophy">🏆</div><h2>Oyun Tamamlandı!</h2>'
+            f'<div class="big">{score}<small> / 100</small></div><div style="font-size:2rem">{stars}</div></div>',
+            unsafe_allow_html=True,
+        )
+        st.button("🔄 Yeni Sorularla Tekrar Oyna", key="again", on_click=regen)
+        return
+
+    q = build(items[idx])
+    st.progress(idx / total)
+    st.markdown(
+        f'<div class="qcard"><div class="qmeta"><span>Soru {idx + 1} / {total}</span>'
+        f'<span class="score-chip">⭐ {gs["score"]} puan</span></div>'
+        f'<div class="qtext">{esc(str(q["text"]))}</div></div>',
+        unsafe_allow_html=True,
+    )
+    vt, vp = q["visual"]
+    if vt and vt != "yok":
+        render_question_visual(vt, vp)
+
+    fb = gs["feedback"]
+    if fb:
+        if fb["ok"]:
+            head, cls = "🎉 Harika, doğru cevap!", "ok"
+        else:
+            head, cls = f"❌ Olmadı! Doğru cevap: {esc(str(fb['label']))}", "bad"
+        st.markdown(
+            f'<div class="fb {cls}"><b>{head}</b><div>{esc(str(fb["expl"]))}</div></div>', unsafe_allow_html=True
+        )
+        st.button(
+            "➡️ Sonraki Soru" if idx < total - 1 else "🏆 Sonucu Gör",
+            key=f"next_{idx}", on_click=_next, args=(gs,),
+        )
+    else:
+        with st.container(key="optbox"):
+            ocols = st.columns(2)
+            for i, (label, value) in enumerate(q["options"]):
+                with ocols[i % 2]:
+                    st.button(md_safe(label), key=f"opt_{idx}_{i}", on_click=_answer, args=(gs, value, q, per_q))
+        st.button("⏭️ Pas Geç", key=f"pass_{idx}", on_click=_next, args=(gs,))
+
+
+def build_mcq(q):
+    opts = [(o, "ABCD"[i] if i < 4 else str(i)) for i, o in enumerate(q["secenekler"])]
+    return {
+        "text": q["soru"], "options": opts, "correct": str(q["dogru_cevap"]).strip()[:1].upper(),
+        "expl": q.get("aciklama", ""), "visual": (q.get("gorsel_tipi"), q.get("gorsel_parametre", "")),
+    }
+
+
+def build_tf(q):
+    return {
+        "text": q["ifade"], "options": [("✅ DOĞRU", "D"), ("❌ YANLIŞ", "Y")],
+        "correct": str(q["cevap"]).strip()[:1].upper(), "expl": q.get("aciklama", ""),
+        "visual": (q.get("gorsel_tipi"), q.get("gorsel_parametre", "")),
+    }
+
+
+def build_fill(q):
+    return {
+        "text": q["cumle"], "options": [(o, o) for o in q["secenekler"]], "correct": q["dogru_kelime"],
+        "expl": f"Doğru kelime: {q['dogru_kelime']}",
+        "visual": (q.get("gorsel_tipi"), q.get("gorsel_parametre", "")),
+    }
+
+
+# =============================================================================
+# 9. BALON PATLATMACA (tam ekran HTML oyunu)
+# =============================================================================
+BALLOON_HTML = """<!DOCTYPE html><html lang="tr"><head><meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<style>
+*{box-sizing:border-box}
+html,body{margin:0;height:100%;overflow:hidden;font-family:'Segoe UI',system-ui,sans-serif;color:#e6fffb}
+body{background:radial-gradient(circle,rgba(94,234,212,.10) 2px,transparent 2.6px) 0 0/40px 40px,
+ radial-gradient(900px 500px at 12% 0%,rgba(45,212,191,.28),transparent 60%),
+ radial-gradient(700px 500px at 100% 100%,rgba(6,182,212,.24),transparent 60%),#071a24}
+#app{position:relative;width:100%;height:100%;overflow:hidden}
+#sky{position:absolute;inset:0;overflow:hidden}
+.timer{position:absolute;top:0;left:0;height:7px;width:100%;z-index:8;background:linear-gradient(90deg,#2dd4bf,#22d3ee);transition:width .1s linear}
+.timer.low{background:linear-gradient(90deg,#f43f5e,#fb923c)}
+.hud{position:absolute;top:14px;left:0;right:0;display:flex;justify-content:space-between;gap:10px;padding:0 16px;z-index:7}
+.chip{background:rgba(7,26,36,.75);border:1.5px solid rgba(94,234,212,.5);border-radius:999px;padding:8px 18px;font-weight:800;
+ backdrop-filter:blur(6px);font-size:clamp(13px,1.6vw,17px)}
+.chip.s{background:#fef08a;color:#713f12;border-color:#fde047}
+#q{position:absolute;top:62px;left:50%;transform:translateX(-50%);width:min(94%,920px);z-index:7;text-align:center;
+ background:rgba(7,26,36,.85);border:2px solid rgba(94,234,212,.55);border-radius:26px;padding:14px 22px;
+ font-size:clamp(15px,2.3vw,24px);font-weight:800;line-height:1.35;box-shadow:0 8px 0 rgba(0,0,0,.3)}
+.balloon{position:absolute;bottom:-200px;width:clamp(120px,20vw,215px);aspect-ratio:.82;cursor:pointer;z-index:3;
+ animation:rise var(--d,9s) linear infinite;-webkit-tap-highlight-color:transparent}
+.balloon .in{width:100%;height:100%;border-radius:50% 50% 48% 48%/55% 55% 45% 45%;
+ background:radial-gradient(circle at 32% 26%,rgba(255,255,255,.6),transparent 36%),linear-gradient(160deg,var(--c1),var(--c2));
+ display:flex;align-items:center;justify-content:center;text-align:center;padding:14% 12% 20%;font-weight:800;
+ font-size:clamp(12px,1.55vw,17px);line-height:1.2;color:#fff;text-shadow:0 2px 4px rgba(0,0,0,.35);
+ box-shadow:inset -10px -14px 26px rgba(0,0,0,.2),0 14px 26px rgba(0,0,0,.35);animation:sway 2.6s ease-in-out infinite alternate}
+.balloon::after{content:"";position:absolute;left:50%;top:99%;width:2px;height:70px;background:rgba(255,255,255,.35);transform:translateX(-50%)}
+.balloon:hover .in{filter:brightness(1.12)}
+.balloon.paused{animation-play-state:paused;cursor:default}
+.balloon.right .in{animation:none;outline:7px solid #34d399;transform:scale(1.1)}
+.balloon.wrong .in{animation:shake .45s;outline:7px solid #fb7185}
+.balloon.fade{opacity:.15;transition:opacity .4s}
+@keyframes rise{from{transform:translateY(0)}to{transform:translateY(-150vh)}}
+@keyframes sway{from{transform:rotate(-3deg) translateX(-6px)}to{transform:rotate(3deg) translateX(6px)}}
+@keyframes shake{0%,100%{transform:translateX(0)}25%{transform:translateX(-12px)}75%{transform:translateX(12px)}}
+.banner{position:absolute;left:50%;bottom:20px;transform:translateX(-50%) translateY(40px);opacity:0;z-index:9;
+ width:min(94%,760px);text-align:center;padding:16px 22px;border-radius:24px;font-weight:800;color:#fff;
+ font-size:clamp(14px,1.9vw,19px);transition:all .3s;pointer-events:none;box-shadow:0 8px 0 rgba(0,0,0,.3)}
+.banner.show{opacity:1;transform:translateX(-50%) translateY(0)}
+.banner.ok{background:linear-gradient(135deg,#059669,#14b8a6)}
+.banner.bad{background:linear-gradient(135deg,#e11d48,#fb7185)}
+.banner small{display:block;margin-top:6px;font-weight:600;opacity:.95}
+#end{position:absolute;inset:0;z-index:20;display:none;align-items:center;justify-content:center;flex-direction:column;
+ gap:14px;background:rgba(7,26,36,.92);text-align:center}
+#end .t{font-size:clamp(60px,12vw,110px)}
+#end .sc{font-size:clamp(34px,6vw,64px);font-weight:900;color:#5eead4}
+#end button{border:0;border-radius:20px;padding:16px 34px;font-size:18px;font-weight:800;cursor:pointer;color:#042f2e;
+ background:linear-gradient(135deg,#5eead4,#22d3ee);box-shadow:0 6px 0 #0f766e}
+</style></head><body>
+<div id="app">
+  <div class="timer" id="bar"></div>
+  <div class="hud"><div class="chip" id="qc">Soru 1</div><div class="chip" id="tm">⏱ 30</div><div class="chip s" id="sc">⭐ 0</div></div>
+  <div id="q"></div>
+  <div id="sky"></div>
+  <div class="banner" id="bn"></div>
+  <div id="end"><div class="t">🏆</div><div style="font-size:clamp(20px,3vw,30px);font-weight:800">Oyun Tamamlandı!</div>
+   <div class="sc" id="fsc"></div><button id="again">🔄 Aynı Sorularla Tekrar Oyna</button></div>
+</div>
+<script>
+const Q = __QUESTIONS__;
+const COLORS=[['#14b8a6','#0f766e'],['#06b6d4','#0e7490'],['#8b5cf6','#5b21b6'],['#f43f5e','#be123c']];
+const TIME=30; const total=Q.length;
+let idx=0,score=0,timer=null,locked=false;
+const $=id=>document.getElementById(id);
+function shuffle(a){for(let i=a.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[a[i],a[j]]=[a[j],a[i]]}return a}
+function load(){
+  clearInterval(timer);
+  if(idx>=total){finish();return}
+  locked=false;
+  const q=Q[idx];
+  $('qc').textContent='Soru '+(idx+1)+' / '+total;
+  $('sc').textContent='⭐ '+score;
+  $('q').textContent=q.soru;
+  $('bn').className='banner';
+  const sky=$('sky'); sky.innerHTML='';
+  const opts=q.secenekler.slice(0,4);
+  const slots=shuffle(opts.map((_,i)=>i));
+  const correct='ABCD'.indexOf(String(q.dogru_cevap).trim().charAt(0).toUpperCase());
+  opts.forEach((opt,i)=>{
+    const b=document.createElement('div'); b.className='balloon';
+    const c=COLORS[i%4];
+    b.style.setProperty('--c1',c[0]); b.style.setProperty('--c2',c[1]);
+    b.style.left=(3+slots[i]*24.5)+'%';
+    b.style.setProperty('--d',(8+Math.random()*3).toFixed(1)+'s');
+    b.style.animationDelay='-'+(Math.random()*6).toFixed(1)+'s';
+    const inner=document.createElement('div'); inner.className='in'; inner.textContent=opt;
+    b.appendChild(inner);
+    b.onclick=()=>answer(i,correct);
+    sky.appendChild(b);
+  });
+  const start=Date.now();
+  timer=setInterval(()=>{
+    const left=Math.max(0,TIME-(Date.now()-start)/1000);
+    $('tm').textContent='⏱ '+Math.ceil(left);
+    $('bar').style.width=(left/TIME*100)+'%';
+    $('bar').className='timer'+(left<8?' low':'');
+    if(left<=0){answer(-1,correct)}
+  },100);
+}
+function answer(i,correct){
+  if(locked)return; locked=true; clearInterval(timer);
+  const q=Q[idx]; const ok=(i===correct);
+  const pts=Math.round(100/total);
+  if(ok)score+=pts;
+  $('sc').textContent='⭐ '+score;
+  document.querySelectorAll('.balloon').forEach((b,j)=>{
+    b.classList.add('paused');
+    if(j===correct)b.classList.add('right'); else if(j===i)b.classList.add('wrong'); else b.classList.add('fade');
+  });
+  const bn=$('bn');
+  const head=ok?('🎉 Harika! +'+pts+' puan'):((i<0?'⏰ Süre doldu! ':'❌ Olmadı! ')+'Doğru cevap: '+(q.secenekler[correct]||''));
+  bn.textContent=head;
+  if(q.aciklama){const s=document.createElement('small'); s.textContent=q.aciklama; bn.appendChild(s);}
+  bn.className='banner show '+(ok?'ok':'bad');
+  setTimeout(()=>{idx++;load()},2800);
+}
+function finish(){
+  $('fsc').textContent=score+' / 100';
+  $('end').style.display='flex';
+}
+$('again').onclick=()=>{idx=0;score=0;$('end').style.display='none';load()};
+load();
+</script></body></html>"""
+
+
+# =============================================================================
+# 10. ANA AKIŞ
+# =============================================================================
+subj = st.session_state["selected_subject"]
+unit = st.session_state["selected_unit"]
+game = st.session_state["selected_game"]
+in_game = bool(subj and unit and game)
+
+css = BASE_CSS + (GAME_CSS if in_game else "") + (BALLOON_CSS if in_game and game == "balon" else "")
 st.markdown(f"<style>{css}</style>", unsafe_allow_html=True)
-flush_toasts()
 
+# --- Kenar çubuğu: oyun dışında görünür ---
 if not in_game:
-    render_sidebar()
+    with st.sidebar:
+        st.button("🏠 Ana Sayfaya Dön", key="home_btn", on_click=go_home)
+        st.markdown("---")
+        render_adenmind("side")
+
+# --- Üst başlık: oyun dışında görünür ---
+if not in_game:
     st.markdown(
         '<div class="hero"><div class="badge">🎒</div><div><h1>MEB 5. Sınıf Akıllı Eğitsel Oyun Merkezi</h1>'
         "<small>AdenMind Koçluk · Murat KANDIRMAZ</small></div></div>",
         unsafe_allow_html=True,
     )
 
-if SS["view"] == "karne":
-    render_karne()
-
-elif not subj:
-    stat_strip()
-    st.button("📊 Karnem ve Rozetlerim", key="karne_home", on_click=go_karne)
+# --- AŞAMA 1: DERS SEÇİMİ (karta tıklamak yeterli) ---
+if not subj:
     st.markdown('<div class="section-title">🌟 Çalışmak istediğin dersi seç</div>', unsafe_allow_html=True)
-    card_grid([(n, d["ikon"], n, d["renk"]) for n, d in MEB_CURRICULUM.items()], 3, "sub", pick_subject, 170)
+    items = [(name, d["ikon"], name, d["renk"]) for name, d in MEB_CURRICULUM.items()]
+    card_grid(items, 3, "sub", pick_subject, 170)
 
+# --- AŞAMA 2: ÜNİTE SEÇİMİ ---
 elif not unit:
     data = MEB_CURRICULUM[subj]
-    st.markdown(f'<div class="crumb"><span class="pill">{data["ikon"]} {esc(subj)}</span><span>›</span>'
-                '<span class="pill alt">Ünite seç</span></div>', unsafe_allow_html=True)
+    st.markdown(
+        f'<div class="crumb"><span class="pill">{data["ikon"]} {esc(subj)}</span><span>›</span>'
+        '<span class="pill alt">Ünite seç</span></div>',
+        unsafe_allow_html=True,
+    )
     st.button("⬅️ Ders Seçimine Dön", key="back_subj", on_click=go_home)
     st.markdown('<div class="section-title">📚 Hangi üniteyi çalışalım?</div>', unsafe_allow_html=True)
-    card_grid([(u, "📖", u, data["renk"]) for u in data["uniteler"]], 2, "unit", pick_unit, 120)
+    items = [(u, "📖", u, data["renk"]) for u in data["uniteler"]]
+    card_grid(items, 2, "unit", pick_unit, 120)
 
+# --- AŞAMA 3: OYUN SEÇİMİ ---
 elif not game:
     data = MEB_CURRICULUM[subj]
-    st.markdown(f'<div class="crumb"><span class="pill">{data["ikon"]} {esc(subj)}</span><span>›</span>'
-                f'<span class="pill alt">{esc(unit)}</span></div>', unsafe_allow_html=True)
+    st.markdown(
+        f'<div class="crumb"><span class="pill">{data["ikon"]} {esc(subj)}</span><span>›</span>'
+        f'<span class="pill alt">{esc(unit)}</span></div>',
+        unsafe_allow_html=True,
+    )
     st.button("↩️ Ünite Değiştir", key="back_unit", on_click=back_to_units)
     st.markdown('<div class="section-title">🎮 Bir oyun seç, hemen başlasın!</div>', unsafe_allow_html=True)
-    card_grid([tuple(g) for g in GAMES], 3, "game", pick_game, 160)
+    items = [(g[0], g[1], g[2], g[3]) for g in GAMES]
+    card_grid(items, 3, "game", pick_game, 150)
 
+# --- AŞAMA 4: OYUN (tam ekran düzeni) ---
 else:
     gs = get_gs(game)
-    game_topbar(f"{GAME_INFO[game][1]} {GAME_INFO[game][2]} · {subj} · {unit}")
-    if gs.get("offline"):
-        st.info("📴 Yapay zekâya ulaşılamadı; daha önce hazırlanan sorular gösteriliyor.")
+    ikon = GAME_INFO[game][1]
+    game_topbar(f"{ikon} {GAME_INFO[game][2]} · {subj} · {unit}")
 
-    if game in ("balon", "blitz"):
-        items = get_items(gs, game, "Sorular hazırlanıyor...")
-        if items:
-            with st.container(key="rep"):
-                for s in range(0, 101, 10):
-                    st.button(f"rep{s}", key=f"rep_{s}", on_click=_report, args=(game, s, len(items)))
-            with st.container(key="htmlgame"):
-                components.html(gh.build(game, items, SS["sound_on"]), height=760)
+    # 1. Balon patlatmaca
+    if game == "balon":
+        prompt = (
+            ctx() + "TAM 5 ADET özgün, gerçek hayat senaryolu çoktan seçmeli (A, B, C, D) soru üret.\n"
+            + VISUAL_RULES + MCQ_FORMAT
+        )
+        data = load_data(gs, prompt, list, ("soru", "secenekler", "dogru_cevap"), "Balon soruları hazırlanıyor...")
+        if data:
+            payload = json.dumps(data, ensure_ascii=False).replace("</", "<\\/")
+            with st.container(key="balloon_wrap"):
+                components.html(BALLOON_HTML.replace("__QUESTIONS__", payload), height=760)
 
-    elif game in ("sinav10", "dogruyanlis", "bosluk"):
-        items = get_items(gs, game, "Sorular hazırlanıyor...")
-        if items:
-            run_quiz(gs, game, items, {"sinav10": build_mcq, "dogruyanlis": build_tf, "bosluk": build_fill}[game])
+    # 2. 5 soruluk kazanım yarışması
+    elif game == "sinav10":
+        prompt = ctx() + "TAM 5 ADET yepyeni çoktan seçmeli (4 şıklı) soru üret.\n" + VISUAL_RULES + MCQ_FORMAT
+        data = load_data(gs, prompt, list, ("soru", "secenekler", "dogru_cevap"), "Kazanım soruları hazırlanıyor...")
+        if data:
+            run_quiz(gs, data, build_mcq)
 
-    elif game in ("eslestir", "hafiza", "siralama"):
-        items = get_items(gs, game, "Oyun hazırlanıyor...")
-        if items:
-            {"eslestir": game_matching, "hafiza": game_memory, "siralama": game_ordering}[game](gs, game)
+    # 3. Doğru / Yanlış
+    elif game == "dogruyanlis":
+        prompt = (
+            ctx() + "TAM 5 ADET yepyeni Doğru veya Yanlış önermesi üret. Doğru ve yanlış önermeleri dengeli dağıt.\n"
+            + VISUAL_RULES
+            + 'Yalnızca geçerli JSON liste döndür: [{"ifade":"...","cevap":"D","aciklama":"...",'
+            '"gorsel_tipi":"yok","gorsel_parametre":""}] (cevap yalnızca D veya Y olsun).'
+        )
+        data = load_data(gs, prompt, list, ("ifade", "cevap"), "Önermeler hazırlanıyor...")
+        if data:
+            run_quiz(gs, data, build_tf)
 
+    # 4. Boşluk doldurma
+    elif game == "bosluk":
+        prompt = (
+            ctx() + "Cümle içinde boşluk (____) bırakılmış TAM 5 adet soru üret. Her soruda 4 seçenek olsun.\n"
+            + VISUAL_RULES
+            + 'Yalnızca geçerli JSON liste döndür: [{"cumle":"... ____ ...","dogru_kelime":"...",'
+            '"secenekler":["...","...","...","..."],"gorsel_tipi":"yok","gorsel_parametre":""}]'
+        )
+        data = load_data(gs, prompt, list, ("cumle", "dogru_kelime", "secenekler"), "Sorular hazırlanıyor...")
+        if data:
+            run_quiz(gs, data, build_fill)
+
+    # 5. Soru kartları
     elif game == "kartlar":
-        if get_items(gs, game, "Kartlar hazırlanıyor..."):
-            game_flashcards(gs, game)
+        prompt = (
+            ctx() + "5 adet yepyeni flashcard üret. Yalnızca geçerli JSON liste döndür: "
+            '[{"on_yuz":"...","arka_yuz":"..."}]'
+        )
+        data = load_data(gs, prompt, list, ("on_yuz", "arka_yuz"), "Kartlar hazırlanıyor...")
+        if data:
+            idx = gs["idx"]
+            if idx < len(data):
+                card = data[idx]
+                st.progress(idx / len(data))
+                st.markdown(
+                    f'<div class="flash" style="background:linear-gradient(135deg,#0d9488,#06b6d4)">'
+                    f'<div class="tag">Kart {idx + 1} / {len(data)}</div>'
+                    f'<div class="txt">❓ {esc(str(card["on_yuz"]))}</div></div>',
+                    unsafe_allow_html=True,
+                )
+                if gs["show"]:
+                    st.markdown(
+                        f'<div class="flash" style="background:linear-gradient(135deg,#7c3aed,#d946ef)">'
+                        f'<div class="tag">Cevap / Açıklama</div>'
+                        f'<div class="txt">💡 {esc(str(card["arka_yuz"]))}</div></div>',
+                        unsafe_allow_html=True,
+                    )
 
-    elif game == "kelime":
-        if get_items(gs, game, "Bulmaca hazırlanıyor..."):
-            game_words(gs, game)
+                def _fc_move(d):
+                    gs["idx"] = max(0, gs["idx"] + d)
+                    gs["show"] = False
 
+                def _fc_toggle():
+                    gs["show"] = not gs["show"]
+
+                c1, c2, c3 = st.columns(3)
+                with c1:
+                    st.button("⬅️ Önceki", key="fc_prev", disabled=idx == 0, on_click=_fc_move, args=(-1,))
+                with c2:
+                    st.button("🙈 Cevabı Gizle" if gs["show"] else "👀 Cevabı Göster", key="fc_toggle", on_click=_fc_toggle)
+                with c3:
+                    st.button("Sonraki ➡️", key="fc_next", on_click=_fc_move, args=(1,))
+            else:
+                st.markdown(
+                    '<div class="result"><div class="trophy">🎉</div><h2>Tüm kartları gözden geçirdin!</h2></div>',
+                    unsafe_allow_html=True,
+                )
+                st.button("🔄 Başa Dön", key="again", on_click=lambda: gs.update(idx=0, show=False))
+
+    # 6. Oynayarak öğren
     elif game == "oynayarak":
-        game_scenario(gs, game)
+        prompt = (
+            ctx() + "Gerçek hayattan esinlenen bir karar verme senaryosu ve çoktan seçmeli mini görev üret. "
+            'Yalnızca geçerli JSON döndür: {"senaryo":"...","gorev_sorusu":"...",'
+            '"secenekler":["A) ...","B) ...","C) ...","D) ..."],"ipucu":"..."}'
+        )
+        iq = load_data(gs, prompt, dict, ("senaryo", "gorev_sorusu", "secenekler"), "Macera hazırlanıyor...")
+        if iq:
+            st.markdown(
+                f'<div class="qcard"><div class="qmeta"><span>📖 Görev Senaryosu</span></div>'
+                f'<div style="font-size:1.1rem;line-height:1.6">{esc(str(iq["senaryo"]))}</div>'
+                f'<hr style="border-color:rgba(94,234,212,.3);margin:16px 0">'
+                f'<div class="qmeta"><span>🎯 Karar Noktası</span></div>'
+                f'<div class="qtext">{esc(str(iq["gorev_sorusu"]))}</div></div>',
+                unsafe_allow_html=True,
+            )
 
+            def _choose(opt):
+                gs["choice"] = opt
+                gs["eval"] = None
+
+            def _hint():
+                gs["show"] = not gs["show"]
+
+            if gs["choice"] is None:
+                with st.container(key="optbox"):
+                    cols = st.columns(2)
+                    for i, o in enumerate(iq["secenekler"]):
+                        with cols[i % 2]:
+                            st.button(md_safe(o), key=f"iq_{i}", on_click=_choose, args=(o,))
+            else:
+                st.markdown(f'<div class="pill">Seçimin: {esc(str(gs["choice"]))}</div>', unsafe_allow_html=True)
+                if gs["eval"] is None:
+                    with st.spinner("AdenMind değerlendiriyor..."):
+                        gs["eval"] = ai_generate_content(
+                            f"Ders: {subj}, Ünite: {unit}.\nGörev Sorusu: {iq['gorev_sorusu']}\n"
+                            f"Öğrencinin Seçtiği Şık: {gs['choice']}\n"
+                            "Bu seçimin doğru olup olmadığını değerlendir, nedenini sevimli bir dille kısaca açıkla."
+                        ) or "Değerlendirme yapılamadı, tekrar dene."
+                st.info(gs["eval"])
+                st.button("↩️ Başka Şık Dene", key="iq_retry", on_click=_choose, args=(None,))
+            st.button("💡 AdenMind'den İpucu", key="iq_hint", on_click=_hint)
+            if gs["show"]:
+                st.info(f"🦊 **İpucu:** {iq.get('ipucu', '')}")
+
+    # 7. Etkinliklerle öğren
     elif game == "etkinlik":
-        game_activities(gs, game)
+        prompt = (
+            ctx() + "Evde veya sınıfta yapılabilecek 3 adet yaratıcı öğrenme etkinliği, deney veya pratik uygulama öner. "
+            "Her biri için gerekli malzemeleri ve adımları kısa maddelerle yaz. Markdown kullan."
+        )
+        text = load_data(gs, prompt, str, (), "Etkinlikler hazırlanıyor...")
+        if text:
+            with st.container(border=True):
+                st.markdown(text)
 
+    # 8. Kelime avı
+    elif game == "kelime":
+        prompt = (
+            ctx() + "5 adet anahtar kelime (tek sözcük, 4-10 harf, Türkçe veya dersin diline uygun) ve tanım ipucu üret. "
+            'Yalnızca geçerli JSON liste döndür: [{"kelime":"TERİM","ipucu":"..."}]'
+        )
+        data = load_data(gs, prompt, list, ("kelime", "ipucu"), "Bulmaca hazırlanıyor...")
+        if data:
+            idx = gs["idx"]
+            if idx < len(data):
+                item = data[idx]
+                word = tr_upper(re.sub(r"\s+", "", str(item["kelime"])))
+                if gs["pool_for"] != idx:
+                    pool = list(word)
+                    extras = [c for c in "ABCÇDEFGĞHIİJKLMNOÖPRSŞTUÜVYZ" if c not in pool]
+                    pool += random.sample(extras, min(3, len(extras)))
+                    random.shuffle(pool)
+                    gs.update(pool=pool, pool_for=idx, guess=[], used=[])
+
+                def _add(i, ch, n):
+                    if len(gs["guess"]) < n:
+                        gs["guess"].append(ch)
+                        gs["used"].append(i)
+                        gs["msg"] = None
+
+                def _undo():
+                    if gs["guess"]:
+                        gs["guess"].pop()
+                        gs["used"].pop()
+
+                def _clear():
+                    gs["guess"], gs["used"] = [], []
+
+                def _skip():
+                    gs["idx"] += 1
+                    gs["msg"] = None
+
+                def _check():
+                    if "".join(gs["guess"]) == word:
+                        gs["score"] += max(1, 100 // len(data))
+                        gs["idx"] += 1
+                        gs["msg"] = ("ok", "🎉 Tebrikler, doğru kelime!")
+                    else:
+                        gs["msg"] = ("bad", "❌ Eksik veya yanlış harf! Son harfi silip düzeltebilirsin.")
+
+                st.progress(idx / len(data))
+                st.markdown(
+                    f'<div class="qcard"><div class="qmeta"><span>Bulmaca {idx + 1} / {len(data)} · '
+                    f'{len(word)} harf</span><span class="score-chip">⭐ {gs["score"]} puan</span></div>'
+                    f'<div class="qtext">💡 {esc(str(item["ipucu"]))}</div></div>',
+                    unsafe_allow_html=True,
+                )
+                tiles = "".join(
+                    f'<div class="tile {"on" if i < len(gs["guess"]) else ""}">'
+                    f'{esc(gs["guess"][i]) if i < len(gs["guess"]) else ""}</div>'
+                    for i in range(len(word))
+                )
+                st.markdown(f'<div class="tiles">{tiles}</div>', unsafe_allow_html=True)
+                if gs["msg"]:
+                    (st.success if gs["msg"][0] == "ok" else st.error)(gs["msg"][1])
+
+                with st.container(key="letters"):
+                    for r in range(0, len(gs["pool"]), 8):
+                        cols = st.columns(8)
+                        for j, ch in enumerate(gs["pool"][r:r + 8]):
+                            i = r + j
+                            used = i in gs["used"]
+                            with cols[j]:
+                                st.button(
+                                    "✔" if used else ch, key=f"ch_{idx}_{i}", disabled=used,
+                                    on_click=_add, args=(i, ch, len(word)),
+                                )
+                c1, c2, c3, c4 = st.columns(4)
+                with c1:
+                    st.button("🔄 Sıfırla", key="k_clear", on_click=_clear)
+                with c2:
+                    st.button("↩️ Son Harfi Sil", key="k_undo", on_click=_undo)
+                with c3:
+                    st.button("⏭️ Pas Geç", key="pass_k", on_click=_skip)
+                with c4:
+                    st.button("✅ Kontrol Et", key="k_check", on_click=_check)
+            else:
+                st.markdown(
+                    f'<div class="result"><div class="trophy">🏆</div><h2>Tüm bulmacaları tamamladın!</h2>'
+                    f'<div class="big">{gs["score"]}<small> / 100</small></div></div>',
+                    unsafe_allow_html=True,
+                )
+                st.button("🔄 Yeni Bulmaca", key="again", on_click=regen)
+
+    # 9. Klasik yazılı simülatörü
     elif game == "acik":
-        game_classic(gs, game)
-
-    flush_sound(gs)
-    flush_toasts()
+        prompt = (
+            ctx() + "TAM 5 ADET açık uçlu yazılı sorusu ve ideal cevaplarını üret. "
+            'Yalnızca geçerli JSON liste döndür: [{"soru":"...","beklenen_cevap":"..."}]'
+        )
+        data = load_data(gs, prompt, list, ("soru", "beklenen_cevap"), "Yazılı soruları hazırlanıyor...")
+        if data:
+            with st.form("classic_form"):
+                answers = []
+                for i, cq in enumerate(data):
+                    st.markdown(
+                        f'<div class="qcard" style="padding:16px 22px"><div class="qmeta"><span>Soru {i + 1}</span></div>'
+                        f'<div class="qtext" style="font-size:1.15rem">{esc(str(cq["soru"]))}</div></div>',
+                        unsafe_allow_html=True,
+                    )
+                    answers.append(st.text_area(f"Cevabın ({i + 1})", key=f"ans_{gs['nonce']}_{i}"))
+                submitted = st.form_submit_button("📨 Yazılı Kağıdını Puanlat")
+            if submitted:
+                gs["results"] = []
+                with st.spinner("AdenMind kâğıdını okuyor..."):
+                    for i, cq in enumerate(data):
+                        if answers[i].strip():
+                            res = ai_generate_content(
+                                f"Soru: {cq['soru']}\nİdeal cevap: {cq['beklenen_cevap']}\nÖğrenci: {answers[i]}\n"
+                                "0-20 arası puan ve kısa, cesaretlendirici bir açıklama ver."
+                            )
+                            gs["results"].append((i, res or "Değerlendirme yapılamadı."))
+            for i, res in gs["results"] or []:
+                st.info(f"**Soru {i + 1} Değerlendirmesi**\n\n{res}")
