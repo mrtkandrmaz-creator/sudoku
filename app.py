@@ -87,14 +87,16 @@ def _gemini_discover(key):
     return found
 
 
-def _gemini_call(key, model, prompt, fast):
+def _gemini_call(key, model, prompt, fast, search=False):
     """Gemini'yi SDK'ya bağımlı olmadan REST ile çağırır."""
     import urllib.request
     import urllib.error
     body = {"contents": [{"role": "user", "parts": [{"text": prompt}]}],
-            "generationConfig": {"temperature": 0.7 if fast else 0.95}}
+            "generationConfig": {"temperature": 0.5 if fast else 0.95}}
+    if search:
+        body["tools"] = [{"google_search": {}}]  # güncel bilgi için Google Arama ile temellendirme
     if fast:
-        body["generationConfig"]["maxOutputTokens"] = 400
+        body["generationConfig"]["maxOutputTokens"] = 2048  # düşünme belirteçleri de sayıldığı için geniş tutulur
     req = urllib.request.Request(
         f"https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent",
         data=json.dumps(body).encode("utf-8"), method="POST",
@@ -116,16 +118,31 @@ def _gemini_call(key, model, prompt, fast):
 AI_ERRORS = []
 
 
-def ai_generate_content(prompt_text, fast=False):
+def ai_generate_content(prompt_text, fast=False, search=False):
     """fast=True: kısa/sohbet cevapları için hızlı modeller ve düşük token sınırı (AdenMind).
     Sıra: tüm Groq anahtarları -> tüm Gemini anahtarları. Hatalar AI_ERRORS'ta tutulur."""
     del AI_ERRORS[:]
+    if search and has_gemini:  # güncel bilgi gereken sorular: önce Google Arama destekli Gemini
+        for g_key in gemini_keys:
+            for model_name in _gemini_models(g_key)[:4]:
+                if (g_key[-6:], model_name) in _GEM_DEAD:
+                    continue
+                try:
+                    text = _gemini_call(g_key, model_name, prompt_text, fast, search=True)
+                    if text:
+                        return text
+                except Exception as e:  # noqa: BLE001
+                    AI_ERRORS.append(f"gemini-arama/{model_name}: {str(e)[:70]}")
+                    if "404" in str(e):
+                        _GEM_DEAD.add((g_key[-6:], model_name))
+                    elif "API key" in str(e) or "403" in str(e):
+                        break
     if has_groq:
         models = ["llama-3.1-8b-instant", "llama-3.3-70b-versatile"] if fast else ["llama-3.3-70b-versatile", "llama-3.1-8b-instant"]
         for gr_key in groq_keys:
             for model in models:
                 try:
-                    kw = {"max_tokens": 320, "temperature": 0.7} if fast else {"temperature": 0.95}
+                    kw = {"max_tokens": 1000, "temperature": 0.5} if fast else {"temperature": 0.95}
                     client = Groq(api_key=gr_key, timeout=20.0 if fast else 45.0, max_retries=0)
                     completion = client.chat.completions.create(
                         model=model, messages=[{"role": "user", "content": prompt_text}], **kw
@@ -179,6 +196,122 @@ def _gemini_pass(g_key, prompt_text, fast):
                         return False  # bu anahtar geçersiz: sıradaki anahtara geç
                     continue
     return False
+
+
+
+# --- AdenMind gerçek dünya araçları: hava durumu, saat/tarih, Vikipedi ---
+from datetime import datetime, timedelta, timezone
+
+TR_DAYS = ["Pazartesi", "Salı", "Çarşamba", "Perşembe", "Cuma", "Cumartesi", "Pazar"]
+TR_MONTHS = ["Ocak", "Şubat", "Mart", "Nisan", "Mayıs", "Haziran", "Temmuz", "Ağustos", "Eylül", "Ekim", "Kasım", "Aralık"]
+WMO_TR = {0: "açık", 1: "çoğunlukla açık", 2: "parçalı bulutlu", 3: "kapalı", 45: "sisli", 48: "kırağılı sis",
+          51: "hafif çiseleme", 53: "çiseleme", 55: "yoğun çiseleme", 61: "hafif yağmurlu", 63: "yağmurlu", 65: "şiddetli yağmurlu",
+          71: "hafif karlı", 73: "karlı", 75: "yoğun karlı", 80: "sağanak yağışlı", 81: "sağanak yağışlı", 82: "şiddetli sağanak",
+          95: "gök gürültülü fırtına", 96: "dolu ihtimalli fırtına", 99: "dolu ihtimalli fırtına"}
+
+
+def now_tr():
+    return datetime.now(timezone(timedelta(hours=3)))
+
+
+def http_json(url, timeout=10):
+    import urllib.request
+    req = urllib.request.Request(url, headers={"User-Agent": "AdenMind/1.0 (egitim uygulamasi)"})
+    with urllib.request.urlopen(req, timeout=timeout) as r:
+        return json.loads(r.read().decode("utf-8"))
+
+
+def _city_from(msg):
+    t = re.sub(r"[?!.,;:]", " ", msg.lower())
+    stop = {"hava", "havası", "havasi", "kaç", "kac", "derece", "bugün", "bugun", "şimdi", "simdi", "şu", "an", "nasıl", "nasil", "durumu",
+            "sıcaklık", "sıcaklığı", "sicaklik", "ne", "kadar", "mı", "mi", "mu", "mü", "var", "yağmur", "yağıyor", "kar", "acaba",
+            "söyler", "misin", "mısın", "yarın", "yarin", "bana", "şuan", "suan", "de", "da", "hava'sı", "bir", "bak", "öğren", "soğuk", "sıcak"}
+    for w in t.split():
+        w2 = re.sub(r"[’']", "", w)
+        if w2 in stop:
+            continue
+        w2 = re.sub(r"(daki|deki|taki|teki|nda|nde|da|de|ta|te)$", "", w2) if len(w2) > 4 else w2
+        if len(w2) >= 3:
+            return w2
+    return None
+
+
+def weather_answer(msg):
+    """'İstanbul'da hava kaç derece' gibi sorulara Open-Meteo'dan canlı cevap (API anahtarı gerekmez)."""
+    if not re.search(r"\b(hava|sıcaklık|sicaklik|derece|yağmur|yağıyor)\w*", msg.lower()):
+        return None
+    low = msg.lower()
+    if len(low.split()) > 9 or not re.search(r"derece|durum|nasıl|kaç|yağ|sıcak|soğuk|bugün|yarın|şimdi|şu an|şuan", low):
+        return None  # 'hava kirliliği nedir' gibi genel sorular yapay zekâya gitsin
+    city = _city_from(msg)
+    if not city:
+        return "Hangi şehrin hava durumunu öğrenmek istiyorsun? Örneğin: \"Ankara'da hava kaç derece?\""
+    try:
+        from urllib.parse import quote
+        g = http_json("https://geocoding-api.open-meteo.com/v1/search?name=" + quote(city) + "&count=1&language=tr")
+        res = (g.get("results") or [None])[0]
+        if not res:
+            return None
+        w = http_json("https://api.open-meteo.com/v1/forecast?latitude=%s&longitude=%s&current=temperature_2m,apparent_temperature,"
+                      "relative_humidity_2m,weather_code,wind_speed_10m&timezone=auto" % (res["latitude"], res["longitude"]))
+        c = w["current"]
+        desc = WMO_TR.get(int(c.get("weather_code", 0)), "değişken")
+        return (f"{res['name']} için şu an hava **{round(c['temperature_2m'])}°C**, {desc}. Hissedilen sıcaklık {round(c['apparent_temperature'])}°C, "
+                f"nem %{round(c['relative_humidity_2m'])}, rüzgâr {round(c['wind_speed_10m'])} km/sa. 🌤️")
+    except Exception:
+        return None
+
+
+def time_answer(msg):
+    t = msg.lower()
+    n = now_tr()
+    if re.search(r"saat kaç|saati söyle|şu an saat", t):
+        return f"Türkiye saatiyle şu an saat **{n:%H:%M}**."
+    if re.search(r"bugün (günlerden|ayın kaçı|tarih)|günlerden ne|bugünün tarihi|tarih ne|ayın kaçı", t):
+        return f"Bugün **{n.day} {TR_MONTHS[n.month - 1]} {n.year}, {TR_DAYS[n.weekday()]}**."
+    return None
+
+
+def wiki_answer(msg):
+    """Yapay zekâ yoksa bile genel sorulara Türkçe Vikipedi özetiyle cevap verir."""
+    from urllib.parse import quote
+    q = re.sub(r"\b(hakkında|hakkinda|kimdir|nedir|nerede|ne demek|bilgi ver|bilgi|anlat|nasıl|kim|ne|hangi|bir|mi|mı|mu|mü|söyle|var|olan|grubu)\b", " ", msg.lower())
+    q = re.sub(r"[?!.,;:]", " ", q)
+    q = re.sub(r"\s+", " ", q).strip()
+    if len(q) < 2:
+        return None
+    try:
+        r = http_json("https://tr.wikipedia.org/w/api.php?action=opensearch&format=json&limit=1&search=" + quote(q))
+        if not r[1]:
+            return None
+        sm = http_json("https://tr.wikipedia.org/api/rest_v1/page/summary/" + quote(r[1][0].replace(" ", "_")))
+        text = sm.get("extract") or ""
+        sents = re.split(r"(?<=[.!?])\s+", text)
+        out = " ".join(sents[:3]).strip()
+        return f"**{sm.get('title', r[1][0])}**: {out}" if out else None
+    except Exception:
+        return None
+
+
+LIVE_RE = re.compile(r"haber|son dakika|bugün|dün|yarın|şu an|şimdi|güncel|maç|skor|fikstür|puan durumu|fiyat|kur\b|dolar|euro|altın|borsa|"
+                     r"kim kazandı|seçim|konser|albüm|yeni çıkan|vizyon|2025|2026|başkanı kim|şampiyon|hava durumu|trend|son durum", re.I)
+
+
+def needs_live(msg):
+    return bool(LIVE_RE.search(msg))
+
+
+def clean_reply(text, user_msg=""):
+    """Gereksiz selamlamayı atar; kesilmiş son cümleyi toparlar."""
+    t = text.strip()
+    if not re.search(r"\b(merhaba|selam)\b", user_msg.lower()):
+        t = re.sub(r"^\s*(merhaba|selam|selamlar|merhabalar)[!,.\s]*(ben\s+adenmind[^.!?\n]*[.!?]\s*)?", "", t, flags=re.I).lstrip()
+        t = re.sub(r"^(harika bir soru|güzel bir soru)[!.]\s*", "", t, flags=re.I)
+    if t and t[-1] not in ".!?…)\"'»*`0123456789" and "." in t:  # son cümle yarım kaldıysa kes
+        cut = max(t.rfind("."), t.rfind("!"), t.rfind("?"))
+        if cut > len(t) * 0.5:
+            t = t[:cut + 1]
+    return t[:1].upper() + t[1:] if t else t
 
 
 def local_coach_reply(msg, subject=None, unit=None):
@@ -827,13 +960,31 @@ def render_adenmind(ns):
     msgs = st.session_state["coach_messages"]
     if sent and user_msg.strip():
         msgs.append({"role": "user", "content": user_msg.strip()})
+        recent = "\n".join(("Öğrenci: " if m["role"] == "user" else "AdenMind: ") + m["content"][:300] for m in msgs[-7:-1])
+        q = user_msg.strip()
+        n = now_tr()
         prompt = (
-            "Sen 5. sınıf öğrencilerine yardım eden sevimli koç AdenMind'sin. Türkçe, en fazla 3 kısa cümleyle cevap ver. "
-            f"Ders: {st.session_state.get('selected_subject') or 'Genel'}; ünite: {st.session_state.get('selected_unit') or 'Genel'}. "
-            f"Soru: {user_msg.strip()}"
+            "Sen AdenMind'sin: 10-20 yaş arası öğrencilerin her konuda (ders, bilim, tarih, spor, müzik, teknoloji, günlük hayat, genel kültür) "
+            "güvenle sorabildiği, bilgili, samimi ve dürüst bir yapay zekâ asistanısın. "
+            "KURALLAR: Selamlaşma yapma, doğrudan cevaba gir. Cevabın uzunluğunu soruya göre ayarla: basit bir olguya 1-2 cümle; "
+            "açıklama isteyene 4-8 cümle ya da kısa maddeler (en fazla ~150 kelime). Doğal ve akıcı konuş, dolgu cümlesi kullanma, cümleyi yarım bırakma. "
+            "Bilmediğin ya da emin olmadığın bilgiyi uydurma; 'kesin bilmiyorum' de ve nasıl öğrenebileceğini söyle. "
+            "Güncel konularda (haber, skor, fiyat, yeni çıkanlar) arama sonuçlarına dayan. Müzik grupları, ünlüler, filmler, oyunlar gibi "
+            "sorulara da gerçek bilgilerle cevap ver. Yaşa uygun kal; zararlı/tehlikeli isteklerde nazikçe reddet. "
+            f"Bugün: {n.day} {TR_MONTHS[n.month - 1]} {n.year}, {TR_DAYS[n.weekday()]} (Türkiye). "
+            f"(Öğrenci şu an {st.session_state.get('selected_subject') or 'genel'} / {st.session_state.get('selected_unit') or 'genel'} bölümünde; "
+            "konu bununla ilgili değilse bunu dikkate alma.)\n"
+            + (f"Önceki konuşma:\n{recent}\n" if recent else "")
+            + f"Öğrenci sorusu: {q}\nAdenMind cevabı:"
         )
-        with loading("AdenMind yazıyor...", 3, compact=True, kind="chat"):
-            reply = ai_generate_content(prompt, fast=True)
+        reply = time_answer(q)
+        if not reply:
+            with loading("AdenMind yazıyor...", 4, compact=True, kind="chat"):
+                reply = weather_answer(q) or ai_generate_content(prompt, fast=True, search=needs_live(q))
+                if not reply:
+                    reply = wiki_answer(q)
+        if reply:
+            reply = clean_reply(reply, user_msg.strip())
         if not reply:
             reply = local_coach_reply(user_msg.strip(), st.session_state.get("selected_subject"), st.session_state.get("selected_unit"))
             st.session_state["last_ai_error"] = "; ".join(AI_ERRORS[-3:])
