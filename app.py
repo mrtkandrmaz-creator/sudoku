@@ -2799,6 +2799,381 @@ NEW_GAMES = {
 # =============================================================================
 # 9b. OYUN SALONU: yapay zekâ ile oynanan tam ekran oyunlar (UNO, Sudoku, Satranç, ...)
 # =============================================================================
+try:  # Oyun salonu ayrı dosyada: arcade_games.py (app.py ile aynı klasörde olmalı)
+    from arcade_games import ARCADE_HTML, ARCADE_SHARED, ARCADES
+except Exception:  # dosya eksik/bozuksa uygulama yine açılır, yalnızca salon gizlenir
+    ARCADE_HTML, ARCADE_SHARED, ARCADES = {}, "", []
+
+
+def pick_arcade(k):
+    st.session_state["selected_arcade"] = k
+
+
+def leave_arcade():
+    st.session_state["selected_arcade"] = None
+
+
+def arcade_page(key):
+    info = next(g for g in ARCADES if g[0] == key)
+    c1, c2, c3 = st.columns([1.2, 1.3, 5.5])
+    with c1:
+        st.button("⬅️ Geri", key="back_arcade", on_click=leave_arcade)
+    with c2:
+        components.html(FS_BUTTON, height=52)
+    with c3:
+        st.markdown(f'<div class="gamebar-title">{info[1]} {esc(info[2])} · Oyun Salonu</div>', unsafe_allow_html=True)
+    html = ARCADE_HTML[key].replace("<!--SHARED-->", ARCADE_SHARED)
+    with st.container(key="balloon_wrap"):
+        components.html(html, height=760)
+
+
+
+# =============================================================================
+# 10. ANA AKIŞ
+# =============================================================================
+subj = st.session_state["selected_subject"]
+unit = st.session_state["selected_unit"]
+game = st.session_state["selected_game"]
+arcade = st.session_state.get("selected_arcade")
+in_game = bool(subj and unit and game) or bool(arcade)
+
+css = BASE_CSS + (GAME_CSS if in_game else "") + (BALLOON_CSS if (in_game and game == "balon") or arcade else "")
+st.markdown(f"<style>{css}</style>", unsafe_allow_html=True)
+
+# --- Kenar çubuğu: oyun dışında görünür ---
+if not in_game:
+    with st.sidebar:
+        st.button("🏠 Ana Sayfaya Dön", key="home_btn", on_click=go_home)
+        st.markdown("---")
+        render_adenmind("side")
+
+# --- Üst başlık: oyun dışında görünür ---
+if not in_game:
+    st.markdown(
+        '<div class="hero"><div class="badge">🎒</div><div><h1>MEB 5. Sınıf Akıllı Eğitsel Oyun Merkezi</h1>'
+        "<small>AdenMind Koçluk · Murat KANDIRMAZ</small></div></div>",
+        unsafe_allow_html=True,
+    )
+
+# --- AŞAMA 1: DERS SEÇİMİ (karta tıklamak yeterli) ---
+if arcade:
+    arcade_page(arcade)
+
+elif not subj:
+    st.markdown('<div class="section-title">🌟 Çalışmak istediğin dersi seç</div>', unsafe_allow_html=True)
+    items = [(name, d["ikon"], name, d["renk"]) for name, d in MEB_CURRICULUM.items()]
+    card_grid(items, 3, "sub", pick_subject, CARD_H)
+    if ARCADES:
+        st.markdown('<div class="section-title">🕹️ Yapay Zekâ ile Oyun Salonu</div>', unsafe_allow_html=True)
+    if ARCADES:
+        card_grid([(g[0], g[1], g[2], g[3], g[4]) for g in ARCADES], 3, "arc", pick_arcade, CARD_H)
+
+# --- AŞAMA 2: ÜNİTE SEÇİMİ ---
+elif not unit:
+    data = MEB_CURRICULUM[subj]
+    st.markdown(
+        f'<div class="crumb"><span class="pill">{data["ikon"]} {esc(subj)}</span><span>›</span>'
+        '<span class="pill alt">Ünite seç</span></div>',
+        unsafe_allow_html=True,
+    )
+    st.button("⬅️ Ders Seçimine Dön", key="back_subj", on_click=go_home)
+    st.markdown('<div class="section-title">📚 Hangi üniteyi çalışalım?</div>', unsafe_allow_html=True)
+    items = [(u, "📖", u, data["renk"]) for u in data["uniteler"]]
+    card_grid(items, 3, "unit", pick_unit, CARD_H)
+
+# --- AŞAMA 3: OYUN SEÇİMİ ---
+elif not game:
+    data = MEB_CURRICULUM[subj]
+    st.markdown(
+        f'<div class="crumb"><span class="pill">{data["ikon"]} {esc(subj)}</span><span>›</span>'
+        f'<span class="pill alt">{esc(unit)}</span></div>',
+        unsafe_allow_html=True,
+    )
+    st.button("↩️ Ünite Değiştir", key="back_unit", on_click=back_to_units)
+    st.markdown('<div class="section-title">🎮 Bir oyun seç, hemen başlasın!</div>', unsafe_allow_html=True)
+    items = [tuple(g) for g in GAMES]
+    card_grid(items, 3, "game", pick_game, CARD_H)
+
+# --- AŞAMA 4: OYUN (tam ekran düzeni) ---
+else:
+    gs = get_gs(game)
+    ikon = GAME_INFO[game][1]
+    game_topbar(f"{ikon} {GAME_INFO[game][2]} · {subj} · {unit}")
+    if gs.get("offline"):
+        st.info("📴 Yapay zekâya ulaşılamadı; yerel üretici / kayıtlı sorular kullanılıyor.")
+
+    # 1. Balon patlatmaca
+    if game == "balon":
+        prompt = (
+            ctx() + "TAM 5 ADET özgün, gerçek hayat senaryolu çoktan seçmeli (A, B, C, D) soru üret.\n"
+            + VISUAL_RULES + MCQ_FORMAT
+        )
+        data = load_data(gs, prompt, list, ("soru", "secenekler", "dogru_cevap"), "Balon soruları hazırlanıyor...", kind="mcq")
+        if data:
+            payload = json.dumps(data, ensure_ascii=False).replace("</", "<\\/")
+            with st.container(key="balloon_wrap"):
+                components.html(BALLOON_HTML.replace("__QUESTIONS__", payload), height=760)
+
+    # 2. 5 soruluk kazanım yarışması
+    elif game == "sinav10":
+        prompt = ctx() + "TAM 5 ADET yepyeni çoktan seçmeli (4 şıklı) soru üret.\n" + VISUAL_RULES + MCQ_FORMAT
+        data = load_data(gs, prompt, list, ("soru", "secenekler", "dogru_cevap"), "Kazanım soruları hazırlanıyor...", kind="mcq")
+        if data:
+            run_quiz(gs, data, build_mcq)
+
+    # 3. Doğru / Yanlış
+    elif game == "dogruyanlis":
+        prompt = (
+            ctx() + "TAM 5 ADET yepyeni Doğru veya Yanlış önermesi üret. Doğru ve yanlış önermeleri dengeli dağıt.\n"
+            + VISUAL_RULES
+            + 'Yalnızca geçerli JSON liste döndür: [{"ifade":"...","cevap":"D","aciklama":"...",'
+            '"gorsel_tipi":"yok","gorsel_parametre":""}] (cevap yalnızca D veya Y olsun).'
+        )
+        data = load_data(gs, prompt, list, ("ifade", "cevap"), "Önermeler hazırlanıyor...", kind="tf")
+        if data:
+            run_quiz(gs, data, build_tf)
+
+    # 4. Boşluk doldurma
+    elif game == "bosluk":
+        prompt = (
+            ctx() + "Cümle içinde boşluk (____) bırakılmış TAM 5 adet soru üret. Her soruda 4 seçenek olsun.\n"
+            + VISUAL_RULES
+            + 'Yalnızca geçerli JSON liste döndür: [{"cumle":"... ____ ...","dogru_kelime":"...",'
+            '"secenekler":["...","...","...","..."],"gorsel_tipi":"yok","gorsel_parametre":""}]'
+        )
+        data = load_data(gs, prompt, list, ("cumle", "dogru_kelime", "secenekler"), "Sorular hazırlanıyor...")
+        if data:
+            run_quiz(gs, data, build_fill)
+
+    # 5. Soru kartları
+    elif game == "kartlar":
+        prompt = (
+            ctx() + "TAM 5 ADET yepyeni flashcard üret. Yalnızca geçerli JSON liste döndür: "
+            '[{"on_yuz":"...","arka_yuz":"..."}]'
+        )
+        data = load_data(gs, prompt, list, ("on_yuz", "arka_yuz"), "Kartlar hazırlanıyor...")
+        if data:
+            idx = gs["idx"]
+            if idx < len(data):
+                card = data[idx]
+                st.progress(idx / len(data))
+                st.markdown(
+                    f'<div class="flash" style="background:linear-gradient(135deg,#0d9488,#06b6d4)">'
+                    f'<div class="tag">Kart {idx + 1} / {len(data)}</div>'
+                    f'<div class="txt">❓ {esc(str(card["on_yuz"]))}</div></div>',
+                    unsafe_allow_html=True,
+                )
+                if gs["show"]:
+                    st.markdown(
+                        f'<div class="flash" style="background:linear-gradient(135deg,#7c3aed,#d946ef)">'
+                        f'<div class="tag">Cevap / Açıklama</div>'
+                        f'<div class="txt">💡 {esc(str(card["arka_yuz"]))}</div></div>',
+                        unsafe_allow_html=True,
+                    )
+
+                def _fc_move(d):
+                    gs["idx"] = max(0, gs["idx"] + d)
+                    gs["show"] = False
+
+                def _fc_toggle():
+                    gs["show"] = not gs["show"]
+
+                c1, c2, c3 = st.columns(3)
+                with c1:
+                    st.button("⬅️ Önceki", key="fc_prev", disabled=idx == 0, on_click=_fc_move, args=(-1,))
+                with c2:
+                    st.button("🙈 Cevabı Gizle" if gs["show"] else "👀 Cevabı Göster", key="fc_toggle", on_click=_fc_toggle)
+                with c3:
+                    st.button("Sonraki ➡️", key="fc_next", on_click=_fc_move, args=(1,))
+            else:
+                st.markdown(
+                    '<div class="result"><div class="trophy">🎉</div><h2>Tüm kartları gözden geçirdin!</h2></div>',
+                    unsafe_allow_html=True,
+                )
+                st.button("🔄 Başa Dön", key="again", on_click=lambda: gs.update(idx=0, show=False))
+
+    # 6. Oynayarak öğren
+    elif game == "oynayarak":
+        prompt = (
+            ctx() + "Gerçek hayattan esinlenen bir karar verme senaryosu ve çoktan seçmeli mini görev üret. "
+            'Yalnızca geçerli JSON döndür: {"senaryo":"...","gorev_sorusu":"...",'
+            '"secenekler":["A) ...","B) ...","C) ...","D) ..."],"ipucu":"..."}'
+        )
+        iq = load_data(gs, prompt, dict, ("senaryo", "gorev_sorusu", "secenekler"), "Macera hazırlanıyor...")
+        if iq:
+            st.markdown(
+                f'<div class="qcard"><div class="qmeta"><span>📖 Görev Senaryosu</span></div>'
+                f'<div style="font-size:1.1rem;line-height:1.6">{esc(str(iq["senaryo"]))}</div>'
+                f'<hr style="border-color:rgba(94,234,212,.3);margin:16px 0">'
+                f'<div class="qmeta"><span>🎯 Karar Noktası</span></div>'
+                f'<div class="qtext">{esc(str(iq["gorev_sorusu"]))}</div></div>',
+                unsafe_allow_html=True,
+            )
+
+            def _choose(opt):
+                gs["choice"] = opt
+                gs["eval"] = None
+
+            def _hint():
+                gs["show"] = not gs["show"]
+
+            if gs["choice"] is None:
+                with st.container(key="optbox"):
+                    cols = st.columns(2)
+                    for i, o in enumerate(iq["secenekler"]):
+                        with cols[i % 2]:
+                            st.button(md_safe(o), key=f"iq_{i}", on_click=_choose, args=(o,))
+            else:
+                st.markdown(f'<div class="pill">Seçimin: {esc(str(gs["choice"]))}</div>', unsafe_allow_html=True)
+                if gs["eval"] is None:
+                    with loading("AdenMind değerlendiriyor", 5, kind="eval"):
+                        gs["eval"] = ai_generate_content(
+                            f"Ders: {subj}, Ünite: {unit}.\nGörev Sorusu: {iq['gorev_sorusu']}\n"
+                            f"Öğrencinin Seçtiği Şık: {gs['choice']}\n"
+                            "Bu seçimin doğru olup olmadığını değerlendir, nedenini sevimli bir dille kısaca açıkla."
+                        ) or "Değerlendirme yapılamadı, tekrar dene."
+                st.info(gs["eval"])
+                st.button("↩️ Başka Şık Dene", key="iq_retry", on_click=_choose, args=(None,))
+            st.button("💡 AdenMind'den İpucu", key="iq_hint", on_click=_hint)
+            if gs["show"]:
+                st.info(f"🦊 **İpucu:** {iq.get('ipucu', '')}")
+
+    # 7. Etkinliklerle öğren
+    elif game == "etkinlik":
+        prompt = (
+            ctx() + "Evde veya sınıfta yapılabilecek 3 adet yaratıcı öğrenme etkinliği, deney veya pratik uygulama öner. "
+            "Her biri için gerekli malzemeleri ve adımları kısa maddelerle yaz. Markdown kullan."
+        )
+        text = load_data(gs, prompt, str, (), "Etkinlikler hazırlanıyor...")
+        if text:
+            with st.container(border=True):
+                st.markdown(text)
+
+    # 8. Kelime avı
+    elif game == "kelime":
+        prompt = (
+            ctx() + "TAM 5 ADET anahtar kelime (tek sözcük, 4-10 harf, Türkçe veya dersin diline uygun) ve tanım ipucu üret. "
+            'Yalnızca geçerli JSON liste döndür: [{"kelime":"TERİM","ipucu":"..."}]'
+        )
+        data = load_data(gs, prompt, list, ("kelime", "ipucu"), "Bulmaca hazırlanıyor...", kind="words", item_ok=word_ok)
+        if data:
+            idx = gs["idx"]
+            if idx < len(data):
+                item = data[idx]
+                word = re.sub(r"\s+", "", str(item["kelime"]))
+                word = word.upper() if subj in LANG_SUBJECTS else tr_upper(word)
+                if gs["pool_for"] != idx:
+                    pool = list(word)
+                    extras = [c for c in "ABCÇDEFGĞHIİJKLMNOÖPRSŞTUÜVYZ" if c not in pool]
+                    pool += random.sample(extras, min(3, len(extras)))
+                    random.shuffle(pool)
+                    gs.update(pool=pool, pool_for=idx, guess=[], used=[])
+
+                def _add(i, ch, n):
+                    if len(gs["guess"]) < n:
+                        gs["guess"].append(ch)
+                        gs["used"].append(i)
+                        gs["msg"] = None
+
+                def _undo():
+                    if gs["guess"]:
+                        gs["guess"].pop()
+                        gs["used"].pop()
+
+                def _clear():
+                    gs["guess"], gs["used"] = [], []
+
+                def _skip():
+                    gs["idx"] += 1
+                    gs["msg"] = None
+
+                def _check():
+                    if "".join(gs["guess"]) == word:
+                        gs["score"] += max(1, 100 // len(data))
+                        gs["idx"] += 1
+                        gs["msg"] = ("ok", "🎉 Tebrikler, doğru kelime!")
+                    else:
+                        gs["msg"] = ("bad", "❌ Eksik veya yanlış harf! Son harfi silip düzeltebilirsin.")
+
+                st.progress(idx / len(data))
+                st.markdown(
+                    f'<div class="qcard"><div class="qmeta"><span>Bulmaca {idx + 1} / {len(data)} · '
+                    f'{len(word)} harf</span><span class="score-chip">⭐ {gs["score"]} puan</span></div>'
+                    f'<div class="qtext">💡 {esc(str(item["ipucu"]))}</div></div>',
+                    unsafe_allow_html=True,
+                )
+                tiles = "".join(
+                    f'<div class="tile {"on" if i < len(gs["guess"]) else ""}">'
+                    f'{esc(gs["guess"][i]) if i < len(gs["guess"]) else ""}</div>'
+                    for i in range(len(word))
+                )
+                st.markdown(f'<div class="tiles">{tiles}</div>', unsafe_allow_html=True)
+                if gs["msg"]:
+                    (st.success if gs["msg"][0] == "ok" else st.error)(gs["msg"][1])
+
+                with st.container(key="letters"):
+                    for r in range(0, len(gs["pool"]), 8):
+                        cols = st.columns(8)
+                        for j, ch in enumerate(gs["pool"][r:r + 8]):
+                            i = r + j
+                            used = i in gs["used"]
+                            with cols[j]:
+                                st.button(
+                                    "✔" if used else ch, key=f"ch_{idx}_{i}", disabled=used,
+                                    on_click=_add, args=(i, ch, len(word)),
+                                )
+                c1, c2, c3, c4 = st.columns(4)
+                with c1:
+                    st.button("🔄 Sıfırla", key="k_clear", on_click=_clear)
+                with c2:
+                    st.button("↩️ Son Harfi Sil", key="k_undo", on_click=_undo)
+                with c3:
+                    st.button("⏭️ Pas Geç", key="pass_k", on_click=_skip)
+                with c4:
+                    st.button("✅ Kontrol Et", key="k_check", on_click=_check)
+            else:
+                st.markdown(
+                    f'<div class="result"><div class="trophy">🏆</div><h2>Tüm bulmacaları tamamladın!</h2>'
+                    f'<div class="big">{gs["score"]}<small> / 100</small></div></div>',
+                    unsafe_allow_html=True,
+                )
+                st.button("🔄 Yeni Bulmaca", key="again", on_click=regen)
+
+    # 9. Klasik yazılı simülatörü
+    elif game == "acik":
+        prompt = (
+            ctx() + "TAM 5 ADET açık uçlu yazılı sorusu ve ideal cevaplarını üret. "
+            'Yalnızca geçerli JSON liste döndür: [{"soru":"...","beklenen_cevap":"..."}]'
+        )
+        data = load_data(gs, prompt, list, ("soru", "beklenen_cevap"), "Yazılı soruları hazırlanıyor...")
+        if data:
+            with st.form("classic_form"):
+                answers = []
+                for i, cq in enumerate(data):
+                    st.markdown(
+                        f'<div class="qcard" style="padding:16px 22px"><div class="qmeta"><span>Soru {i + 1}</span></div>'
+                        f'<div class="qtext" style="font-size:1.15rem">{esc(str(cq["soru"]))}</div></div>',
+                        unsafe_allow_html=True,
+                    )
+                    answers.append(st.text_area(f"Cevabın ({i + 1})", key=f"ans_{gs['nonce']}_{i}"))
+                submitted = st.form_submit_button("📨 Yazılı Kağıdını Puanlat")
+            if submitted:
+                gs["results"] = []
+                with loading("AdenMind kâğıdını okuyor", 6, kind="eval"):
+                    for i, cq in enumerate(data):
+                        if answers[i].strip():
+                            res = ai_generate_content(
+                                f"Soru: {cq['soru']}\nİdeal cevap: {cq['beklenen_cevap']}\nÖğrenci: {answers[i]}\n"
+                                "0-20 arası puan ve kısa, cesaretlendirici bir açıklama ver."
+                            )
+                            gs["results"].append((i, res or "Değerlendirme yapılamadı."))
+            for i, res in gs["results"] or []:
+                st.info(f"**Soru {i + 1} Değerlendirmesi**\n\n{res}")
+
+    elif game in NEW_GAMES:
+        NEW_GAMES[game](gs, game)
+"""Oyun salonu oyunları (tam ekran HTML/JS). app.py ile AYNI klasörde durmalıdır."""
+
 ARCADE_SHARED = r'''<meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
 <style>
 :root{--bg:#04252b;--bg2:#073b44;--card:#0b4a55;--line:rgba(94,234,212,.28);--t:#e6fffb;--mut:#8fd9cf;--ac:#2dd4bf;--ac2:#22d3ee;--bad:#fb7185;--ok:#4ade80;--gold:#fbbf24}
@@ -3433,4 +3808,237 @@ function next(){L=make();parts=1;sel=new Set();tries=0;done=false;view()}
 function head(){return h('div',{class:'top'},h('h2',{},'🍫 Kesir Dilimleme'),h('span',{class:'sp'}),h('span',{class:'chip'},'Seviye '+(lvl+1)),h('span',{class:'chip'},'⭐ '+score),h('button',{class:'btn alt',onclick:menu},'☰'))}
 function barEl(d,selSet,click,mini){const b=h('div',{class:'bar'+(mini?' mini':'')});for(let i=0;i<d;i++)b.append(h('div',{class:'pc'+(selSet&&selSet.has(i)?' on':''),onclick:click?()=>click(i):null},selSet&&selSet.has(i)?'':''));return b}
 function view(){app.innerHTML='';app.append(head());const box=h('div',{class:'center'});app.append(box);
- if(L.kind==='cut'){box.append(h('div',{class:'orders'},'🧒 "Bana ',fr(L.n,L.d),' ver!"'),h('div',{class:'msg'},'Önce çikolatayı '+L.d+' eşit parçaya böl, sonra parçaları seç.'),barEl(parts,sel,i=>{sel.has(i)?sel.delete(i):sel.add(
+ if(L.kind==='cut'){box.append(h('div',{class:'orders'},'🧒 "Bana ',fr(L.n,L.d),' ver!"'),h('div',{class:'msg'},'Önce çikolatayı '+L.d+' eşit parçaya böl, sonra parçaları seç.'),barEl(parts,sel,i=>{sel.has(i)?sel.delete(i):sel.add(i);sfx.tap();view()}),
+  h('div',{class:'row'},h('button',{class:'btn alt cut',onclick:()=>{if(parts>1){parts--;sel=new Set();sfx.tap();view()}}},'−'),h('span',{class:'chip'},'✂️ '+parts+' parça'),h('button',{class:'btn alt cut',onclick:()=>{if(parts<12){parts++;sel=new Set();sfx.tap();view()}}},'+')),
+  h('div',{class:'row'},h('span',{class:'chip'},'Seçtiğin: ',fr(sel.size,parts)),h('button',{class:'btn',onclick:()=>check(parts===L.d&&sel.size===L.n)},'Ver ✓')))}
+ else if(L.kind==='cmp'){const[a,b]=[L.a,L.b];box.append(h('div',{class:'orders'},'Hangisi daha büyük?'),h('div',{},fr(a[0],a[1]),barEl(a[1],new Set([...Array(a[0]).keys()]),null,true)),h('div',{},fr(b[0],b[1]),barEl(b[1],new Set([...Array(b[0]).keys()]),null,true)),
+  h('div',{class:'row'},h('button',{class:'btn',onclick:()=>check(a[0]*b[1]>b[0]*a[1])},'Üstteki'),h('button',{class:'btn',onclick:()=>check(a[0]*b[1]<b[0]*a[1])},'Alttaki')))}
+ else if(L.kind==='eq'){const t=L.d*L.m;box.append(h('div',{class:'orders'},fr(L.n,L.d),' = ',fr('?',t),' ?'),h('div',{class:'msg'},'Çikolatayı '+t+' eşit parçaya böl ve aynı miktarı seç. Kaç parça yeter?'),barEl(t,new Set([...Array(L.n*L.m).keys()]),null,true),barEl(L.d,new Set([...Array(L.n).keys()]),null,true),
+  h('div',{class:'row'},[L.n*L.m,L.n*L.m+1,Math.max(1,L.n*L.m-1),L.n+L.d].filter((x,i,a)=>a.indexOf(x)===i).sort(()=>Math.random()-.5).map(v=>h('button',{class:'btn',onclick:()=>check(v===L.n*L.m)},v))))}
+ else{box.append(h('div',{class:'orders'},fr(L.a,L.d),' + ',fr(L.b,L.d),' = ?'),h('div',{},barEl(L.d,new Set([...Array(L.a).keys()]),null,true),barEl(L.d,new Set([...Array(L.b).keys()]),null,true)),
+  h('div',{class:'row'},[...new Set([L.a+L.b,L.a+L.b+1,Math.max(1,L.a+L.b-1),L.a*L.b+1])].sort(()=>Math.random()-.5).map(v=>h('button',{class:'btn',onclick:()=>check(v===L.a+L.b)},fr(v,L.d)))))}
+ box.append(h('div',{class:'msg',id:'ms'},''))}
+function check(ok){if(done)return;total++;const ms=$('#ms');
+ if(ok){done=true;streak++;const g=Math.max(1,3-tries);score+=g*10;sfx.ok();lvl++;ms.className='msg ok pop';ms.textContent='Harika! '+'⭐'.repeat(g)+(streak>2?'  🔥 seri '+streak:'');setTimeout(()=>{if(lvl>=12)end();else next()},1100)}
+ else{tries++;streak=0;sfx.bad();ms.className='msg bad shake';ms.textContent=L.kind==='cut'&&parts!==L.d?'Önce parça sayısı '+L.d+' olmalı (payda).':'Tekrar dene!'}}
+function end(){app.innerHTML='';app.append(h('div',{class:'center pop'},h('div',{class:'big'},'🎉 Tüm seviyeler bitti!'),h('div',{class:'msg'},'Toplam puan: '+score),h('button',{class:'btn',onclick:menu},'Tekrar oyna')));window.__won=true}
+menu();
+</script></body></html>
+'''
+
+ARCADE_HTML['cebir'] = r'''<!DOCTYPE html><html lang="tr"><head><!--SHARED--><style>
+.eq{display:flex;align-items:center;justify-content:center;gap:14px;font-size:clamp(26px,5vw,44px);font-weight:900;margin:8px 0}
+.side{min-width:140px;min-height:84px;border:3px dashed var(--line);border-radius:20px;padding:8px 14px;display:flex;gap:8px;align-items:center;justify-content:center;flex-wrap:wrap;background:rgba(255,255,255,.05)}
+.t{padding:6px 14px;border-radius:14px;background:#0f766e;border:2px solid #5eead4}
+.t.x{background:linear-gradient(135deg,#a855f7,#6366f1);border-color:#c4b5fd}
+.t.n{background:#b45309;border-color:#fcd34d}
+.ops .btn{min-width:64px}
+</style></head><body><div id="app"></div><script>
+const app=$('#app');
+let E,moves,opt,lvl=0,score=0,hist=[],maxL=10,done=false,opKind='+',useX;
+// denklem: a*x + b = c*x + d
+function gen(l){let a=1,b=0,c=0,d,x=rnd(1,9);
+ if(l<2){b=rnd(1,9);d=x+b}
+ else if(l<4){a=rnd(2,5);d=a*x}
+ else if(l<6){a=rnd(2,5);b=rnd(1,9);d=a*x+b}
+ else if(l<8){a=rnd(2,6);c=rnd(1,a-1);b=rnd(1,9);d=(a-c)*x+b;a=a;[b,d]=[b,d];}
+ else{b=-rnd(1,9);a=rnd(2,5);d=a*x+b;if(Math.random()<.5){c=rnd(1,a-1);d=(a-c)*x+b}}
+ if(l>=6&&l<8){/* a x + b = c x + d  ->  (a-c)x = d-b ; yeniden kur */const e=(a-c)*x;d=e+b}
+ return{a,b,c,d,x}}
+function fmt(a,b,isLeft){let t=[];if(a)t.push(h('span',{class:'t x'},(a===1?'':a)+(useX?'x':'🐉')));if(b!==0||!a)t.push(h('span',{class:'t n'},(b>0&&a?'+':'')+b));return t}
+function side(a,b){const e=h('div',{class:'side'});const parts=[];if(a)parts.push(h('span',{class:'t x'},(a===1?'':a===-1?'−':a)+(useX?'x':'🐉')));if(b!==0||!a)parts.push(h('span',{class:'t n'},(b>0&&a?'+ '+b:b<0&&a?'− '+(-b):b)));e.append(...parts);return e}
+function solved(){return(E.a===1&&E.b===0&&E.c===0)}
+function start(l){lvl=l;useX=l>=4;E=gen(l);hist=[];moves=0;done=false;opt=plan(E);view()}
+function plan(e){let n=0,{a,b,c,d}=e;if(c){n++;a-=c;c=0}if(b){n++;d-=b;b=0}if(a!==1)n++;return n}
+function view(){app.innerHTML='';app.append(h('div',{class:'top'},h('h2',{},'🐉 Ejderha Cebir'),h('span',{class:'sp'}),h('span',{class:'chip'},'Seviye '+(lvl+1)+'/'+maxL),h('span',{class:'chip'},'Hamle '+moves+' (en iyi '+opt+')'),h('button',{class:'btn alt',onclick:menu},'☰')));
+ const c=h('div',{class:'center'});app.append(c);
+ c.append(h('div',{class:'msg'},useX?'x yalnız kalsın (x = sayı). İki tarafa da aynı işlemi uygula.':'🐉 ejderha (bilinmeyen) tek başına kalsın! Her işlem iki tarafa da uygulanır.'),
+ h('div',{class:'eq'},side(E.a,E.b),'=',side(E.c,E.d)));
+ const ops=h('div',{class:'row'},['+','−','×','÷'].map(o=>h('button',{class:'btn '+(o===opKind?'':'alt'),onclick:()=>{opKind=o;view()}},o)));
+ c.append(ops);
+ const nums=new Set();[E.b,E.d,E.a,E.c].forEach(v=>{if(v)nums.add(Math.abs(v))});
+ if(opKind==='+'||opKind==='−'){const xs=E.c?['x terimi ('+E.c+(useX?'x':'🐉')+')']:[];}
+ const pal=h('div',{class:'row ops'});
+ if(opKind==='+'||opKind==='−'){[...nums].sort((x,y)=>x-y).forEach(n=>pal.append(h('button',{class:'btn',onclick:()=>apply(opKind,n)},opKind+n)));
+  if(E.c)pal.append(h('button',{class:'btn',onclick:()=>applyX(opKind)},opKind+E.c+(useX?'x':'🐉')),h('button',{class:'btn',onclick:()=>applyX(opKind,E.a)},opKind+E.a+(useX?'x':'🐉')))}
+ else{const ns=new Set();[E.a,E.b,E.d,E.c,2,3].forEach(v=>{if(v&&Math.abs(v)>1&&Math.abs(v)<=12)ns.add(Math.abs(v))});[...ns].sort((x,y)=>x-y).forEach(n=>pal.append(h('button',{class:'btn',onclick:()=>apply(opKind,n)},opKind+n)))}
+ c.append(pal,h('div',{class:'msg',id:'ms'},''),h('div',{class:'row'},h('button',{class:'btn alt',onclick:undo},'↩ Geri al'),h('button',{class:'btn alt',onclick:()=>start(lvl)},'🔄 Yeniden')))}
+function applyX(o,k){const n=k===undefined?E.c:k;const e={...E};const s=o==='+'?1:-1;e.a+=s*n;e.c+=s*n;commit(e)}
+function apply(o,n){const e={...E};
+ if(o==='+'||o==='−'){const s=o==='+'?n:-n;e.b+=s;e.d+=s}
+ else if(o==='×'){e.a*=n;e.b*=n;e.c*=n;e.d*=n}
+ else{for(const v of[e.a,e.b,e.c,e.d])if(v%n!==0)return msg('Bu bölme sayıları kesirli yapar; başka işlem dene.',1);e.a/=n;e.b/=n;e.c/=n;e.d/=n}
+ commit(e)}
+function msg(t,bad){const m=$('#ms');m.textContent=t;m.className='msg '+(bad?'bad shake':'ok')}
+function commit(e){if(Math.abs(e.a)>60||Math.abs(e.d)>400||Math.abs(e.b)>400)return msg('Sayılar çok büyüdü.',1);hist.push(E);E=e;moves++;sfx.tap();
+ if(E.a===0&&E.c===0)return undo(),msg('Ejderha kayboldu! Geri alındı.',1);
+ if(E.a<E.c&&E.c){/* x sağda biriksin: tarafları çevir */const t={a:E.c,b:E.d,c:E.a,d:E.b};E=t}
+ if(solved()){done=true;sfx.win();const stars=moves<=opt?3:moves<=opt+2?2:1;score+=stars;view();
+  $('#ms').className='msg ok pop';$('#ms').textContent=(useX?'x':'🐉')+' = '+E.d+'  '+'⭐'.repeat(stars)+'  ';
+  const nb=h('button',{class:'btn',onclick:()=>{if(lvl+1>=maxL)end();else start(lvl+1)}},lvl+1>=maxL?'Bitir':'Sonraki seviye ▶');$('#ms').after(nb);window.__solved=true;return}
+ view()}
+function undo(){if(done||!hist.length)return;E=hist.pop();moves=Math.max(0,moves-1);view()}
+function end(){app.innerHTML='';app.append(h('div',{class:'center pop'},h('div',{class:'big'},'🐉 Cebir ustası!'),h('div',{class:'msg'},'Toplam yıldız: '+score),h('button',{class:'btn',onclick:menu},'Başa dön')));window.__won=true}
+function menu(){app.innerHTML='';app.append(h('div',{class:'center'},h('div',{class:'big'},'🐉 Ejderha Cebir'),h('div',{class:'msg'},'Denklem çözmeyi oyun gibi öğren: ejderhayı (x) yalnız bırak. Bir tarafa yaptığını diğer tarafa da yap!'),h('button',{class:'btn',onclick:()=>{score=0;start(0)}},'Başla')))}
+menu();
+</script></body></html>
+'''
+
+ARCADE_HTML['canavar'] = r'''<!DOCTYPE html><html lang="tr"><head><!--SHARED--><style>
+.rod{display:flex;flex-direction:column;align-items:center;gap:3px;padding:8px 10px;border-radius:14px;background:rgba(255,255,255,.08);border:2px solid var(--line);cursor:pointer;min-width:58px}
+.rod .u{display:flex;flex-direction:column;gap:2px}
+.rod .u i{display:block;width:26px;height:12px;border-radius:4px}
+.rod b{font-size:18px}
+.mon{width:min(92%,430px);border-radius:28px;border:4px solid var(--ac);background:rgba(45,212,191,.12);padding:14px;text-align:center}
+.mon .face{font-size:64px;line-height:1}
+.frame{display:grid;grid-template-columns:repeat(5,28px);gap:4px;justify-content:center;margin:8px 0}
+.frame span{width:28px;height:28px;border-radius:50%;background:rgba(255,255,255,.12)}
+.frame span.f{background:var(--gold)}
+.tray{display:flex;gap:10px;flex-wrap:wrap;justify-content:center;align-items:flex-end}
+.dots{display:grid;grid-template-columns:repeat(5,18px);gap:3px;padding:6px}
+.dots i{width:18px;height:18px;border-radius:50%;background:#fb7185}
+</style></head><body><div id="app"></div><script>
+const app=$('#app');const CLR=['#f87171','#fb923c','#facc15','#4ade80','#2dd4bf','#38bdf8','#818cf8','#c084fc','#f472b6','#94a3b8'];
+let tgt,tray,got,lvl=0,score=0,moves,mode,cmp,done,msgT='',nextId=1;
+function rod(v){return{id:nextId++,v}}
+function newRound(){done=false;moves=0;mode=lvl%4===3?'cmp':'fill';
+ if(mode==='cmp'){const a=rnd(2,10+Math.min(lvl,6)),b=rnd(2,10+Math.min(lvl,6));cmp={a,b:a===b?a+1:b}}
+ else{const hi=Math.min(10,5+Math.floor(lvl/2)+1);tgt=rnd(4,hi+Math.floor(lvl/3));if(tgt>20)tgt=20;got=0;
+  // havuz: toplam >= tgt, bazıları büyük (bölme gerektirir)
+  tray=[];let sum=0;while(sum<tgt||tray.length<3){const v=rnd(1,Math.min(10,tgt+2));tray.push(rod(v));sum+=v;if(tray.length>6)break}
+  if(sum<tgt)tray.push(rod(tgt-sum))}
+ view()}
+function dots(n){const d=h('div',{class:'dots'});for(let i=0;i<n;i++)d.append(h('i'));return d}
+function head(){return h('div',{class:'top'},h('h2',{},'👾 Sayı Canavarları'),h('span',{class:'sp'}),h('span',{class:'chip'},'Tur '+(lvl+1)+'/12'),h('span',{class:'chip'},'⭐ '+score),h('button',{class:'btn alt',onclick:menu},'☰'))}
+function rodEl(r,click){const u=h('div',{class:'u'});for(let i=0;i<r.v;i++)u.append(h('i',{style:'background:'+CLR[r.v-1]}));return h('div',{class:'rod',onclick:click},h('b',{},r.v),u)}
+function view(){app.innerHTML='';app.append(head());const c=h('div',{class:'center'});app.append(c);
+ if(mode==='cmp'){c.append(h('div',{class:'msg'},'Hangi canavarın daha çok yemeği var?'),h('div',{class:'row'},[['a',cmp.a],['b',cmp.b]].map(([k,v])=>h('div',{class:'mon',style:'width:230px;cursor:pointer',onclick:()=>cmpPick(v>(k==='a'?cmp.b:cmp.a))},h('div',{class:'face'},k==='a'?'👾':'👹'),dots(v)))),h('div',{class:'msg',id:'ms'},''));return}
+ const fr=h('div',{class:'frame'});for(let i=0;i<Math.max(10,Math.ceil(tgt/5)*5);i++)fr.append(h('span',{class:i<got?'f':'',style:i>=tgt?'opacity:.25':''}));
+ c.append(h('div',{class:'mon'},h('div',{class:'face'},got===tgt?'😋':'👾'),h('div',{class:'big'},got+' / '+tgt),fr),
+  h('div',{class:'msg'},'Canavar tam '+tgt+' yemek istiyor! Çubuğa dokun; fazlaysa çubuk otomatik bölünür.'),
+  h('div',{class:'tray'},tray.map(r=>rodEl(r,()=>feed(r)))),h('div',{class:'msg '+msgT,id:'ms'},''),h('div',{class:'row'},h('button',{class:'btn alt',onclick:()=>{newRound()}},'🔄 Yeni')))}
+function feed(r){if(done)return;const need=tgt-got;sfx.tap();moves++;
+ if(r.v<=need){got+=r.v;tray=tray.filter(x=>x!==r)}
+ else{got+=need;const rest=r.v-need;tray=tray.filter(x=>x!==r);tray.push(rod(rest));msgT='ok';setTimeout(()=>{const m=$('#ms');if(m)m.textContent='✂️ '+r.v+' = '+need+' + '+rest},0)}
+ if(got===tgt){done=true;sfx.ok();score+=moves<=3?3:moves<=5?2:1;lvl++;view();$('#ms').className='msg ok pop';$('#ms').textContent='Tıka basa doydu! 🎉';setTimeout(()=>{if(lvl>=12)end();else newRound()},1100)}else view()}
+function cmpPick(ok){if(done)return;if(ok){done=true;sfx.ok();score+=2;lvl++;$('#ms').className='msg ok pop';$('#ms').textContent='Doğru! '+cmp.a+' ve '+cmp.b;setTimeout(()=>{if(lvl>=12)end();else newRound()},1000)}else{sfx.bad();$('#ms').className='msg bad shake';$('#ms').textContent='Dikkatle say!'}}
+function end(){app.innerHTML='';app.append(h('div',{class:'center pop'},h('div',{class:'big'},'🎉 Canavarlar doydu!'),h('div',{class:'msg'},'Puan: '+score),h('button',{class:'btn',onclick:menu},'Tekrar')));window.__won=true}
+function menu(){app.innerHTML='';app.append(h('div',{class:'center'},h('div',{class:'big'},'👾 Sayı Canavarları'),h('div',{class:'msg'},'Sayı çubuklarıyla canavarları doyur. Sayıları parçala, birleştir ve karşılaştır!'),h('button',{class:'btn',onclick:()=>{lvl=0;score=0;newRound()}},'Başla')))}
+menu();
+</script></body></html>
+'''
+
+ARCADE_HTML['buyuk'] = r'''<!DOCTYPE html><html lang="tr"><head><!--SHARED--><style>
+.cols{display:grid;gap:8px;justify-content:center;margin:6px 0}
+.pl{background:rgba(255,255,255,.07);border:2px solid var(--line);border-radius:14px;padding:6px 4px;text-align:center;min-width:92px}
+.pl h4{margin:0 0 4px;font-size:13px;color:var(--mut)}
+.blk{display:flex;flex-wrap:wrap;gap:3px;justify-content:center;min-height:56px;align-content:flex-start}
+.blk i{width:16px;height:16px;border-radius:4px;display:block}
+.pl .n{font-size:26px;font-weight:900}
+.pl.warn{border-color:var(--gold);background:rgba(251,191,36,.12)}
+.mini{padding:5px 8px;font-size:12px;border-radius:10px;box-shadow:0 2px 0 #0f766e}
+.words{font-size:clamp(18px,3.5vw,28px);font-weight:800;color:var(--gold)}
+.eqn{font-size:clamp(24px,5vw,40px);font-weight:900}
+</style></head><body><div id="app"></div><script>
+const app=$('#app');const PN=['Birler','Onlar','Yüzler','Binler','On Binler','Yüz Binler'],PC=['#94a3b8','#38bdf8','#4ade80','#fbbf24','#fb7185','#c084fc'];
+const O=['','bir','iki','üç','dört','beş','altı','yedi','sekiz','dokuz'],T=['','on','yirmi','otuz','kırk','elli','altmış','yetmiş','seksen','doksan'];
+function words(n){if(n===0)return'sıfır';const g=x=>{let s='';const y=Math.floor(x/100),r=x%100;if(y)s+=(y>1?O[y]+' ':'')+'yüz ';if(r)s+=T[Math.floor(r/10)]+(r%10?' '+O[r%10]:'');return s.trim()};
+ const b=Math.floor(n/1000),r=n%1000;let s='';if(b)s+=(b===1?'':g(b)+' ')+'bin ';if(r)s+=g(r);return s.replace(/\s+/g,' ').trim()}
+let mode,A,B,cnt,sub,target,lvl=0,score=0,done,moves,P=4;
+function digs(n,k){const d=[];for(let i=0;i<k;i++){d.push(n%10);n=Math.floor(n/10)}return d}
+const val=d=>d.reduce((s,x,i)=>s+x*10**i,0);
+function newRound(){done=false;moves=0;P=Math.min(6,3+Math.floor(lvl/3));const k=lvl%3;mode=['add','sub','build'][k];
+ if(mode==='add'){do{A=rnd(10**(P-2),10**P-1-10**(P-2));B=rnd(10**(P-2),10**P-1-10**(P-2))}while(A+B>=10**P||!carries(A,B));cnt=digs(A,P).map((x,i)=>x+digs(B,P)[i]);target=A+B;sub=null}
+ else if(mode==='sub'){do{A=rnd(10**(P-1),10**P-1);B=rnd(10**(P-2),A-1)}while(!borrows(A,B));cnt=digs(A,P);sub=digs(B,P);target=A-B}
+ else{target=rnd(10**(P-1),10**P-1);cnt=new Array(P).fill(0);sub=null}
+ view()}
+function carries(a,b){const x=digs(a,7),y=digs(b,7);return x.some((v,i)=>v+y[i]>=10)}
+function borrows(a,b){const x=digs(a,7),y=digs(b,7);return x.some((v,i)=>v<y[i])}
+function hiNZ(i){for(let j=i+1;j<P;j++)if(cnt[j]>0)return j;return 0}
+function borrow(i){const j=hiNZ(i);if(!j)return false;cnt[j]--;for(let k=j-1;k>i;k--)cnt[k]+=9;cnt[i]+=10;return true}
+function pl(i){const c=cnt[i],e=h('div',{class:'pl'+(mode==='add'&&c>=10?' warn':'')+(mode==='sub'&&sub[i]>c?' warn':'')});e.append(h('h4',{},PN[i]),h('div',{class:'blk'},Array.from({length:Math.min(c,60)},()=>h('i',{style:'background:'+PC[i]}))),h('div',{class:'n'},c+(mode==='sub'?' − '+sub[i]:'')));
+ const bt=h('div',{class:'row'});
+ if(mode==='add'&&c>=10&&i<P-1)bt.append(h('button',{class:'btn mini',onclick:()=>{cnt[i]-=10;cnt[i+1]++;moves++;sfx.ok();view()}},'10 → 1 '+['onluk','yüzlük','binlik','on binlik','yüz binlik'][i]));
+ if(mode==='sub'&&sub[i]>c&&hiNZ(i)>0)bt.append(h('button',{class:'btn mini',onclick:()=>{borrow(i);moves++;sfx.ok();view()}},'1 aç → 10'));
+ if(mode==='build'){bt.append(h('button',{class:'btn mini alt',onclick:()=>{if(cnt[i]>0){cnt[i]--;sfx.tap();view()}}},'−'),h('button',{class:'btn mini',onclick:()=>{if(cnt[i]<9){cnt[i]++;sfx.tap();view()}}},'+'))}
+ e.append(bt);return e}
+function view(){app.innerHTML='';app.append(h('div',{class:'top'},h('h2',{},'🔟 Büyük Sayılar'),h('span',{class:'sp'}),h('span',{class:'chip'},'Tur '+(lvl+1)+'/9'),h('span',{class:'chip'},'⭐ '+score),h('button',{class:'btn alt',onclick:menu},'☰')));
+ const c=h('div',{class:'center'});app.append(c);
+ if(mode==='add')c.append(h('div',{class:'eqn'},A.toLocaleString('tr-TR')+' + '+B.toLocaleString('tr-TR')+' = ?'),h('div',{class:'msg'},'Basamakları topladık. 10 veya daha fazla olan basamakta 10 tanesini bir üst basamağa çevir.'));
+ else if(mode==='sub')c.append(h('div',{class:'eqn'},A.toLocaleString('tr-TR')+' − '+B.toLocaleString('tr-TR')+' = ?'),h('div',{class:'msg'},'Çıkarılacak sayı büyükse bir üst basamaktan 1 aç. Sonra "Çıkar" a bas.'));
+ else c.append(h('div',{class:'words'},words(target)),h('div',{class:'msg'},'Okunuşu verilen sayıyı basamak bloklarıyla oluştur.'));
+ const g=h('div',{class:'cols',style:`grid-template-columns:repeat(${P},minmax(86px,1fr));width:min(100%,${P*110}px)`});for(let i=P-1;i>=0;i--)g.append(pl(i));c.append(g);
+ const cur=mode==='sub'?val(cnt):val(cnt);
+ if(mode==='add')c.append(h('div',{class:'eqn'},'= '+(cnt.every(x=>x<10)?val(cnt).toLocaleString('tr-TR'):'…')),h('button',{class:'btn',disabled:!cnt.every(x=>x<10),onclick:()=>fin(val(cnt)===target)},'Tamam ✓'));
+ else if(mode==='sub')c.append(h('button',{class:'btn',disabled:!cnt.every((x,i)=>x>=sub[i]),onclick:()=>fin(val(cnt.map((x,i)=>x-sub[i]))===target)},'Çıkar ✓'));
+ else c.append(h('div',{class:'eqn'},val(cnt).toLocaleString('tr-TR')),h('button',{class:'btn',onclick:()=>fin(val(cnt)===target)},'Kontrol ✓'));
+ c.append(h('div',{class:'msg',id:'ms'},''))}
+function fin(ok){if(done)return;const m=$('#ms');if(ok){done=true;sfx.win();score+=moves<=P+2?3:2;lvl++;m.className='msg ok pop';m.textContent='Süper! Sonuç: '+target.toLocaleString('tr-TR')+' — '+words(target);setTimeout(()=>{if(lvl>=9)end();else newRound()},1700)}else{sfx.bad();m.className='msg bad shake';m.textContent='Tam tutmadı, bir daha bak.'}}
+function end(){app.innerHTML='';app.append(h('div',{class:'center pop'},h('div',{class:'big'},'🎉 Büyük sayılar fethedildi!'),h('div',{class:'msg'},'Puan: '+score),h('button',{class:'btn',onclick:menu},'Tekrar')));window.__won=true}
+function menu(){app.innerHTML='';app.append(h('div',{class:'center'},h('div',{class:'big'},'🔟 Büyük Sayılar'),h('div',{class:'msg'},'Basamak bloklarıyla toplama, çıkarma ve sayı okuma. Eldeli toplama ve onluk bozmayı görerek öğren!'),h('button',{class:'btn',onclick:()=>{lvl=0;score=0;newRound()}},'Başla')))}
+menu();
+</script></body></html>
+'''
+
+ARCADE_HTML['zihin'] = r'''<!DOCTYPE html><html lang="tr"><head><!--SHARED--><style>
+.cell{width:84px;height:84px;border-radius:18px;background:rgba(255,255,255,.1);border:2px solid var(--line);cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:34px;font-weight:900;transition:.12s}
+.cell.lit{background:var(--ac);transform:scale(1.08);box-shadow:0 0 22px var(--ac)}
+.gridm{display:grid;gap:10px;justify-content:center}
+.cat{width:200px;padding:14px;border-radius:20px;background:rgba(255,255,255,.07);border:2px solid var(--line);cursor:pointer;text-align:center}
+.cat:hover{border-color:var(--ac)}.cat b{display:block;font-size:20px}.cat span{font-size:13px;color:var(--mut)}
+.tbar{height:8px;border-radius:99px;background:rgba(255,255,255,.12);overflow:hidden;width:min(90%,520px)}
+.tbar i{display:block;height:100%;background:linear-gradient(90deg,#2dd4bf,#22d3ee);transition:width .2s linear}
+.word{font-size:clamp(40px,10vw,84px);font-weight:900}
+</style></head><body><div id="app"></div><script>
+const app=$('#app');
+const CATS=[['mem','🧠','Hafıza','Işık dizisini hatırla'],['att','🎯','Dikkat','Renk–kelime çatışması'],['spd','⚡','Hız','Hızlı doğru/yanlış işlem'],['log','🧩','Mantık','Sayı örüntüsü'],['lan','🔤','Dil','Karışık harfleri düzelt'],['vis','👁️','Görsel','Farklı olanı bul']];
+let sc=store('scores')||{},cur,round,pts,tEnd,tmr;
+function menu(){clearInterval(tmr);app.innerHTML='';
+ const tot=CATS.reduce((a,c)=>a+(sc[c[0]]||0),0);
+ app.append(h('div',{class:'top'},h('h2',{},'🧠 Zihin Antrenmanı'),h('span',{class:'sp'}),h('span',{class:'chip'},'Zihin puanı: '+tot)),h('div',{class:'msg'},'Her oyun 45 saniye. En iyi skorların beyin haritanı doldurur!'));
+ const g=h('div',{class:'row'},CATS.map(c=>h('div',{class:'cat',onclick:()=>begin(c[0])},h('div',{style:'font-size:38px'},c[1]),h('b',{},c[2]),h('span',{},c[3]),h('div',{class:'chip',style:'margin-top:8px;display:inline-block'},'En iyi: '+(sc[c[0]]||0)))));
+ app.append(g,radar())}
+function radar(){const n=CATS.length,R=110,cx=140,cy=130;const mx=Math.max(100,...CATS.map(c=>sc[c[0]]||0));
+ const pt=(i,v)=>{const a=-Math.PI/2+i*2*Math.PI/n;return[cx+Math.cos(a)*R*v,cy+Math.sin(a)*R*v]};
+ let s=`<svg viewBox="0 0 280 260" width="280" height="260" style="margin:auto;display:block">`;
+ for(const k of[.33,.66,1])s+=`<polygon points="${CATS.map((c,i)=>pt(i,k).join(',')).join(' ')}" fill="none" stroke="rgba(94,234,212,.3)"/>`;
+ s+=`<polygon points="${CATS.map((c,i)=>pt(i,(sc[c[0]]||0)/mx).join(',')).join(' ')}" fill="rgba(45,212,191,.45)" stroke="#2dd4bf" stroke-width="2"/>`;
+ CATS.forEach((c,i)=>{const[x,y]=pt(i,1.18);s+=`<text x="${x}" y="${y}" fill="#e6fffb" font-size="12" text-anchor="middle" dominant-baseline="middle">${c[1]} ${c[2]}</text>`});
+ return h('div',{html:s+'</svg>'})}
+function begin(k){cur=k;pts=0;round=0;tEnd=Date.now()+45000;clearInterval(tmr);tmr=setInterval(()=>{const r=Math.max(0,tEnd-Date.now());const b=$('#tb');if(b)b.style.width=(r/450)+'%';if(r<=0&&!(cur==='mem'&&memBusy))finish()},150);
+ app.innerHTML='';GAME[k]()}
+function frame(title,body){app.innerHTML='';app.append(h('div',{class:'top'},h('h2',{},title),h('span',{class:'sp'}),h('span',{class:'chip',id:'pt'},'Puan '+pts),h('button',{class:'btn alt',onclick:menu},'☰')),h('div',{class:'center',style:'gap:14px'},h('div',{class:'tbar'},h('i',{id:'tb',style:'width:'+Math.max(0,(tEnd-Date.now())/450)+'%'})),body,h('div',{class:'msg',id:'ms'},'')))}
+function add(n,ok){pts=Math.max(0,pts+n);const p=$('#pt');if(p)p.textContent='Puan '+pts;ok?sfx.ok():sfx.bad();const m=$('#ms');if(m){m.className='msg '+(ok?'ok':'bad');m.textContent=ok?'✓':'✗'}}
+function finish(){clearInterval(tmr);const best=Math.max(sc[cur]||0,pts);const isNew=best>(sc[cur]||0);sc[cur]=best;store('scores',sc);sfx.win();
+ app.innerHTML='';app.append(h('div',{class:'center pop'},h('div',{class:'big'},'⏱ Süre doldu!'),h('div',{class:'msg'},'Puan: '+pts+(isNew?'  🏅 Yeni rekor!':'')),h('div',{class:'row'},h('button',{class:'btn',onclick:()=>begin(cur)},'Tekrar'),h('button',{class:'btn alt',onclick:menu},'Menü'))));window.__fin=pts}
+let memBusy=false;
+const GAME={
+ async mem(){let seq=[],len=2;const size=3;const lit=i=>{const e=$('#c'+i);if(e){e.classList.add('lit');setTimeout(()=>e.classList.remove('lit'),380)}};
+  const cells=[];const g=h('div',{class:'gridm',style:`grid-template-columns:repeat(${size},84px)`});for(let i=0;i<9;i++)g.append(h('div',{class:'cell',id:'c'+i,onclick:()=>tap(i)},''));frame('🧠 Hafıza',g);
+  let inp=[],accept=false;
+  async function show(){memBusy=true;accept=false;inp=[];seq=Array.from({length:len},()=>rnd(0,8));$('#ms').textContent='İzle…';await sleep(500);for(const i of seq){lit(i);sfx.tap();await sleep(650)}memBusy=false;accept=true;if($('#ms'))$('#ms').textContent='Sıra sende';if(Date.now()>tEnd)finish()}
+  function tap(i){if(!accept)return;lit(i);inp.push(i);const k=inp.length-1;if(seq[k]!==i){accept=false;add(0,false);len=Math.max(2,len-1);setTimeout(()=>{if(Date.now()<tEnd)show();else finish()},700);return}
+   if(inp.length===seq.length){accept=false;add(seq.length*5,true);len++;setTimeout(()=>{if(Date.now()<tEnd)show();else finish()},700)}}
+  window.__memSeq=()=>seq;window.__memTap=tap;show()},
+ att(){const W=[['KIRMIZI','#ef4444'],['MAVİ','#3b82f6'],['YEŞİL','#22c55e'],['SARI','#eab308']];let ans;
+  function nx(){const w=pick(W),c=Math.random()<.5?w:pick(W);ans=c[0];const body=h('div',{class:'center'},h('div',{class:'msg'},'Kelimenin ANLAMINA değil RENGİNE bak!'),h('div',{class:'word',style:'color:'+c[1]},w[0]),h('div',{class:'row'},W.map(x=>h('button',{class:'btn',style:'background:'+x[1]+';color:#fff',onclick:()=>{const ok=x[0]===ans;add(ok?10:-5,ok);nx()}},x[0]))));frame('🎯 Dikkat',body);window.__ans=()=>ans}nx()},
+ spd(){function nx(){const a=rnd(3,19),b=rnd(2,12),op=pick(['+','−','×']);const r=op==='+'?a+b:op==='−'?a-b:a*b;const shown=Math.random()<.5?r:r+pick([-2,-1,1,2,10]);const ok=shown===r;
+  frame('⚡ Hız',h('div',{class:'center'},h('div',{class:'big'},`${a} ${op} ${b} = ${shown}`),h('div',{class:'row'},h('button',{class:'btn',onclick:()=>{add(ok?8:-5,ok);nx()}},'✓ Doğru'),h('button',{class:'btn bad',onclick:()=>{add(!ok?8:-5,!ok);nx()}},'✗ Yanlış'))));window.__ok=ok}nx()},
+ log(){function nx(){const t=rnd(0,3);let s=[],a=rnd(1,9),d=rnd(2,6),r=rnd(2,3),ans;
+  if(t===0){s=[0,1,2,3].map(i=>a+d*i);ans=a+d*4}else if(t===1){s=[0,1,2,3].map(i=>a*r**i);ans=a*r**4}else if(t===2){s=[0,1,2,3].map(i=>(i+1)**2+a);ans=25+a}else{s=[a,d];for(let i=2;i<5;i++)s.push(s[i-1]+s[i-2]);ans=s[3]+s[4-0-1+0]-0;ans=s[4-1]+s[4-2];s=s.slice(0,4);ans=s[3]+s[2]}
+  const o=shuf([...new Set([ans,ans+rnd(1,4),ans-rnd(1,4),ans+rnd(5,9)])].filter(x=>x>0));
+  frame('🧩 Mantık',h('div',{class:'center'},h('div',{class:'big'},s.join(' , ')+' , ?'),h('div',{class:'row'},o.map(v=>h('button',{class:'btn',onclick:()=>{const ok=v===ans;add(ok?12:-4,ok);nx()}},v)))));window.__ans=ans}nx()},
+ lan(){const WL=['OKUL','KİTAP','KALEM','DEFTER','ÖĞRETMEN','SINIF','BİLGİ','MATEMATİK','TÜRKİYE','ÇİÇEK','GÜNEŞ','DENİZ','ORMAN','HARİTA','ATLAS','MİKROSKOP','HÜCRE','KESİR','ÜÇGEN','ENERJİ','MADDE','İKLİM','CUMHURİYET','ÖZGÜRLÜK','KÜTÜPHANE'];let w;
+  function nx(){w=pick(WL);let sh;do{sh=shuf([...w]).join('')}while(sh===w);let g=[];
+   const t=h('div',{class:'center'},h('div',{class:'big'},sh),h('div',{class:'chip',id:'gs',style:'min-height:30px;font-size:22px'},''),h('div',{class:'row'},[...sh].map((ch,i)=>h('button',{class:'btn',id:'L'+i,onclick:e=>{g.push(ch);e.target.disabled=true;sfx.tap();$('#gs').textContent=g.join('');if(g.length===w.length){const ok=g.join('')===w;add(ok?w.length*2:-5,ok);setTimeout(nx,300)}}},ch))),h('button',{class:'btn alt',onclick:nx},'Geç'));
+   frame('🔤 Dil',t);window.__word=w}nx()},
+ vis(){let n=3;function nx(){n=Math.min(6,3+Math.floor(pts/60));const A=pick(['●','■','▲','◆','★','♥']);let B;do{B=pick(['●','■','▲','◆','★','♥'])}while(B===A);const idx=rnd(0,n*n-1);const hue=rnd(0,360);
+   const g=h('div',{class:'gridm',style:`grid-template-columns:repeat(${n},64px)`});for(let i=0;i<n*n;i++)g.append(h('div',{class:'cell',style:`width:64px;height:64px;color:hsl(${hue},80%,65%)`,onclick:()=>{const ok=i===idx;add(ok?9:-5,ok);nx()}},i===idx?B:A));
+   frame('👁️ Görsel',h('div',{class:'center'},h('div',{class:'msg'},'Farklı olan şekli bul!'),g));window.__odd=idx}nx()}};
+menu();
+</script></body></html>
+'''
+
+ARCADES = [('uno', '🃏', 'UNO', 'linear-gradient(135deg, #ef4444, #f59e0b)', 'Robot rakiplere karşı kart savaşı'), ('sudoku', '🔢', 'Sudoku', 'linear-gradient(135deg, #0ea5e9, #6366f1)', '4×4, 6×6, 9×9 mantık bulmacası'), ('satranc', '♞', 'Satranç', 'linear-gradient(135deg, #334155, #0f766e)', 'Yapay zekâya karşı tam kurallı'), ('kelimeler', '🔤', 'Kelime Bulmacaları', 'linear-gradient(135deg, #f97316, #db2777)', 'Kelime avı, çapraz bulmaca, eşleştirme'), ('macera', '🧭', 'İnteraktif Macera', 'linear-gradient(135deg, #0d9488, #4f46e5)', 'Seçimlerinle hikâyeyi yönlendir'), ('kultur', '🗺️', 'Kültür & Coğrafya Puzzle', 'linear-gradient(135deg, #ca8a04, #dc2626)', 'Dünya harikaları, Kapadokya, Göbeklitepe'), ('sinema', '🤫', 'Sessiz Sinema', 'linear-gradient(135deg, #f43f5e, #9333ea)', 'Mimikle anlat, takımın bilsin'), ('kesir', '🍫', 'Kesir Dilimleme', 'linear-gradient(135deg, #f59e0b, #b45309)', 'Kes, böl, karşılaştır, topla'), ('cebir', '🐉', 'Ejderha Cebir', 'linear-gradient(135deg, #a855f7, #6366f1)', 'Denklemi oyunla çöz'), ('canavar', '👾', 'Sayı Canavarları', 'linear-gradient(135deg, #22c55e, #0d9488)', 'Sayı çubuklarıyla doyur'), ('buyuk', '🔟', 'Büyük Sayılar', 'linear-gradient(135deg, #ec4899, #8b5cf6)', 'Basamak blokları, eldeli işlem'), ('zihin', '🧠', 'Zihin Antrenmanı', 'linear-gradient(135deg, #14b8a6, #06b6d4)', 'Hafıza, dikkat, hız, mantık')]
+
+
