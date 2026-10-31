@@ -61,24 +61,33 @@ except ImportError:
     pass
 
 
+AI_ERRORS = []
+
+
 def ai_generate_content(prompt_text, fast=False):
-    """fast=True: kısa/sohbet cevapları için en hızlı model ve düşük token sınırı (AdenMind)."""
+    """fast=True: kısa/sohbet cevapları için hızlı modeller ve düşük token sınırı (AdenMind).
+    Sıra: tüm Groq anahtarları -> tüm Gemini anahtarları. Hatalar AI_ERRORS'ta tutulur."""
+    del AI_ERRORS[:]
     if has_groq:
-        models = ["llama-3.1-8b-instant"] if fast else ["llama-3.3-70b-versatile", "llama-3.1-8b-instant"]
+        models = ["llama-3.1-8b-instant", "llama-3.3-70b-versatile"] if fast else ["llama-3.3-70b-versatile", "llama-3.1-8b-instant"]
         for gr_key in groq_keys:
             for model in models:
                 try:
                     kw = {"max_tokens": 320, "temperature": 0.7} if fast else {"temperature": 0.95}
-                    client = Groq(api_key=gr_key, timeout=15.0 if fast else 45.0, max_retries=0)
+                    client = Groq(api_key=gr_key, timeout=20.0 if fast else 45.0, max_retries=0)
                     completion = client.chat.completions.create(
                         model=model, messages=[{"role": "user", "content": prompt_text}], **kw
                     )
                     if completion.choices[0].message.content:
                         return completion.choices[0].message.content
-                except Exception:
+                except Exception as e:  # noqa: BLE001
+                    AI_ERRORS.append(f"groq/{model}: {str(e)[:80]}")
                     continue
+    else:
+        AI_ERRORS.append("groq anahtarı/paketi yok")
     if has_gemini:
-        names = ["gemini-2.0-flash", "gemini-1.5-flash"] if fast else ["gemini-3.6-flash", "gemini-1.5-flash", "gemini-1.5-pro", "gemini-pro"]
+        names = (["gemini-2.0-flash", "gemini-2.5-flash", "gemini-1.5-flash"] if fast
+                 else ["gemini-3.6-flash", "gemini-2.5-flash", "gemini-2.0-flash", "gemini-1.5-flash", "gemini-1.5-pro", "gemini-pro"])
         for g_key in gemini_keys:
             try:
                 genai.configure(api_key=g_key)
@@ -88,11 +97,41 @@ def ai_generate_content(prompt_text, fast=False):
                         response = genai.GenerativeModel(model_name).generate_content(prompt_text, generation_config=cfg)
                         if response and response.text:
                             return response.text
-                    except Exception:
+                    except Exception as e:  # noqa: BLE001
+                        AI_ERRORS.append(f"gemini/{model_name}: {str(e)[:80]}")
                         continue
-            except Exception:
+            except Exception as e:  # noqa: BLE001
+                AI_ERRORS.append(f"gemini: {str(e)[:80]}")
                 continue
+    else:
+        AI_ERRORS.append("gemini anahtarı/paketi yok")
     return None
+
+
+def local_coach_reply(msg, subject=None, unit=None):
+    """Yapay zekâya ulaşılamazsa bile AdenMind'in mutlaka bir cevap vermesi için yerel yanıt üretici."""
+    t = msg.lower().strip()
+    expr = re.sub(r"[x×]", "*", t.replace(",", ".").replace("÷", "/").replace(":", "/"))
+    m = re.fullmatch(r"[^0-9(]*([0-9+\-*/(). ]{3,})[^0-9)]*", expr)
+    if m:
+        try:
+            e = m.group(1).strip()
+            if re.fullmatch(r"[0-9+\-*/(). ]+", e) and any(c in e for c in "+-*/") and "**" not in e and len(e) <= 30:
+                v = eval(e, {"__builtins__": {}}, {})  # noqa: S307 (yalnızca sayı ve işlem karakterleri)
+                return f"İşlem sonucu: **{round(v, 4):g}** 🎯 Adımları kâğıtta kendin de yazıp kontrol et!"
+        except Exception:
+            pass
+    if re.search(r"\b(merhaba|selam|hey|günaydın|iyi akşamlar)\b", t):
+        return "Merhaba! Ben AdenMind 😊 Bugün hangi konuda çalışıyoruz? Bir soru sorabilir ya da oyun seçebilirsin!"
+    if re.search(r"nasıl çalış|ders çalış|verim|odaklan|dikkat|motivasyon|sınav", t):
+        return ("Şu planı dene: 1) 25 dk odaklı çalış, 5 dk mola ver. 2) Konuyu kendi cümlenle anlat. "
+                "3) Öğrendiklerini oyunlarla pekiştir. Düzenli tekrar en güçlü yöntemdir! 💪")
+    if re.search(r"teşekkür|sağ ol|eyvallah", t):
+        return "Rica ederim! Birlikte öğrenmek çok güzel 🌟 Devam edelim mi?"
+    where = f"{subject} dersi, {unit}" if subject and unit else (subject or "seçtiğin konu")
+    return (f"Şu an yapay zekâ servisine ulaşamıyorum ama yanındayım! 📴 {where} için şunu öneririm: önce konunun anahtar "
+            "kelimelerini yaz, sonra bir örnek üzerinde dene, ardından ilgili oyunda kendini test et. "
+            "Sorunu biraz daha ayrıntılı yazarsan (örn. \"kesir nedir\") bağlantı gelince tam cevap verebilirim.")
 
 
 def parse_json(text):
@@ -722,9 +761,16 @@ def render_adenmind(ns):
         )
         with loading("AdenMind yazıyor...", 3, compact=True, kind="chat"):
             reply = ai_generate_content(prompt, fast=True)
-        msgs.append({"role": "assistant", "content": reply or "Yanıt oluşturulamadı, tekrar dene!"})
+        if not reply:
+            reply = local_coach_reply(user_msg.strip(), st.session_state.get("selected_subject"), st.session_state.get("selected_unit"))
+            st.session_state["last_ai_error"] = "; ".join(AI_ERRORS[-3:])
+        else:
+            st.session_state["last_ai_error"] = ""
+        msgs.append({"role": "assistant", "content": reply})
     with box:
         st.markdown("".join(chat_bubble(m["role"], m["content"]) for m in msgs), unsafe_allow_html=True)
+    if st.session_state.get("last_ai_error"):
+        st.caption("⚠️ Yapay zekâ servisi yanıt vermedi (yerel cevap kullanıldı): " + esc(st.session_state["last_ai_error"])[:160])
 
 
 # =============================================================================
@@ -2503,7 +2549,7 @@ html,body{margin:0;height:100%;background:radial-gradient(1200px 700px at 20% -1
 <script>
 window.onerror=function(m){try{document.title='JSERR:'+m}catch(e){}};
 const $=(s,r)=> (r||document).querySelector(s);
-function h(tag,attrs,...kids){const e=document.createElement(tag);for(const k in (attrs||{})){const v=attrs[k];if(k==='class')e.className=v;else if(k==='style')e.style.cssText=v;else if(k.startsWith('on'))e[k]=v;else if(k==='html')e.innerHTML=v;else e.setAttribute(k,v)}for(const c of kids.flat()){if(c==null||c===false)continue;e.append(c.nodeType?c:document.createTextNode(c))}return e}
+function h(tag,attrs,...kids){const e=document.createElement(tag);for(const k in (attrs||{})){const v=attrs[k];if(k==='class')e.className=v;else if(k==='style')e.style.cssText=v;else if(k.startsWith('on'))e[k]=v;else if(k==='html')e.innerHTML=v;else if(v===false||v==null)continue;else if(v===true)e.setAttribute(k,'');else e.setAttribute(k,v)}for(const c of kids.flat()){if(c==null||c===false)continue;e.append(c.nodeType?c:document.createTextNode(c))}return e}
 const rnd=(a,b)=>a+Math.floor(Math.random()*(b-a+1));
 const pick=a=>a[Math.floor(Math.random()*a.length)];
 function shuf(a){a=a.slice();for(let i=a.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[a[i],a[j]]=[a[j],a[i]]}return a}
@@ -2750,6 +2796,63 @@ function click(i){if(over||thinking||S.turn!==human||pendingPromo)return;const p
 function play(m){hist.push({S,lastM,capW:capW.slice(),capB:capB.slice()});const n=make(S,m);if(n.cap)(S.turn==='w'?capW:capB).push(n.cap);S=n;lastM=m;selSq=-1;n.cap?sfx.bad():sfx.tap();draw();maybeAI()}
 function undo(){const k=S.turn===human?2:1;let h2;for(let i=0;i<k&&hist.length;i++)h2=hist.pop();if(h2){S=h2.S;lastM=h2.lastM;capW=h2.capW;capB=h2.capB}over=false;selSq=-1;draw()}
 function maybeAI(){if(over||S.turn===human)return;thinking=true;setTimeout(()=>{const L=LV[level];const m=aiMove(S,L.d,L.z);thinking=false;if(m)play(m)},60)}
+menu();
+</script></body></html>
+'''
+
+ARCADE_HTML['sinema'] = r'''<!DOCTYPE html><html lang="tr"><head><!--SHARED--><style>
+.word{font-size:clamp(34px,9vw,76px);font-weight:900;color:var(--gold);text-shadow:0 4px 0 rgba(0,0,0,.35);min-height:90px;display:flex;align-items:center;justify-content:center;text-align:center;padding:0 8px}
+.cardx{width:min(94%,620px);border-radius:28px;border:3px solid var(--ac);background:linear-gradient(160deg,#0b4a55,#052a31);padding:22px 16px;text-align:center;box-shadow:0 14px 40px rgba(0,0,0,.4)}
+.timer{font-size:clamp(40px,9vw,70px);font-weight:900}.timer.low{color:var(--bad);animation:pop .5s infinite alternate}
+.tbar{height:10px;border-radius:99px;background:rgba(255,255,255,.12);overflow:hidden;width:min(90%,560px)}
+.tbar i{display:block;height:100%;background:linear-gradient(90deg,#2dd4bf,#fbbf24,#fb7185);transition:width .2s linear}
+.sel .btn{margin:3px}.sel .on{outline:3px solid var(--gold)}
+.team{padding:8px 14px;border-radius:14px;background:rgba(255,255,255,.08);border:2px solid transparent;font-weight:800}
+.team.act{border-color:var(--gold);background:rgba(251,191,36,.15)}
+.hide{filter:blur(14px);user-select:none}
+.mute{font-size:60px}
+</style></head><body><div id="app"></div><script>
+const app=$('#app');
+const CATS={
+ 'Filmler & Çizgi Filmler':['Aslan Kral','Kayıp Balık Nemo','Örümcek Adam','Karlar Ülkesi','Shrek','Tom ve Jerry','Pamuk Prenses','Külkedisi','Yeşil Hayalet','Toy Story','Harry Potter','Maymun Kral','Alaaddin','Pinokyo','Cin Ali','Heidi','Susam Sokağı','Red Kit','Fareli Köyün Kavalcısı','Küçük Prens','Hababam Sınıfı','Kurtlar Vadisi','Yedi Cüceler','Dünyayı Kurtaran Adam'],
+ 'Hayvanlar':['Zürafa','Penguen','Kanguru','Yunus','Kaplumbağa','Aslan','Maymun','Kelebek','Kartal','Fil','Timsah','Yarasa','Ahtapot','Tavşan','Köpekbalığı','Deve','Papağan','Karınca','Panda','Kurbağa','Horoz','Arı','Kirpi','Tilki'],
+ 'Meslekler':['Doktor','Aşçı','Pilot','İtfaiyeci','Terzi','Berber','Futbolcu','Ressam','Öğretmen','Polis','Çiftçi','Fotoğrafçı','Astronot','Mimar','Marangoz','Garson','Şoför','Dişçi','Müzisyen','Balıkçı','Veteriner','Dalgıç','Posta Dağıtıcısı','Bilim İnsanı'],
+ 'Okul & Ders Kavramları':['Güneş Tutulması','Su Döngüsü','Fotosentez','Mıknatıs','Deprem','Harita Okumak','Kesir','Üçgen','Cumhuriyet Bayramı','Volkan','Ay\'ın Evreleri','Elektrik Devresi','Kıta','Orman Yangını','Geri Dönüşüm','Teneffüs','Mikroskop','Atatürk','Çevre Temizliği','Deney Yapmak','Zeka Küpü','Kütüphane','Okul Servisi','Pusula'],
+ 'Spor & Oyun':['Basketbol','Yüzme','Voleybol','Bisiklet','Futbol','Tenis','Satranç','Halat Çekme','Ip Atlama','Kayak','Boks','Okçuluk','Jimnastik','Golf','Gizli Saklambaç','Körebe','Uçurtma Uçurmak','Paten','Dart','Dağa Tırmanmak'],
+ 'Gezilecek Yerler':['Kapadokya','Ayasofya','Anıtkabir','Pamukkale','Galata Kulesi','Eiffel Kulesi','Çanakkale Şehitliği','Boğaz Köprüsü','Efes Antik Kenti','Sümela Manastırı','Nemrut Dağı','Pisa Kulesi','Piramitler','Çin Seddi','Özgürlük Heykeli','Topkapı Sarayı']};
+let S={};
+function menu(){app.innerHTML='';S={cat:'Karışık',teams:2,time:60,rounds:2};
+ const sel=h('div',{class:'sel center',style:'gap:10px'});
+ app.append(h('div',{class:'top'},h('h2',{},'🤫 Sessiz Sinema'),h('span',{class:'sp'})),sel);
+ function draw(){sel.innerHTML='';sel.append(h('div',{class:'mute'},'🎭'),h('div',{class:'msg'},'Kelimeyi SESSİZCE, sadece mimikle anlat; takımın bilsin! Sözcük söylemek, parmakla yazmak yok.'),
+  h('div',{class:'msg'},'Konu'),h('div',{class:'row'},['Karışık',...Object.keys(CATS)].map(c=>h('button',{class:'btn alt'+(S.cat===c?' on':''),onclick:()=>{S.cat=c;draw()}},c))),
+  h('div',{class:'msg'},'Takım sayısı'),h('div',{class:'row'},[2,3,4].map(n=>h('button',{class:'btn alt'+(S.teams===n?' on':''),onclick:()=>{S.teams=n;draw()}},n))),
+  h('div',{class:'msg'},'Tur süresi (sn)'),h('div',{class:'row'},[30,45,60,90].map(n=>h('button',{class:'btn alt'+(S.time===n?' on':''),onclick:()=>{S.time=n;draw()}},n))),
+  h('div',{class:'msg'},'Tur sayısı (her takım kaç kez oynasın)'),h('div',{class:'row'},[1,2,3].map(n=>h('button',{class:'btn alt'+(S.rounds===n?' on':''),onclick:()=>{S.rounds=n;draw()}},n))),
+  h('button',{class:'btn',style:'margin-top:8px',onclick:start},'Başla ▶'))}
+ draw()}
+function poolFor(){const all=S.cat==='Karışık'?Object.values(CATS).flat():CATS[S.cat];return all}
+function nextWord(){const all=poolFor();let used=store('used_'+S.cat)||[];let left=all.filter(w=>!used.includes(w)&&!S.seen.has(w));if(!left.length){used=[];left=all.filter(w=>!S.seen.has(w));if(!left.length){S.seen.clear();left=all.slice()}}
+ const w=pick(left);S.seen.add(w);used.push(w);store('used_'+S.cat,used.slice(-200));return w}
+function start(){S.seen=new Set();S.names=['🔴 Kırmızı','🔵 Mavi','🟢 Yeşil','🟡 Sarı'].slice(0,S.teams);S.score=S.names.map(()=>0);S.turn=0;S.total=S.teams*S.rounds;ready()}
+function board(){return h('div',{class:'row'},S.names.map((n,i)=>h('div',{class:'team'+(i===S.turn%S.teams?' act':'')},n+': '+S.score[i])))}
+function ready(){clearInterval(S.tm);app.innerHTML='';const t=S.turn%S.teams;
+ app.append(h('div',{class:'top'},h('h2',{},'🤫 Sessiz Sinema'),h('span',{class:'sp'}),h('span',{class:'chip'},'Tur '+(Math.floor(S.turn/S.teams)+1)+'/'+S.rounds),h('button',{class:'btn alt',onclick:menu},'☰')),board(),
+  h('div',{class:'center pop'},h('div',{class:'mute'},'🎬'),h('div',{class:'big'},S.names[t]+' takımı sahnede!'),h('div',{class:'msg'},'Bir oyuncu seçilsin. Kelimeyi sadece o görecek; diğerleri ekrana bakmasın.'),h('button',{class:'btn',onclick:play},'Kelimeyi göster ve süreyi başlat ⏱')))}
+function play(){S.ok=0;S.pass=0;S.word=nextWord();S.end=Date.now()+S.time*1000;render();clearInterval(S.tm);S.tm=setInterval(tick,200)}
+function tick(){const l=Math.max(0,S.end-Date.now());const e=$('#tmr');if(e){e.textContent=Math.ceil(l/1000);e.className='timer'+(l<8000?' low':'')}const b=$('#tb');if(b)b.style.width=(l/(S.time*10))+'%';if(l<=0){clearInterval(S.tm);endTurn()}}
+function render(){app.innerHTML='';const t=S.turn%S.teams;
+ app.append(h('div',{class:'top'},h('h2',{},S.names[t]),h('span',{class:'sp'}),h('span',{class:'chip'},'✓ '+S.ok),h('span',{class:'chip'},'⏭ '+S.pass+'/3')),
+ h('div',{class:'center'},h('div',{class:'tbar'},h('i',{id:'tb',style:'width:'+(Math.max(0,S.end-Date.now())/(S.time*10))+'%'})),h('div',{class:'timer',id:'tmr'},Math.ceil(Math.max(0,S.end-Date.now())/1000)),
+  h('div',{class:'cardx'},h('div',{class:'msg'},'🤐 Sessiz anlat!'),h('div',{class:'word'+(S.hide?' hide':''),id:'w'},S.word),h('button',{class:'btn alt',onclick:()=>{S.hide=!S.hide;$('#w').classList.toggle('hide',S.hide)}},'👁 Göster / Gizle')),
+  h('div',{class:'row'},h('button',{class:'btn',onclick:right},'✓ Bildiler'),h('button',{class:'btn alt',disabled:S.pass>=3,onclick:pass},'⏭ Pas'))))}
+function right(){S.ok++;S.score[S.turn%S.teams]++;sfx.ok();S.word=nextWord();render()}
+function pass(){if(S.pass>=3)return;S.pass++;sfx.tap();S.word=nextWord();render()}
+function endTurn(){sfx.bad();const t=S.turn%S.teams;app.innerHTML='';S.turn++;const fin=S.turn>=S.total;
+ app.append(h('div',{class:'center pop'},h('div',{class:'big'},'⏰ Süre bitti!'),h('div',{class:'msg'},S.names[t]+' takımı '+S.ok+' kelime bildi.'),board(),
+  fin?h('button',{class:'btn',onclick:result},'Sonuçlar 🏆'):h('button',{class:'btn',onclick:ready},'Sıradaki takım ▶')))}
+function result(){const mx=Math.max(...S.score);const w=S.names.filter((n,i)=>S.score[i]===mx);sfx.win();app.innerHTML='';
+ app.append(h('div',{class:'center pop'},h('div',{class:'mute'},'🏆'),h('div',{class:'big'},w.length>1?'Berabere: '+w.join(' & '):w[0]+' kazandı!'),board(),h('div',{class:'row'},h('button',{class:'btn',onclick:start},'Tekrar oyna'),h('button',{class:'btn alt',onclick:menu},'Menü')))); window.__won=true}
 menu();
 </script></body></html>
 '''
@@ -3009,8 +3112,7 @@ menu();
 </script></body></html>
 '''
 
-ARCADES = [('uno', '🃏', 'UNO', 'linear-gradient(135deg, #ef4444, #f59e0b)', 'Robot rakiplere karşı kart savaşı'), ('sudoku', '🔢', 'Sudoku', 'linear-gradient(135deg, #0ea5e9, #6366f1)', '4×4, 6×6, 9×9 mantık bulmacası'), ('satranc', '♞', 'Satranç', 'linear-gradient(135deg, #334155, #0f766e)', 'Yapay zekâya karşı tam kurallı'), ('kesir', '🍫', 'Kesir Dilimleme', 'linear-gradient(135deg, #f59e0b, #b45309)', 'Kes, böl, karşılaştır, topla'), ('cebir', '🐉', 'Ejderha Cebir', 'linear-gradient(135deg, #a855f7, #6366f1)', 'Denklemi oyunla çöz'), ('canavar', '👾', 'Sayı Canavarları', 'linear-gradient(135deg, #22c55e, #0d9488)', 'Sayı çubuklarıyla doyur'), ('buyuk', '🔟', 'Büyük Sayılar', 'linear-gradient(135deg, #ec4899, #8b5cf6)', 'Basamak blokları, eldeli işlem'), ('zihin', '🧠', 'Zihin Antrenmanı', 'linear-gradient(135deg, #14b8a6, #06b6d4)', 'Hafıza, dikkat, hız, mantık')]
-
+ARCADES = [('uno', '🃏', 'UNO', 'linear-gradient(135deg, #ef4444, #f59e0b)', 'Robot rakiplere karşı kart savaşı'), ('sudoku', '🔢', 'Sudoku', 'linear-gradient(135deg, #0ea5e9, #6366f1)', '4×4, 6×6, 9×9 mantık bulmacası'), ('satranc', '♞', 'Satranç', 'linear-gradient(135deg, #334155, #0f766e)', 'Yapay zekâya karşı tam kurallı'), ('sinema', '🤫', 'Sessiz Sinema', 'linear-gradient(135deg, #f43f5e, #9333ea)', 'Mimikle anlat, takımın bilsin'), ('kesir', '🍫', 'Kesir Dilimleme', 'linear-gradient(135deg, #f59e0b, #b45309)', 'Kes, böl, karşılaştır, topla'), ('cebir', '🐉', 'Ejderha Cebir', 'linear-gradient(135deg, #a855f7, #6366f1)', 'Denklemi oyunla çöz'), ('canavar', '👾', 'Sayı Canavarları', 'linear-gradient(135deg, #22c55e, #0d9488)', 'Sayı çubuklarıyla doyur'), ('buyuk', '🔟', 'Büyük Sayılar', 'linear-gradient(135deg, #ec4899, #8b5cf6)', 'Basamak blokları, eldeli işlem'), ('zihin', '🧠', 'Zihin Antrenmanı', 'linear-gradient(135deg, #14b8a6, #06b6d4)', 'Hafıza, dikkat, hız, mantık')]
 
 
 def pick_arcade(k):
