@@ -46,12 +46,12 @@ gemini_keys, groq_keys = get_all_api_keys()
 has_gemini = False
 has_groq = False
 
+genai = None
 try:
-    import google.generativeai as genai
-
-    has_gemini = bool(gemini_keys)
-except ImportError:
-    pass
+    import google.generativeai as genai  # isteğe bağlı; yoksa REST ile doğrudan çağrılır
+except Exception:
+    genai = None
+has_gemini = bool(gemini_keys)  # SDK kurulu olmasa da anahtar varsa Gemini REST üzerinden kullanılır
 
 try:
     from groq import Groq
@@ -59,6 +59,58 @@ try:
     has_groq = bool(groq_keys)
 except ImportError:
     pass
+
+
+_GEM_DEAD = set()
+_GEM_FOUND = {}
+GEMINI_PREFERRED = ["gemini-3.6-flash", "gemini-3.5-flash", "gemini-3-flash", "gemini-2.5-flash", "gemini-2.0-flash", "gemini-1.5-flash"]
+
+
+def _gemini_models(key):
+    """Önce Gemini 3.6; olmazsa sırayla eski sürümler. Hepsi 404 verirse hesabın gerçek model listesi sorulur."""
+    names = list(GEMINI_PREFERRED)
+    names += [m for m in _GEM_FOUND.get(key[-6:], []) if m not in names]
+    return names
+
+
+def _gemini_discover(key):
+    """ListModels ile bu anahtarın erişebildiği 'flash' modellerini bulur (yeni sürüm adları için)."""
+    import urllib.request
+    url = f"https://generativelanguage.googleapis.com/v1beta/models?key={key}&pageSize=200"
+    with urllib.request.urlopen(url, timeout=15) as r:
+        data = json.loads(r.read().decode("utf-8"))
+    found = [m["name"].split("/")[-1] for m in data.get("models", [])
+             if "generateContent" in m.get("supportedGenerationMethods", []) and "flash" in m["name"]
+             and "image" not in m["name"] and "tts" not in m["name"]]
+    found.sort(reverse=True)
+    _GEM_FOUND[key[-6:]] = found
+    return found
+
+
+def _gemini_call(key, model, prompt, fast):
+    """Gemini'yi SDK'ya bağımlı olmadan REST ile çağırır."""
+    import urllib.request
+    import urllib.error
+    body = {"contents": [{"role": "user", "parts": [{"text": prompt}]}],
+            "generationConfig": {"temperature": 0.7 if fast else 0.95}}
+    if fast:
+        body["generationConfig"]["maxOutputTokens"] = 400
+    req = urllib.request.Request(
+        f"https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent",
+        data=json.dumps(body).encode("utf-8"), method="POST",
+        headers={"Content-Type": "application/json", "x-goog-api-key": key})
+    try:
+        with urllib.request.urlopen(req, timeout=25 if fast else 60) as r:
+            data = json.loads(r.read().decode("utf-8"))
+    except urllib.error.HTTPError as e:
+        detail = ""
+        try:
+            detail = e.read().decode("utf-8")[:120]
+        except Exception:
+            pass
+        raise Exception(f"HTTP {e.code} {detail}")
+    parts = (data.get("candidates") or [{}])[0].get("content", {}).get("parts", [])
+    return "".join(p.get("text", "") for p in parts).strip()
 
 
 AI_ERRORS = []
@@ -86,26 +138,47 @@ def ai_generate_content(prompt_text, fast=False):
     else:
         AI_ERRORS.append("groq anahtarı/paketi yok")
     if has_gemini:
-        names = (["gemini-2.0-flash", "gemini-2.5-flash", "gemini-1.5-flash"] if fast
-                 else ["gemini-3.6-flash", "gemini-2.5-flash", "gemini-2.0-flash", "gemini-1.5-flash", "gemini-1.5-pro", "gemini-pro"])
         for g_key in gemini_keys:
-            try:
-                genai.configure(api_key=g_key)
-                for model_name in names:
+            for attempt in range(2):
+                if attempt == 1:  # tüm bilinen adlar 404 verdiyse hesabın gerçek model listesini sor
                     try:
-                        cfg = {"max_output_tokens": 320, "temperature": 0.7} if fast else None
-                        response = genai.GenerativeModel(model_name).generate_content(prompt_text, generation_config=cfg)
-                        if response and response.text:
-                            return response.text
+                        if not _gemini_discover(g_key):
+                            break
                     except Exception as e:  # noqa: BLE001
-                        AI_ERRORS.append(f"gemini/{model_name}: {str(e)[:80]}")
-                        continue
-            except Exception as e:  # noqa: BLE001
-                AI_ERRORS.append(f"gemini: {str(e)[:80]}")
-                continue
+                        AI_ERRORS.append(f"gemini liste: {str(e)[:60]}")
+                        break
+                if _gemini_pass(g_key, prompt_text, fast):
+                    return _GEM_LAST[0]
     else:
-        AI_ERRORS.append("gemini anahtarı/paketi yok")
+        AI_ERRORS.append("gemini anahtarı yok")
     return None
+
+
+_GEM_LAST = [None]
+
+
+def _gemini_pass(g_key, prompt_text, fast):
+    """Bir anahtar için modelleri sırayla dener; başarıda metni _GEM_LAST'e yazıp True döner."""
+    if True:
+        if True:
+            for model_name in _gemini_models(g_key):
+                if (g_key[-6:], model_name) in _GEM_DEAD:
+                    continue
+                try:
+                    text = _gemini_call(g_key, model_name, prompt_text, fast)
+                    if text:
+                        _GEM_LAST[0] = text
+                        return True
+                    AI_ERRORS.append(f"gemini/{model_name}: boş yanıt")
+                except Exception as e:  # noqa: BLE001
+                    msg = str(e)
+                    AI_ERRORS.append(f"gemini/{model_name}: {msg[:80]}")
+                    if "404" in msg or "not found" in msg.lower() or "NOT_FOUND" in msg:
+                        _GEM_DEAD.add((g_key[-6:], model_name))
+                    elif "API_KEY_INVALID" in msg or "API key not valid" in msg or "403" in msg:
+                        return False  # bu anahtar geçersiz: sıradaki anahtara geç
+                    continue
+    return False
 
 
 def local_coach_reply(msg, subject=None, unit=None):
