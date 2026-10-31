@@ -1,5 +1,6 @@
 import base64
 import json
+import os
 import random
 import re
 from html import escape as esc
@@ -375,20 +376,41 @@ section[data-testid="stSidebar"]{background:linear-gradient(180deg,#06222c,#0a33
 .st-key-optbox button,.st-key-letters button{
   background:rgba(255,255,255,.07) !important;color:#e6fffb !important;
   border:2px solid rgba(94,234,212,.45) !important;box-shadow:0 5px 0 rgba(0,0,0,.35) !important;
-  min-height:72px;border-radius:22px;font-size:1.05rem;justify-content:flex-start;text-align:left}
+  height:96px;min-height:96px;max-height:96px;padding:6px 16px;overflow:hidden;
+  border-radius:22px;font-size:.98rem;line-height:1.2;justify-content:flex-start;text-align:left}
+.st-key-optbox button p{display:-webkit-box;-webkit-box-orient:vertical;-webkit-line-clamp:3;overflow:hidden;text-align:left}
 .st-key-optbox button:hover,.st-key-letters button:hover{
   background:linear-gradient(135deg,#14b8a6,#06b6d4) !important;color:#042f2e !important}
-.st-key-letters button{min-height:58px;justify-content:center;text-align:center;font-size:1.3rem;padding:0}
+.st-key-letters button{height:58px;min-height:58px;max-height:58px;justify-content:center;text-align:center;font-size:1.3rem;padding:0}
 [data-testid="stPopover"] button{
   background:linear-gradient(135deg,#14b8a6,#06b6d4) !important;color:#042f2e !important;font-weight:800;
   border-radius:18px !important;border:0 !important;min-height:48px;box-shadow:0 5px 0 #0f766e}
 div[data-testid="stHorizontalBlock"]{gap:1.1rem}
 
 /* ---- Girdiler ---- */
-.stTextInput input,.stTextArea textarea{background:rgba(255,255,255,.08) !important;color:#e6fffb !important;
+/* Tarayıcı/Streamlit açık tema kullansa bile yazılar görünsün: kutu arka planı KOYU, yazı AÇIK */
+html{color-scheme:dark}
+[data-baseweb="input"],[data-baseweb="base-input"],[data-baseweb="textarea"],
+[data-testid="stTextInput"] [data-baseweb="input"] > div,[data-testid="stTextArea"] [data-baseweb="textarea"]{
+  background:#0c2a38 !important;background-color:#0c2a38 !important;border-color:rgba(94,234,212,.55) !important;
+  border-radius:14px !important}
+.stTextInput input,.stTextArea textarea,[data-testid="stTextInput"] input,[data-testid="stTextArea"] textarea{
+  background:#0c2a38 !important;background-color:#0c2a38 !important;color:#f0fdfa !important;
+  -webkit-text-fill-color:#f0fdfa !important;caret-color:#5eead4 !important;
   border:1.5px solid rgba(94,234,212,.4) !important;border-radius:14px !important}
-[data-testid="stAlert"]{background:rgba(94,234,212,.10) !important;border:1px solid rgba(94,234,212,.35);border-radius:16px}
+.stTextInput input::placeholder,.stTextArea textarea::placeholder{
+  color:#8fc9c3 !important;-webkit-text-fill-color:#8fc9c3 !important;opacity:1 !important}
+.stTextInput input:-webkit-autofill,.stTextArea textarea:-webkit-autofill{
+  -webkit-text-fill-color:#f0fdfa !important;-webkit-box-shadow:0 0 0 1000px #0c2a38 inset !important}
+[data-testid="stWidgetLabel"],[data-testid="stWidgetLabel"] *{color:#e6fffb !important}
+[data-testid="stAlert"]{background:rgba(94,234,212,.12) !important;border:1px solid rgba(94,234,212,.35);border-radius:16px}
+[data-testid="stAlert"],[data-testid="stAlert"] *{color:#e6fffb !important}
 [data-testid="stForm"]{border:1px solid rgba(94,234,212,.3);border-radius:22px;background:rgba(255,255,255,.04)}
+/* AdenMind penceresi (açılır kutu) ve sohbet alanı: koyu zemin */
+[data-testid="stPopoverBody"],[data-baseweb="popover"] > div{
+  background:#071a24 !important;background-color:#071a24 !important;border:1px solid rgba(94,234,212,.4) !important}
+[data-testid="stPopoverBody"] [data-testid="stMarkdownContainer"] p{color:#e6fffb}
+[data-testid="stVerticalBlockBorderWrapper"]{border-color:rgba(94,234,212,.35) !important}
 
 /* ---- Soru kartı ---- */
 .qcard{background:linear-gradient(160deg,rgba(255,255,255,.09),rgba(255,255,255,.03));
@@ -407,7 +429,8 @@ div[data-testid="stHorizontalBlock"]{gap:1.1rem}
 .result .trophy{font-size:4.5rem;animation:amfloat 2.6s ease-in-out infinite}
 .result .big{font-size:3.4rem;font-weight:900;color:#5eead4}
 .result .big small{font-size:1.3rem;color:#99f6e4}
-.flash{border-radius:30px;padding:46px 30px;text-align:center;color:#fff;margin:10px 0 18px;
+.flash{border-radius:30px;padding:28px 30px;text-align:center;color:#fff;margin:10px 0 18px;
+  height:240px;display:flex;flex-direction:column;justify-content:center;align-items:center;overflow:hidden;
   box-shadow:0 10px 0 rgba(0,0,0,.3),0 24px 44px rgba(0,0,0,.3)}
 .flash .tag{font-size:.9rem;font-weight:800;opacity:.85;margin-bottom:10px}
 .flash .txt{font-size:clamp(1.2rem,2.6vw,1.9rem);font-weight:800;line-height:1.4}
@@ -452,11 +475,15 @@ BALLOON_CSS = """
 """
 
 
-def card_css(key, gradient, height):
-    """Bir butonu tamamen oyun kartına çevirir (tek tıkla seçim)."""
+CARD_H = 150  # TÜM sayfalardaki (ders, ünite, oyun) kartların ortak, sabit yüksekliği
+
+
+def card_css(key, gradient, height=CARD_H):
+    """Bir butonu tamamen oyun kartına çevirir (tek tıkla seçim). Yükseklik sabittir; uzun yazılar kırpılır."""
     return (
         f".st-key-{key}{{margin-bottom:10px}}"
-        f".st-key-{key} button{{position:relative;overflow:hidden;min-height:{height}px;"
+        f".st-key-{key} button{{position:relative;overflow:hidden;height:{CARD_H}px !important;"
+        f"min-height:{CARD_H}px !important;max-height:{CARD_H}px !important;padding:10px 16px !important;"
         f"background:{gradient} !important;color:#fff !important;border-radius:28px !important;border:0 !important;"
         f"box-shadow:0 8px 0 rgba(0,0,0,.30),0 18px 32px rgba(0,0,0,.28) !important}}"
         f".st-key-{key} button::after{{content:'';position:absolute;right:-26px;top:-26px;width:100px;height:100px;"
@@ -467,7 +494,12 @@ def card_css(key, gradient, height):
         f".st-key-{key} button:active{{transform:translateY(5px);box-shadow:0 2px 0 rgba(0,0,0,.30) !important}}"
         f".st-key-{key} button p{{color:#fff !important;font-size:1.1rem !important;line-height:1.25 !important;"
         f"margin:0 !important;text-shadow:0 2px 6px rgba(0,0,0,.25)}}"
-        f".st-key-{key} button p:first-child{{font-size:2.7rem !important;line-height:1.15 !important}}"
+        f".st-key-{key} button p:first-child{{font-size:2.3rem !important;line-height:1.15 !important;"
+        f"-webkit-line-clamp:1 !important}}"
+        f".st-key-{key} button > div{{width:100%;height:100%;display:flex;flex-direction:column;"
+        f"align-items:center;justify-content:center;gap:4px}}"
+        f".st-key-{key} button p{{display:-webkit-box;-webkit-box-orient:vertical;-webkit-line-clamp:3;"
+        f"overflow:hidden;text-align:center;width:100%}}"
     )
 
 
@@ -689,15 +721,168 @@ def _retry(gs):
     gs["failed"] = False
 
 
+# --- Tekrarsız içerik: daha önce sorulanlar (tüm oyunlar için ortak, dosyada kalıcı) ---
+_HIST_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), "soru_gecmisi.json")
+_STOP = {
+    "aşağıdakilerden", "aşağıdaki", "hangisi", "hangisidir", "hangisinde", "hangileri", "nedir", "kaçtır", "için",
+    "olan", "olarak", "ile", "bir", "bu", "şu", "ve", "veya", "gibi", "daha", "çok", "göre", "kadar", "değildir",
+    "doğrudur", "yanlıştır", "doğru", "yanlış", "ifadelerden", "cümlelerden", "söylenebilir", "ifade", "soru", "cevap",
+    "which", "the", "what", "is", "are", "and", "for", "welche", "der", "die", "das", "ist", "und",
+}
+_STYLES = [
+    "günlük hayat senaryosu", "neden-sonuç ilişkisi", "karşılaştırma", "tablo/liste/veri yorumlama",
+    "'hangisi yanlıştır?' biçimi", "kısa problem çözme", "kavram tanımlama", "örnek bulma", "çıkarım yapma",
+    "gözlem/deney yorumu", "kural/özellik bilgisi", "tahmin ve sonuç çıkarma",
+]
+_SEEDS = [
+    "market", "okul bahçesi", "uzay", "futbol", "mutfak", "harita", "müze", "orman", "deniz", "pazar", "kütüphane",
+    "bisiklet", "bahçe", "tren yolculuğu", "doğum günü", "kamp", "hayvanat bahçesi", "kitap fuarı", "pastane",
+    "bilim şenliği", "köy", "liman", "tiyatro", "yağmurlu gün", "piknik", "spor salonu", "gökyüzü", "çiftlik",
+]
+
+
+@st.cache_resource
+def _hist_store():
+    try:
+        with open(_HIST_PATH, encoding="utf-8") as f:
+            d = json.load(f)
+        return d if isinstance(d, dict) else {}
+    except Exception:
+        return {}
+
+
+def hist_get(scope, limit=150):
+    return list(_hist_store().get(scope, []))[-limit:]
+
+
+def hist_add(scope, stems):
+    h = _hist_store()
+    lst = h.setdefault(scope, [])
+    lst.extend(s[:140] for s in stems if s)
+    del lst[:-150]
+    try:
+        tmp = _HIST_PATH + ".tmp"
+        with open(tmp, "w", encoding="utf-8") as f:
+            json.dump(h, f, ensure_ascii=False)
+        os.replace(tmp, _HIST_PATH)
+    except Exception:
+        pass  # dosya yazılamıyorsa geçmiş yalnızca bellekte tutulur
+
+
+def _norm(s):
+    s = str(s).replace("I", "ı").replace("İ", "i").lower()
+    return re.sub(r"\s+", " ", re.sub(r"[^\w\s]", " ", s)).strip()
+
+
+def _tok(s):
+    # Sayılar da sayılır: "12 kalemden 5'i" ile "15 kalemden 7'si" farklı problemlerdir.
+    return {w for w in _norm(s).split() if (len(w) > 2 or any(c.isdigit() for c in w)) and w not in _STOP}
+
+
+def is_dup(stem, others, thr=0.8):
+    na, ta = _norm(stem), _tok(stem)
+    for o in others:
+        if na == _norm(o):
+            return True
+        tb = _tok(o)
+        if ta and tb and len(ta & tb) / len(ta | tb) >= thr:
+            return True
+    return False
+
+
+def item_stem(it):
+    if not isinstance(it, dict):
+        return ""
+    for k in ("soru", "ifade", "cumle", "on_yuz", "senaryo"):
+        if it.get(k):
+            return str(it[k])
+    if it.get("kelime"):
+        return f"{it['kelime']} {it.get('ipucu', '')}"
+    return ""
+
+
+def shuffle_item(it):
+    """Doğru şık hep aynı harfte çıkmasın diye şıkları karıştırır."""
+    try:
+        if "secenekler" in it and "dogru_cevap" in it:
+            ans = str(it["dogru_cevap"]).strip()[:1].upper()
+            opts = [re.sub(r"^\s*[A-Da-d][\)\.\:\-]\s*", "", str(o)).strip() for o in it["secenekler"]]
+            if ans and ans in "ABCD" and len(opts) <= 4 and all(opts) and "ABCD".index(ans) < len(opts):
+                right = opts[" ABCD".index(ans) - 1]
+                random.shuffle(opts)
+                it["secenekler"] = [f"{'ABCD'[i]}) {o}" for i, o in enumerate(opts)]
+                it["dogru_cevap"] = "ABCD"[opts.index(right)]
+        elif "secenekler" in it and "dogru_kelime" in it:
+            random.shuffle(it["secenekler"])
+    except Exception:
+        pass
+    return it
+
+
+def diversity_block(seen, n):
+    lines = ["", "ÇEŞİTLİLİK KURALLARI:",
+             "- Her öğe ünitenin FARKLI bir alt konusunu/kazanımını işlesin; hiçbiri diğerine benzemesin.",
+             "- Biçim çeşitliliği için sırasıyla şunlardan yararlan: "
+             + "; ".join(random.sample(_STYLES, min(len(_STYLES), max(3, n)))) + ".",
+             "- Senaryo/örnek ilhamı: " + ", ".join(random.sample(_SEEDS, 3)) + "."]
+    if seen:
+        lines.append("DAHA ÖNCE SORULANLAR (bunları ve benzerlerini KESİNLİKLE tekrar etme):")
+        lines += [f"- {s[:90]}" for s in seen[-40:]]
+    lines.append("Yalnızca istenen biçimde geçerli JSON döndür.")
+    return "\n".join(lines)
+
+
 def load_data(gs, prompt, expect, required=(), msg="Hazırlanıyor..."):
-    """Veri yoksa yapay zekadan otomatik üretir (tek tıkla oyun açılır)."""
+    """Veri yoksa yapay zekadan otomatik üretir. Önceki oyunlarda sorulanlar tekrar edilmez."""
     if gs["data"] is not None:
         return gs["data"]
     if not gs["failed"]:
+        scope = f"{st.session_state['selected_subject']}|{st.session_state['selected_unit']}"
+        seen = hist_get(scope)
+        m = re.search(r"TAM (\d+) ADET", prompt, re.I)
+        n = int(m.group(1)) if (m and expect is list) else 0
+        data, stems = None, []
         with st.spinner(msg):
-            raw = ai_generate_content(prompt)
-        data = raw.strip() if (expect is str and raw) else parse_json(raw)
-        if is_valid(data, expect, required):
+            if expect is list and n:
+                fresh, last_valid = [], None
+                for _ in range(3):  # tekrar edenler elenirse eksik kalanı yeniden iste
+                    need = n - len(fresh)
+                    if need <= 0:
+                        break
+                    p = re.sub(r"TAM \d+ ADET", f"TAM {need + 1} ADET", prompt, flags=re.I)
+                    got = parse_json(ai_generate_content(p + diversity_block(seen + stems, need + 1)))
+                    if not is_valid(got, list, required):
+                        continue
+                    last_valid = got
+                    for it in got:
+                        s = item_stem(it)
+                        if s and is_dup(s, seen + stems):
+                            continue
+                        fresh.append(shuffle_item(it))
+                        stems.append(s)
+                if len(fresh) >= min(3, n):
+                    data = fresh[:n]
+                    stems = stems[:n]
+                elif last_valid:  # yapay zekâ hep aynı şeyleri verdiyse oyunu yine de aç
+                    data = [shuffle_item(i) for i in last_valid[:n]]
+                    stems = [item_stem(i) for i in data]
+            else:
+                for _ in range(2):
+                    extra = ""
+                    if seen:
+                        extra = ("\nDAHA ÖNCE İŞLENENLER (bunlardan FARKLI bir konu/senaryo seç):\n"
+                                 + "\n".join(f"- {s[:110]}" for s in seen[-20:])
+                                 + "\nİlham için: " + ", ".join(random.sample(_SEEDS, 3)) + ".")
+                    raw = ai_generate_content(prompt + extra)
+                    got = raw.strip() if (expect is str and raw) else parse_json(raw)
+                    if not is_valid(got, expect, required):
+                        continue
+                    s = item_stem(got) if expect is dict else str(got)[:100]
+                    data, stems = got, [s]
+                    if not (s and is_dup(s, seen)):
+                        break
+        if data is not None:
+            hist_add(scope, stems)
             gs.update(data=data, idx=0, score=0, feedback=None)
             st.rerun()
         gs["failed"] = True
@@ -980,7 +1165,7 @@ if not in_game:
 if not subj:
     st.markdown('<div class="section-title">🌟 Çalışmak istediğin dersi seç</div>', unsafe_allow_html=True)
     items = [(name, d["ikon"], name, d["renk"]) for name, d in MEB_CURRICULUM.items()]
-    card_grid(items, 3, "sub", pick_subject, 170)
+    card_grid(items, 3, "sub", pick_subject, CARD_H)
 
 # --- AŞAMA 2: ÜNİTE SEÇİMİ ---
 elif not unit:
@@ -993,7 +1178,7 @@ elif not unit:
     st.button("⬅️ Ders Seçimine Dön", key="back_subj", on_click=go_home)
     st.markdown('<div class="section-title">📚 Hangi üniteyi çalışalım?</div>', unsafe_allow_html=True)
     items = [(u, "📖", u, data["renk"]) for u in data["uniteler"]]
-    card_grid(items, 2, "unit", pick_unit, 120)
+    card_grid(items, 3, "unit", pick_unit, CARD_H)
 
 # --- AŞAMA 3: OYUN SEÇİMİ ---
 elif not game:
@@ -1006,7 +1191,7 @@ elif not game:
     st.button("↩️ Ünite Değiştir", key="back_unit", on_click=back_to_units)
     st.markdown('<div class="section-title">🎮 Bir oyun seç, hemen başlasın!</div>', unsafe_allow_html=True)
     items = [(g[0], g[1], g[2], g[3]) for g in GAMES]
-    card_grid(items, 3, "game", pick_game, 150)
+    card_grid(items, 3, "game", pick_game, CARD_H)
 
 # --- AŞAMA 4: OYUN (tam ekran düzeni) ---
 else:
@@ -1060,7 +1245,7 @@ else:
     # 5. Soru kartları
     elif game == "kartlar":
         prompt = (
-            ctx() + "5 adet yepyeni flashcard üret. Yalnızca geçerli JSON liste döndür: "
+            ctx() + "TAM 5 ADET yepyeni flashcard üret. Yalnızca geçerli JSON liste döndür: "
             '[{"on_yuz":"...","arka_yuz":"..."}]'
         )
         data = load_data(gs, prompt, list, ("on_yuz", "arka_yuz"), "Kartlar hazırlanıyor...")
@@ -1164,7 +1349,7 @@ else:
     # 8. Kelime avı
     elif game == "kelime":
         prompt = (
-            ctx() + "5 adet anahtar kelime (tek sözcük, 4-10 harf, Türkçe veya dersin diline uygun) ve tanım ipucu üret. "
+            ctx() + "TAM 5 ADET anahtar kelime (tek sözcük, 4-10 harf, Türkçe veya dersin diline uygun) ve tanım ipucu üret. "
             'Yalnızca geçerli JSON liste döndür: [{"kelime":"TERİM","ipucu":"..."}]'
         )
         data = load_data(gs, prompt, list, ("kelime", "ipucu"), "Bulmaca hazırlanıyor...")
