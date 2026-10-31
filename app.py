@@ -61,27 +61,31 @@ except ImportError:
     pass
 
 
-def ai_generate_content(prompt_text):
+def ai_generate_content(prompt_text, fast=False):
+    """fast=True: kısa/sohbet cevapları için en hızlı model ve düşük token sınırı (AdenMind)."""
     if has_groq:
+        models = ["llama-3.1-8b-instant"] if fast else ["llama-3.3-70b-versatile", "llama-3.1-8b-instant"]
         for gr_key in groq_keys:
-            try:
-                client = Groq(api_key=gr_key)
-                completion = client.chat.completions.create(
-                    model="llama-3.3-70b-versatile",
-                    messages=[{"role": "user", "content": prompt_text}],
-                    temperature=0.95,
-                )
-                if completion.choices[0].message.content:
-                    return completion.choices[0].message.content
-            except Exception:
-                continue
+            for model in models:
+                try:
+                    kw = {"max_tokens": 320, "temperature": 0.7} if fast else {"temperature": 0.95}
+                    client = Groq(api_key=gr_key, timeout=15.0 if fast else 45.0, max_retries=0)
+                    completion = client.chat.completions.create(
+                        model=model, messages=[{"role": "user", "content": prompt_text}], **kw
+                    )
+                    if completion.choices[0].message.content:
+                        return completion.choices[0].message.content
+                except Exception:
+                    continue
     if has_gemini:
+        names = ["gemini-2.0-flash", "gemini-1.5-flash"] if fast else ["gemini-3.6-flash", "gemini-1.5-flash", "gemini-1.5-pro", "gemini-pro"]
         for g_key in gemini_keys:
             try:
                 genai.configure(api_key=g_key)
-                for model_name in ["gemini-3.6-flash", "gemini-1.5-flash", "gemini-1.5-pro", "gemini-pro"]:
+                for model_name in names:
                     try:
-                        response = genai.GenerativeModel(model_name).generate_content(prompt_text)
+                        cfg = {"max_output_tokens": 320, "temperature": 0.7} if fast else None
+                        response = genai.GenerativeModel(model_name).generate_content(prompt_text, generation_config=cfg)
                         if response and response.text:
                             return response.text
                     except Exception:
@@ -390,7 +394,12 @@ section[data-testid="stSidebar"]{background:linear-gradient(180deg,#06222c,#0a33
 .st-key-optbox button p{display:-webkit-box;-webkit-box-orient:vertical;-webkit-line-clamp:3;overflow:hidden;text-align:left}
 .st-key-optbox button:hover,.st-key-letters button:hover{
   background:linear-gradient(135deg,#14b8a6,#06b6d4) !important;color:#042f2e !important}
-.st-key-letters button{height:58px;min-height:58px;max-height:58px;justify-content:center;text-align:center;font-size:1.3rem;padding:0}
+.st-key-letters button{width:100% !important;height:54px;min-height:54px;max-height:54px;justify-content:center;text-align:center;font-size:1.3rem;padding:0}
+.st-key-letters,.st-key-letters > div[data-testid="stVerticalBlock"]{display:flex !important;flex-direction:row !important;
+  flex-wrap:wrap !important;justify-content:center !important;gap:8px !important;max-width:640px;margin:8px auto}
+.st-key-letters > div[data-testid="stElementContainer"],.st-key-letters .stElementContainer,.st-key-letters [data-testid="stElementContainer"]{
+  width:54px !important;min-width:54px !important;flex:0 0 54px !important}
+.st-key-letters [data-testid="stButton"],.st-key-letters .stButton{width:100% !important}
 [data-testid="stPopover"] button{
   background:linear-gradient(135deg,#14b8a6,#06b6d4) !important;color:#042f2e !important;font-weight:800;
   border-radius:18px !important;border:0 !important;min-height:48px;box-shadow:0 5px 0 #0f766e}
@@ -707,13 +716,12 @@ def render_adenmind(ns):
     if sent and user_msg.strip():
         msgs.append({"role": "user", "content": user_msg.strip()})
         prompt = (
-            "Sen 5. sınıf MEB müfredatı odaklı, sevimli ve bilgili akıllı koçsun. Adın AdenMind. "
-            f"Öğrencinin dersi: {st.session_state.get('selected_subject') or 'Genel'}, "
-            f"ünite: {st.session_state.get('selected_unit') or 'Genel Konu'}. "
-            f"Öğrencinin sorusu: {user_msg.strip()}. Kısa ve sevimli rehberlik yap."
+            "Sen 5. sınıf öğrencilerine yardım eden sevimli koç AdenMind'sin. Türkçe, en fazla 3 kısa cümleyle cevap ver. "
+            f"Ders: {st.session_state.get('selected_subject') or 'Genel'}; ünite: {st.session_state.get('selected_unit') or 'Genel'}. "
+            f"Soru: {user_msg.strip()}"
         )
-        with st.spinner("AdenMind düşünüyor..."):
-            reply = ai_generate_content(prompt)
+        with loading("AdenMind yazıyor...", 3, compact=True, kind="chat"):
+            reply = ai_generate_content(prompt, fast=True)
         msgs.append({"role": "assistant", "content": reply or "Yanıt oluşturulamadı, tekrar dene!"})
     with box:
         st.markdown("".join(chat_bubble(m["role"], m["content"]) for m in msgs), unsafe_allow_html=True)
@@ -750,6 +758,79 @@ def game_topbar(title):
     with c5:
         with st.popover("💬 AdenMind"):
             render_adenmind("pop")
+
+
+
+# =============================================================================
+# YÜKLEME EKRANI: ekranın ortasında geri sayımlı "hazırlanıyor" kartı
+# =============================================================================
+import time
+from contextlib import contextmanager
+
+LOADER_CSS = """
+.st-key-loader_box{position:fixed !important;inset:0;z-index:99999;display:flex !important;align-items:center;
+  justify-content:center;background:rgba(2,20,25,.80);backdrop-filter:blur(6px);margin:0 !important}
+.st-key-loader_small{position:fixed !important;right:22px;bottom:22px;z-index:99999;width:auto !important}
+.st-key-loader_box > div,.st-key-loader_small > div{width:auto !important}
+@property --ldn{syntax:'<integer>';inherits:false;initial-value:8}
+.ld-card{width:min(88vw,360px);box-sizing:border-box;border-radius:28px;border:2px solid rgba(94,234,212,.5);padding:26px 18px;
+  background:linear-gradient(160deg,#0b4a55,#052a31);box-shadow:0 20px 60px rgba(0,0,0,.55);text-align:center;color:#e6fffb;
+  font-family:'Segoe UI',system-ui,sans-serif}
+.ld-ring{position:relative;width:130px;height:130px;margin:0 auto 14px;border-radius:50%;
+  background:conic-gradient(#2dd4bf calc(var(--p,0) * 1%),rgba(255,255,255,.12) 0)}
+.ld-ring::before{content:'';position:absolute;inset:10px;border-radius:50%;background:#073a43}
+.ld-spin{position:absolute;inset:-6px;border-radius:50%;border:5px solid transparent;border-top-color:#5eead4;
+  border-right-color:rgba(94,234,212,.35);animation:ldspin 1s linear infinite}
+.ld-num{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-size:42px;font-weight:900;
+  animation:ldcount var(--est) linear forwards,ldhide .3s linear var(--est) forwards;counter-reset:ldn var(--ldn)}
+.ld-num::after{content:counter(ldn)}
+.ld-done{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-size:42px;opacity:0;
+  animation:ldshow 1s ease var(--est) forwards,ldpulse 1.2s ease-in-out var(--est) infinite}
+.ld-ring{animation:ldfill var(--est) linear forwards}
+.ld-t{font-weight:800;font-size:18px}.ld-tip{font-size:13px;color:#8fd9cf;margin-top:6px}
+.ld-dots span{animation:ldb 1.2s infinite;display:inline-block}.ld-dots span:nth-child(2){animation-delay:.2s}.ld-dots span:nth-child(3){animation-delay:.4s}
+.ld-small{display:flex;align-items:center;gap:12px;padding:10px 16px;border-radius:20px;width:auto}
+.ld-small .ld-ring{width:42px;height:42px;margin:0}.ld-small .ld-ring::before{inset:5px}.ld-small .ld-num,.ld-small .ld-done{font-size:15px}
+.ld-small .ld-spin{border-width:3px;inset:-4px}.ld-small .ld-t{font-size:14px}
+@keyframes ldspin{to{transform:rotate(360deg)}}
+@keyframes ldcount{from{--ldn:var(--est-n)}to{--ldn:0}}
+@keyframes ldfill{from{--p:0}to{--p:100}}
+@keyframes ldshow{to{opacity:1}}
+@keyframes ldhide{to{opacity:0}}
+@keyframes ldpulse{50%{transform:scale(1.18)}}
+@keyframes ldb{0%,80%,100%{opacity:.2;transform:translateY(0)}40%{opacity:1;transform:translateY(-4px)}}
+@property --p{syntax:'<number>';inherits:true;initial-value:0}
+"""
+
+
+def _est_seconds(kind, default):
+    h = st.session_state.get("load_times", {}).get(kind)
+    if h:
+        return max(2, min(40, round(sum(h[-4:]) / len(h[-4:]) + 1)))
+    return default
+
+
+@contextmanager
+def loading(msg, default_est=8, compact=False, kind="gen"):
+    """Ekranın ortasında geri sayımlı dönen daire gösterir; işlem bitince kaybolur. Süre tahmini ölçümlerden öğrenilir."""
+    est = _est_seconds(kind, default_est)
+    ph = st.empty()
+    text = esc(str(msg).rstrip(".… "))
+    cls = "ld-card ld-small" if compact else "ld-card"
+    tip = "" if compact else '<div class="ld-tip">Sorular yapay zekâ ile sana özel hazırlanıyor ✨</div>'
+    card = (
+        f'<div class="{cls}" style="--est:{est}s;--est-n:{est}"><div class="ld-ring" style="--ldn:{est}">'
+        '<div class="ld-spin"></div><div class="ld-num"></div><div class="ld-done">✨</div></div>'
+        f'<div><div class="ld-t">{text}<span class="ld-dots"><span>.</span><span>.</span><span>.</span></span></div>{tip}</div></div>'
+    )
+    with ph.container(key="loader_small" if compact else "loader_box"):
+        st.markdown(f"<style>{LOADER_CSS}</style>{card}", unsafe_allow_html=True)
+    t0 = time.time()
+    try:
+        yield
+    finally:
+        ph.empty()
+        st.session_state.setdefault("load_times", {}).setdefault(kind, []).append(time.time() - t0)
 
 
 def _retry(gs):
@@ -1444,7 +1525,7 @@ def load_data(gs, prompt, expect, required=(), msg="Hazırlanıyor...", kind=Non
         m = re.search(r"TAM (\d+) ADET", prompt, re.I)
         n = int(m.group(1)) if (m and expect is list) else 0
         data, stems, used_ai = None, [], True
-        with st.spinner(msg):
+        with loading(msg, 8, kind="gen"):
             if expect is list and n:
                 res = fetch_list(prompt, required, n, scope, kind, item_ok)
                 if res:
@@ -2017,13 +2098,9 @@ def game_hangman(gs, game):
                   on_click=_next, args=(won,))
         return
     with st.container(key="letters"):
-        per = 10
-        for r in range(0, len(alphabet), per):
-            cols = st.columns(per)
-            for j, ch in enumerate(alphabet[r:r + per]):
-                with cols[j]:
-                    st.button("•" if ch in guessed else ch, key=f"hm_{idx}_{ch}", disabled=ch in guessed,
-                              on_click=_guess, args=(ch,))
+        for ch in alphabet:
+            st.button("•" if ch in guessed else ch, key=f"hm_{idx}_{ch}", disabled=ch in guessed,
+                      on_click=_guess, args=(ch,))
 
 
 # ------------------------------------------------------------------ DUOLINGO TARZI DERS
@@ -2060,7 +2137,7 @@ def game_duo(gs, game):
             return
         scope = f"{SS['selected_subject']}|{SS['selected_unit']}"
         queue = []
-        with st.spinner("Dersin hazırlanıyor..."):
+        with loading("Dersin hazırlanıyor", 10, kind="gen"):
             for prompt, req, n, kind, builder in (
                 (mcq_prompt(4), ("soru", "secenekler", "dogru_cevap"), 4, "mcq", build_mcq),
                 (tf_prompt(2), ("ifade", "cevap"), 2, "tf", build_tf),
@@ -3155,7 +3232,7 @@ else:
             else:
                 st.markdown(f'<div class="pill">Seçimin: {esc(str(gs["choice"]))}</div>', unsafe_allow_html=True)
                 if gs["eval"] is None:
-                    with st.spinner("AdenMind değerlendiriyor..."):
+                    with loading("AdenMind değerlendiriyor", 5, kind="eval"):
                         gs["eval"] = ai_generate_content(
                             f"Ders: {subj}, Ünite: {unit}.\nGörev Sorusu: {iq['gorev_sorusu']}\n"
                             f"Öğrencinin Seçtiği Şık: {gs['choice']}\n"
@@ -3288,7 +3365,7 @@ else:
                 submitted = st.form_submit_button("📨 Yazılı Kağıdını Puanlat")
             if submitted:
                 gs["results"] = []
-                with st.spinner("AdenMind kâğıdını okuyor..."):
+                with loading("AdenMind kâğıdını okuyor", 6, kind="eval"):
                     for i, cq in enumerate(data):
                         if answers[i].strip():
                             res = ai_generate_content(
