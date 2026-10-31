@@ -645,13 +645,6 @@ section[data-testid="stSidebar"]{background:linear-gradient(180deg,#06222c,#0a33
 .st-key-letters > div[data-testid="stElementContainer"],.st-key-letters .stElementContainer,.st-key-letters [data-testid="stElementContainer"]{
   width:54px !important;min-width:54px !important;flex:0 0 54px !important}
 .st-key-letters [data-testid="stButton"],.st-key-letters .stButton{width:100% !important}
-.st-key-wordchips,.st-key-wordchips > div[data-testid="stVerticalBlock"]{display:flex !important;flex-direction:row !important;
-  flex-wrap:wrap !important;justify-content:center !important;align-items:center;gap:10px !important;margin:10px auto}
-.st-key-wordchips > div[data-testid="stElementContainer"],.st-key-wordchips .stElementContainer,.st-key-wordchips [data-testid="stElementContainer"]{
-  width:auto !important;min-width:0 !important;flex:0 0 auto !important}
-.st-key-wordchips [data-testid="stButton"],.st-key-wordchips .stButton{width:auto !important}
-.st-key-wordchips button{width:auto !important;white-space:nowrap;min-height:50px;padding:6px 18px}
-
 [data-testid="stPopover"] button{
   background:linear-gradient(135deg,#14b8a6,#06b6d4) !important;color:#042f2e !important;font-weight:800;
   border-radius:18px !important;border:0 !important;min-height:48px;box-shadow:0 5px 0 #0f766e}
@@ -952,79 +945,13 @@ def chat_bubble(role, content):
     return f'<div class="msg me"><div class="bub">{text}</div></div>'
 
 
-import threading
-
-_st_fragment = getattr(st, "fragment", None)
-
-
-def _fragment(**kw):
-    """Streamlit 1.37+ 'fragment': yalnızca kendi parçasını yeniler; eski sürümlerde sıradan fonksiyon olarak çalışır."""
-    if _st_fragment is None:
-        return lambda f: f
-    return _st_fragment(**kw)
-
-
-def _chat_prompt(q, recent, subject, unit):
-    n = now_tr()
-    return (
-        "Sen AdenMind'sin: 10-20 yaş arası öğrencilerin her konuda (ders, bilim, tarih, spor, müzik, teknoloji, günlük hayat, genel kültür) "
-        "güvenle sorabildiği, bilgili, samimi ve dürüst bir yapay zekâ asistanısın. "
-        "KURALLAR: Selamlaşma yapma, doğrudan cevaba gir. Cevabın uzunluğunu soruya göre ayarla: basit bir olguya 1-2 cümle; "
-        "açıklama isteyene 4-8 cümle ya da kısa maddeler (en fazla ~150 kelime). Doğal ve akıcı konuş, dolgu cümlesi kullanma, cümleyi yarım bırakma. "
-        "Bilmediğin ya da emin olmadığın bilgiyi uydurma; 'kesin bilmiyorum' de ve nasıl öğrenebileceğini söyle. "
-        "Güncel konularda (haber, skor, fiyat, yeni çıkanlar) arama sonuçlarına dayan. Müzik grupları, ünlüler, filmler, oyunlar gibi "
-        "sorulara da gerçek bilgilerle cevap ver. Yaşa uygun kal; zararlı/tehlikeli isteklerde nazikçe reddet. "
-        f"Bugün: {n.day} {TR_MONTHS[n.month - 1]} {n.year}, {TR_DAYS[n.weekday()]} (Türkiye). "
-        f"(Öğrenci şu an {subject or 'genel'} / {unit or 'genel'} bölümünde; konu bununla ilgili değilse bunu dikkate alma.)\n"
-        + (f"Önceki konuşma:\n{recent}\n" if recent else "")
-        + f"Öğrenci sorusu: {q}\nAdenMind cevabı:"
+def render_adenmind(ns):
+    st.markdown(
+        f'<div class="am-card"><div class="am-wrap">{adenmind_avatar(64)}<span class="am-dot"></span></div>'
+        '<div><div class="am-name">AdenMind</div><div class="am-sub">Canlı Asistan · çevrimiçi</div></div></div>',
+        unsafe_allow_html=True,
     )
-
-
-def _chat_worker(job, prompt, q, subject, unit):
-    """Arka plan iş parçacığı: st.* çağırmaz; sonucu job sözlüğüne yazar. Böylece öğrenci başka ekranda çalışmaya devam eder."""
-    err = ""
-    try:
-        reply = time_answer(q) or weather_answer(q) or ai_generate_content(prompt, fast=True, search=needs_live(q)) or wiki_answer(q)
-        if reply:
-            reply = clean_reply(reply, q)
-        if not reply:
-            reply = local_coach_reply(q, subject, unit)
-            err = "; ".join(AI_ERRORS[-3:])
-    except Exception as e:  # noqa: BLE001
-        reply = local_coach_reply(q, subject, unit)
-        err = str(e)[:120]
-    job.update(reply=reply, err=err, done=True)
-
-
-def _finalize_jobs(msgs):
-    for m in msgs:
-        j = m.get("job")
-        if not j:
-            continue
-        if j.get("done"):
-            m["content"] = j["reply"]
-            st.session_state["last_ai_error"] = j.get("err", "")
-            m.pop("job", None)
-        elif time.time() - j["t0"] > 120:  # takılan iş: yerel cevapla kapat
-            m["content"] = local_coach_reply(j["q"], j.get("subject"), j.get("unit"))
-            m.pop("job", None)
-
-
-@_fragment(run_every=1.5)
-def chat_bubbles(ns):
-    msgs = st.session_state["coach_messages"]
-    _finalize_jobs(msgs)
     box = st.container(height=300)
-    with box:
-        st.markdown("".join(chat_bubble(m["role"], m["content"] if not m.get("job") else "✍️ yazıyor…") for m in msgs),
-                    unsafe_allow_html=True)
-    if st.session_state.get("last_ai_error"):
-        st.caption("⚠️ Yapay zekâ servisi yanıt vermedi (yerel cevap kullanıldı): " + esc(st.session_state["last_ai_error"])[:160])
-
-
-@_fragment()
-def chat_form(ns):
     with st.form(f"chat_form_{ns}", clear_on_submit=True):
         user_msg = st.text_input(
             "Mesaj", label_visibility="collapsed", key=f"chat_in_{ns}", placeholder="AdenMind'e bir şey sor..."
@@ -1032,27 +959,42 @@ def chat_form(ns):
         sent = st.form_submit_button("Gönder 🚀")
     msgs = st.session_state["coach_messages"]
     if sent and user_msg.strip():
+        msgs.append({"role": "user", "content": user_msg.strip()})
+        recent = "\n".join(("Öğrenci: " if m["role"] == "user" else "AdenMind: ") + m["content"][:300] for m in msgs[-7:-1])
         q = user_msg.strip()
-        subject, unit = st.session_state.get("selected_subject"), st.session_state.get("selected_unit")
-        recent = "\n".join(("Öğrenci: " if m["role"] == "user" else "AdenMind: ") + m["content"][:300]
-                           for m in msgs[-6:] if not m.get("job"))
-        job = {"done": False, "t0": time.time(), "q": q, "subject": subject, "unit": unit}
-        msgs.append({"role": "user", "content": q})
-        msgs.append({"role": "assistant", "content": "", "job": job})
-        th = threading.Thread(target=_chat_worker, args=(job, _chat_prompt(q, recent, subject, unit), q, subject, unit), daemon=True)
-        job["thread"] = th
-        th.start()
-        st.caption("✍️ AdenMind yazıyor… cevap birazdan gelecek, çalışmaya devam edebilirsin.")
-
-
-def render_adenmind(ns):
-    st.markdown(
-        f'<div class="am-card"><div class="am-wrap">{adenmind_avatar(64)}<span class="am-dot"></span></div>'
-        '<div><div class="am-name">AdenMind</div><div class="am-sub">Canlı Asistan · çevrimiçi</div></div></div>',
-        unsafe_allow_html=True,
-    )
-    chat_bubbles(ns)
-    chat_form(ns)
+        n = now_tr()
+        prompt = (
+            "Sen AdenMind'sin: 10-20 yaş arası öğrencilerin her konuda (ders, bilim, tarih, spor, müzik, teknoloji, günlük hayat, genel kültür) "
+            "güvenle sorabildiği, bilgili, samimi ve dürüst bir yapay zekâ asistanısın. "
+            "KURALLAR: Selamlaşma yapma, doğrudan cevaba gir. Cevabın uzunluğunu soruya göre ayarla: basit bir olguya 1-2 cümle; "
+            "açıklama isteyene 4-8 cümle ya da kısa maddeler (en fazla ~150 kelime). Doğal ve akıcı konuş, dolgu cümlesi kullanma, cümleyi yarım bırakma. "
+            "Bilmediğin ya da emin olmadığın bilgiyi uydurma; 'kesin bilmiyorum' de ve nasıl öğrenebileceğini söyle. "
+            "Güncel konularda (haber, skor, fiyat, yeni çıkanlar) arama sonuçlarına dayan. Müzik grupları, ünlüler, filmler, oyunlar gibi "
+            "sorulara da gerçek bilgilerle cevap ver. Yaşa uygun kal; zararlı/tehlikeli isteklerde nazikçe reddet. "
+            f"Bugün: {n.day} {TR_MONTHS[n.month - 1]} {n.year}, {TR_DAYS[n.weekday()]} (Türkiye). "
+            f"(Öğrenci şu an {st.session_state.get('selected_subject') or 'genel'} / {st.session_state.get('selected_unit') or 'genel'} bölümünde; "
+            "konu bununla ilgili değilse bunu dikkate alma.)\n"
+            + (f"Önceki konuşma:\n{recent}\n" if recent else "")
+            + f"Öğrenci sorusu: {q}\nAdenMind cevabı:"
+        )
+        reply = time_answer(q)
+        if not reply:
+            with loading("AdenMind yazıyor...", 4, compact=True, kind="chat"):
+                reply = weather_answer(q) or ai_generate_content(prompt, fast=True, search=needs_live(q))
+                if not reply:
+                    reply = wiki_answer(q)
+        if reply:
+            reply = clean_reply(reply, user_msg.strip())
+        if not reply:
+            reply = local_coach_reply(user_msg.strip(), st.session_state.get("selected_subject"), st.session_state.get("selected_unit"))
+            st.session_state["last_ai_error"] = "; ".join(AI_ERRORS[-3:])
+        else:
+            st.session_state["last_ai_error"] = ""
+        msgs.append({"role": "assistant", "content": reply})
+    with box:
+        st.markdown("".join(chat_bubble(m["role"], m["content"]) for m in msgs), unsafe_allow_html=True)
+    if st.session_state.get("last_ai_error"):
+        st.caption("⚠️ Yapay zekâ servisi yanıt vermedi (yerel cevap kullanıldı): " + esc(st.session_state["last_ai_error"])[:160])
 
 
 # =============================================================================
@@ -2729,8 +2671,10 @@ def game_sentence(gs, game):
         st.button("➡️ Sonraki Cümle" if idx < len(data) - 1 else "🏆 Sonucu Gör", key=f"s_next_{idx}", on_click=_next)
         return
     with st.container(key="wordchips"):
-        for i in [i for i in gs["spool"] if i not in gs["spick"]]:
-            st.button(md_safe(words[i]), key=f"w_{idx}_{i}", on_click=_tap, args=(i,))
+        cols = st.columns(min(4, len(words)))
+        for n_, i in enumerate([i for i in gs["spool"] if i not in gs["spick"]]):
+            with cols[n_ % len(cols)]:
+                st.button(md_safe(words[i]), key=f"w_{idx}_{i}", on_click=_tap, args=(i,))
     st.button("↩️ Son Kelimeyi Geri Al", key="s_undo", on_click=_undo)
 
 
@@ -2799,381 +2743,6 @@ NEW_GAMES = {
 # =============================================================================
 # 9b. OYUN SALONU: yapay zekâ ile oynanan tam ekran oyunlar (UNO, Sudoku, Satranç, ...)
 # =============================================================================
-try:  # Oyun salonu ayrı dosyada: arcade_games.py (app.py ile aynı klasörde olmalı)
-    from arcade_games import ARCADE_HTML, ARCADE_SHARED, ARCADES
-except Exception:  # dosya eksik/bozuksa uygulama yine açılır, yalnızca salon gizlenir
-    ARCADE_HTML, ARCADE_SHARED, ARCADES = {}, "", []
-
-
-def pick_arcade(k):
-    st.session_state["selected_arcade"] = k
-
-
-def leave_arcade():
-    st.session_state["selected_arcade"] = None
-
-
-def arcade_page(key):
-    info = next(g for g in ARCADES if g[0] == key)
-    c1, c2, c3 = st.columns([1.2, 1.3, 5.5])
-    with c1:
-        st.button("⬅️ Geri", key="back_arcade", on_click=leave_arcade)
-    with c2:
-        components.html(FS_BUTTON, height=52)
-    with c3:
-        st.markdown(f'<div class="gamebar-title">{info[1]} {esc(info[2])} · Oyun Salonu</div>', unsafe_allow_html=True)
-    html = ARCADE_HTML[key].replace("<!--SHARED-->", ARCADE_SHARED)
-    with st.container(key="balloon_wrap"):
-        components.html(html, height=760)
-
-
-
-# =============================================================================
-# 10. ANA AKIŞ
-# =============================================================================
-subj = st.session_state["selected_subject"]
-unit = st.session_state["selected_unit"]
-game = st.session_state["selected_game"]
-arcade = st.session_state.get("selected_arcade")
-in_game = bool(subj and unit and game) or bool(arcade)
-
-css = BASE_CSS + (GAME_CSS if in_game else "") + (BALLOON_CSS if (in_game and game == "balon") or arcade else "")
-st.markdown(f"<style>{css}</style>", unsafe_allow_html=True)
-
-# --- Kenar çubuğu: oyun dışında görünür ---
-if not in_game:
-    with st.sidebar:
-        st.button("🏠 Ana Sayfaya Dön", key="home_btn", on_click=go_home)
-        st.markdown("---")
-        render_adenmind("side")
-
-# --- Üst başlık: oyun dışında görünür ---
-if not in_game:
-    st.markdown(
-        '<div class="hero"><div class="badge">🎒</div><div><h1>MEB 5. Sınıf Akıllı Eğitsel Oyun Merkezi</h1>'
-        "<small>AdenMind Koçluk · Murat KANDIRMAZ</small></div></div>",
-        unsafe_allow_html=True,
-    )
-
-# --- AŞAMA 1: DERS SEÇİMİ (karta tıklamak yeterli) ---
-if arcade:
-    arcade_page(arcade)
-
-elif not subj:
-    st.markdown('<div class="section-title">🌟 Çalışmak istediğin dersi seç</div>', unsafe_allow_html=True)
-    items = [(name, d["ikon"], name, d["renk"]) for name, d in MEB_CURRICULUM.items()]
-    card_grid(items, 3, "sub", pick_subject, CARD_H)
-    if ARCADES:
-        st.markdown('<div class="section-title">🕹️ Yapay Zekâ ile Oyun Salonu</div>', unsafe_allow_html=True)
-    if ARCADES:
-        card_grid([(g[0], g[1], g[2], g[3], g[4]) for g in ARCADES], 3, "arc", pick_arcade, CARD_H)
-
-# --- AŞAMA 2: ÜNİTE SEÇİMİ ---
-elif not unit:
-    data = MEB_CURRICULUM[subj]
-    st.markdown(
-        f'<div class="crumb"><span class="pill">{data["ikon"]} {esc(subj)}</span><span>›</span>'
-        '<span class="pill alt">Ünite seç</span></div>',
-        unsafe_allow_html=True,
-    )
-    st.button("⬅️ Ders Seçimine Dön", key="back_subj", on_click=go_home)
-    st.markdown('<div class="section-title">📚 Hangi üniteyi çalışalım?</div>', unsafe_allow_html=True)
-    items = [(u, "📖", u, data["renk"]) for u in data["uniteler"]]
-    card_grid(items, 3, "unit", pick_unit, CARD_H)
-
-# --- AŞAMA 3: OYUN SEÇİMİ ---
-elif not game:
-    data = MEB_CURRICULUM[subj]
-    st.markdown(
-        f'<div class="crumb"><span class="pill">{data["ikon"]} {esc(subj)}</span><span>›</span>'
-        f'<span class="pill alt">{esc(unit)}</span></div>',
-        unsafe_allow_html=True,
-    )
-    st.button("↩️ Ünite Değiştir", key="back_unit", on_click=back_to_units)
-    st.markdown('<div class="section-title">🎮 Bir oyun seç, hemen başlasın!</div>', unsafe_allow_html=True)
-    items = [tuple(g) for g in GAMES]
-    card_grid(items, 3, "game", pick_game, CARD_H)
-
-# --- AŞAMA 4: OYUN (tam ekran düzeni) ---
-else:
-    gs = get_gs(game)
-    ikon = GAME_INFO[game][1]
-    game_topbar(f"{ikon} {GAME_INFO[game][2]} · {subj} · {unit}")
-    if gs.get("offline"):
-        st.info("📴 Yapay zekâya ulaşılamadı; yerel üretici / kayıtlı sorular kullanılıyor.")
-
-    # 1. Balon patlatmaca
-    if game == "balon":
-        prompt = (
-            ctx() + "TAM 5 ADET özgün, gerçek hayat senaryolu çoktan seçmeli (A, B, C, D) soru üret.\n"
-            + VISUAL_RULES + MCQ_FORMAT
-        )
-        data = load_data(gs, prompt, list, ("soru", "secenekler", "dogru_cevap"), "Balon soruları hazırlanıyor...", kind="mcq")
-        if data:
-            payload = json.dumps(data, ensure_ascii=False).replace("</", "<\\/")
-            with st.container(key="balloon_wrap"):
-                components.html(BALLOON_HTML.replace("__QUESTIONS__", payload), height=760)
-
-    # 2. 5 soruluk kazanım yarışması
-    elif game == "sinav10":
-        prompt = ctx() + "TAM 5 ADET yepyeni çoktan seçmeli (4 şıklı) soru üret.\n" + VISUAL_RULES + MCQ_FORMAT
-        data = load_data(gs, prompt, list, ("soru", "secenekler", "dogru_cevap"), "Kazanım soruları hazırlanıyor...", kind="mcq")
-        if data:
-            run_quiz(gs, data, build_mcq)
-
-    # 3. Doğru / Yanlış
-    elif game == "dogruyanlis":
-        prompt = (
-            ctx() + "TAM 5 ADET yepyeni Doğru veya Yanlış önermesi üret. Doğru ve yanlış önermeleri dengeli dağıt.\n"
-            + VISUAL_RULES
-            + 'Yalnızca geçerli JSON liste döndür: [{"ifade":"...","cevap":"D","aciklama":"...",'
-            '"gorsel_tipi":"yok","gorsel_parametre":""}] (cevap yalnızca D veya Y olsun).'
-        )
-        data = load_data(gs, prompt, list, ("ifade", "cevap"), "Önermeler hazırlanıyor...", kind="tf")
-        if data:
-            run_quiz(gs, data, build_tf)
-
-    # 4. Boşluk doldurma
-    elif game == "bosluk":
-        prompt = (
-            ctx() + "Cümle içinde boşluk (____) bırakılmış TAM 5 adet soru üret. Her soruda 4 seçenek olsun.\n"
-            + VISUAL_RULES
-            + 'Yalnızca geçerli JSON liste döndür: [{"cumle":"... ____ ...","dogru_kelime":"...",'
-            '"secenekler":["...","...","...","..."],"gorsel_tipi":"yok","gorsel_parametre":""}]'
-        )
-        data = load_data(gs, prompt, list, ("cumle", "dogru_kelime", "secenekler"), "Sorular hazırlanıyor...")
-        if data:
-            run_quiz(gs, data, build_fill)
-
-    # 5. Soru kartları
-    elif game == "kartlar":
-        prompt = (
-            ctx() + "TAM 5 ADET yepyeni flashcard üret. Yalnızca geçerli JSON liste döndür: "
-            '[{"on_yuz":"...","arka_yuz":"..."}]'
-        )
-        data = load_data(gs, prompt, list, ("on_yuz", "arka_yuz"), "Kartlar hazırlanıyor...")
-        if data:
-            idx = gs["idx"]
-            if idx < len(data):
-                card = data[idx]
-                st.progress(idx / len(data))
-                st.markdown(
-                    f'<div class="flash" style="background:linear-gradient(135deg,#0d9488,#06b6d4)">'
-                    f'<div class="tag">Kart {idx + 1} / {len(data)}</div>'
-                    f'<div class="txt">❓ {esc(str(card["on_yuz"]))}</div></div>',
-                    unsafe_allow_html=True,
-                )
-                if gs["show"]:
-                    st.markdown(
-                        f'<div class="flash" style="background:linear-gradient(135deg,#7c3aed,#d946ef)">'
-                        f'<div class="tag">Cevap / Açıklama</div>'
-                        f'<div class="txt">💡 {esc(str(card["arka_yuz"]))}</div></div>',
-                        unsafe_allow_html=True,
-                    )
-
-                def _fc_move(d):
-                    gs["idx"] = max(0, gs["idx"] + d)
-                    gs["show"] = False
-
-                def _fc_toggle():
-                    gs["show"] = not gs["show"]
-
-                c1, c2, c3 = st.columns(3)
-                with c1:
-                    st.button("⬅️ Önceki", key="fc_prev", disabled=idx == 0, on_click=_fc_move, args=(-1,))
-                with c2:
-                    st.button("🙈 Cevabı Gizle" if gs["show"] else "👀 Cevabı Göster", key="fc_toggle", on_click=_fc_toggle)
-                with c3:
-                    st.button("Sonraki ➡️", key="fc_next", on_click=_fc_move, args=(1,))
-            else:
-                st.markdown(
-                    '<div class="result"><div class="trophy">🎉</div><h2>Tüm kartları gözden geçirdin!</h2></div>',
-                    unsafe_allow_html=True,
-                )
-                st.button("🔄 Başa Dön", key="again", on_click=lambda: gs.update(idx=0, show=False))
-
-    # 6. Oynayarak öğren
-    elif game == "oynayarak":
-        prompt = (
-            ctx() + "Gerçek hayattan esinlenen bir karar verme senaryosu ve çoktan seçmeli mini görev üret. "
-            'Yalnızca geçerli JSON döndür: {"senaryo":"...","gorev_sorusu":"...",'
-            '"secenekler":["A) ...","B) ...","C) ...","D) ..."],"ipucu":"..."}'
-        )
-        iq = load_data(gs, prompt, dict, ("senaryo", "gorev_sorusu", "secenekler"), "Macera hazırlanıyor...")
-        if iq:
-            st.markdown(
-                f'<div class="qcard"><div class="qmeta"><span>📖 Görev Senaryosu</span></div>'
-                f'<div style="font-size:1.1rem;line-height:1.6">{esc(str(iq["senaryo"]))}</div>'
-                f'<hr style="border-color:rgba(94,234,212,.3);margin:16px 0">'
-                f'<div class="qmeta"><span>🎯 Karar Noktası</span></div>'
-                f'<div class="qtext">{esc(str(iq["gorev_sorusu"]))}</div></div>',
-                unsafe_allow_html=True,
-            )
-
-            def _choose(opt):
-                gs["choice"] = opt
-                gs["eval"] = None
-
-            def _hint():
-                gs["show"] = not gs["show"]
-
-            if gs["choice"] is None:
-                with st.container(key="optbox"):
-                    cols = st.columns(2)
-                    for i, o in enumerate(iq["secenekler"]):
-                        with cols[i % 2]:
-                            st.button(md_safe(o), key=f"iq_{i}", on_click=_choose, args=(o,))
-            else:
-                st.markdown(f'<div class="pill">Seçimin: {esc(str(gs["choice"]))}</div>', unsafe_allow_html=True)
-                if gs["eval"] is None:
-                    with loading("AdenMind değerlendiriyor", 5, kind="eval"):
-                        gs["eval"] = ai_generate_content(
-                            f"Ders: {subj}, Ünite: {unit}.\nGörev Sorusu: {iq['gorev_sorusu']}\n"
-                            f"Öğrencinin Seçtiği Şık: {gs['choice']}\n"
-                            "Bu seçimin doğru olup olmadığını değerlendir, nedenini sevimli bir dille kısaca açıkla."
-                        ) or "Değerlendirme yapılamadı, tekrar dene."
-                st.info(gs["eval"])
-                st.button("↩️ Başka Şık Dene", key="iq_retry", on_click=_choose, args=(None,))
-            st.button("💡 AdenMind'den İpucu", key="iq_hint", on_click=_hint)
-            if gs["show"]:
-                st.info(f"🦊 **İpucu:** {iq.get('ipucu', '')}")
-
-    # 7. Etkinliklerle öğren
-    elif game == "etkinlik":
-        prompt = (
-            ctx() + "Evde veya sınıfta yapılabilecek 3 adet yaratıcı öğrenme etkinliği, deney veya pratik uygulama öner. "
-            "Her biri için gerekli malzemeleri ve adımları kısa maddelerle yaz. Markdown kullan."
-        )
-        text = load_data(gs, prompt, str, (), "Etkinlikler hazırlanıyor...")
-        if text:
-            with st.container(border=True):
-                st.markdown(text)
-
-    # 8. Kelime avı
-    elif game == "kelime":
-        prompt = (
-            ctx() + "TAM 5 ADET anahtar kelime (tek sözcük, 4-10 harf, Türkçe veya dersin diline uygun) ve tanım ipucu üret. "
-            'Yalnızca geçerli JSON liste döndür: [{"kelime":"TERİM","ipucu":"..."}]'
-        )
-        data = load_data(gs, prompt, list, ("kelime", "ipucu"), "Bulmaca hazırlanıyor...", kind="words", item_ok=word_ok)
-        if data:
-            idx = gs["idx"]
-            if idx < len(data):
-                item = data[idx]
-                word = re.sub(r"\s+", "", str(item["kelime"]))
-                word = word.upper() if subj in LANG_SUBJECTS else tr_upper(word)
-                if gs["pool_for"] != idx:
-                    pool = list(word)
-                    extras = [c for c in "ABCÇDEFGĞHIİJKLMNOÖPRSŞTUÜVYZ" if c not in pool]
-                    pool += random.sample(extras, min(3, len(extras)))
-                    random.shuffle(pool)
-                    gs.update(pool=pool, pool_for=idx, guess=[], used=[])
-
-                def _add(i, ch, n):
-                    if len(gs["guess"]) < n:
-                        gs["guess"].append(ch)
-                        gs["used"].append(i)
-                        gs["msg"] = None
-
-                def _undo():
-                    if gs["guess"]:
-                        gs["guess"].pop()
-                        gs["used"].pop()
-
-                def _clear():
-                    gs["guess"], gs["used"] = [], []
-
-                def _skip():
-                    gs["idx"] += 1
-                    gs["msg"] = None
-
-                def _check():
-                    if "".join(gs["guess"]) == word:
-                        gs["score"] += max(1, 100 // len(data))
-                        gs["idx"] += 1
-                        gs["msg"] = ("ok", "🎉 Tebrikler, doğru kelime!")
-                    else:
-                        gs["msg"] = ("bad", "❌ Eksik veya yanlış harf! Son harfi silip düzeltebilirsin.")
-
-                st.progress(idx / len(data))
-                st.markdown(
-                    f'<div class="qcard"><div class="qmeta"><span>Bulmaca {idx + 1} / {len(data)} · '
-                    f'{len(word)} harf</span><span class="score-chip">⭐ {gs["score"]} puan</span></div>'
-                    f'<div class="qtext">💡 {esc(str(item["ipucu"]))}</div></div>',
-                    unsafe_allow_html=True,
-                )
-                tiles = "".join(
-                    f'<div class="tile {"on" if i < len(gs["guess"]) else ""}">'
-                    f'{esc(gs["guess"][i]) if i < len(gs["guess"]) else ""}</div>'
-                    for i in range(len(word))
-                )
-                st.markdown(f'<div class="tiles">{tiles}</div>', unsafe_allow_html=True)
-                if gs["msg"]:
-                    (st.success if gs["msg"][0] == "ok" else st.error)(gs["msg"][1])
-
-                with st.container(key="letters"):
-                    for r in range(0, len(gs["pool"]), 8):
-                        cols = st.columns(8)
-                        for j, ch in enumerate(gs["pool"][r:r + 8]):
-                            i = r + j
-                            used = i in gs["used"]
-                            with cols[j]:
-                                st.button(
-                                    "✔" if used else ch, key=f"ch_{idx}_{i}", disabled=used,
-                                    on_click=_add, args=(i, ch, len(word)),
-                                )
-                c1, c2, c3, c4 = st.columns(4)
-                with c1:
-                    st.button("🔄 Sıfırla", key="k_clear", on_click=_clear)
-                with c2:
-                    st.button("↩️ Son Harfi Sil", key="k_undo", on_click=_undo)
-                with c3:
-                    st.button("⏭️ Pas Geç", key="pass_k", on_click=_skip)
-                with c4:
-                    st.button("✅ Kontrol Et", key="k_check", on_click=_check)
-            else:
-                st.markdown(
-                    f'<div class="result"><div class="trophy">🏆</div><h2>Tüm bulmacaları tamamladın!</h2>'
-                    f'<div class="big">{gs["score"]}<small> / 100</small></div></div>',
-                    unsafe_allow_html=True,
-                )
-                st.button("🔄 Yeni Bulmaca", key="again", on_click=regen)
-
-    # 9. Klasik yazılı simülatörü
-    elif game == "acik":
-        prompt = (
-            ctx() + "TAM 5 ADET açık uçlu yazılı sorusu ve ideal cevaplarını üret. "
-            'Yalnızca geçerli JSON liste döndür: [{"soru":"...","beklenen_cevap":"..."}]'
-        )
-        data = load_data(gs, prompt, list, ("soru", "beklenen_cevap"), "Yazılı soruları hazırlanıyor...")
-        if data:
-            with st.form("classic_form"):
-                answers = []
-                for i, cq in enumerate(data):
-                    st.markdown(
-                        f'<div class="qcard" style="padding:16px 22px"><div class="qmeta"><span>Soru {i + 1}</span></div>'
-                        f'<div class="qtext" style="font-size:1.15rem">{esc(str(cq["soru"]))}</div></div>',
-                        unsafe_allow_html=True,
-                    )
-                    answers.append(st.text_area(f"Cevabın ({i + 1})", key=f"ans_{gs['nonce']}_{i}"))
-                submitted = st.form_submit_button("📨 Yazılı Kağıdını Puanlat")
-            if submitted:
-                gs["results"] = []
-                with loading("AdenMind kâğıdını okuyor", 6, kind="eval"):
-                    for i, cq in enumerate(data):
-                        if answers[i].strip():
-                            res = ai_generate_content(
-                                f"Soru: {cq['soru']}\nİdeal cevap: {cq['beklenen_cevap']}\nÖğrenci: {answers[i]}\n"
-                                "0-20 arası puan ve kısa, cesaretlendirici bir açıklama ver."
-                            )
-                            gs["results"].append((i, res or "Değerlendirme yapılamadı."))
-            for i, res in gs["results"] or []:
-                st.info(f"**Soru {i + 1} Değerlendirmesi**\n\n{res}")
-
-    elif game in NEW_GAMES:
-        NEW_GAMES[game](gs, game)
-"""Oyun salonu oyunları (tam ekran HTML/JS). app.py ile AYNI klasörde durmalıdır."""
-
 ARCADE_SHARED = r'''<meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
 <style>
 :root{--bg:#04252b;--bg2:#073b44;--card:#0b4a55;--line:rgba(94,234,212,.28);--t:#e6fffb;--mut:#8fd9cf;--ac:#2dd4bf;--ac2:#22d3ee;--bad:#fb7185;--ok:#4ade80;--gold:#fbbf24}
@@ -3512,278 +3081,6 @@ menu();
 </script></body></html>
 '''
 
-ARCADE_HTML['kelimeler'] = r'''<!DOCTYPE html><html lang="tr"><head><!--SHARED--><style>
-.gridw{display:grid;gap:3px;margin:auto;touch-action:none;user-select:none}
-.lc{display:flex;align-items:center;justify-content:center;font-weight:800;border-radius:8px;background:rgba(255,255,255,.08);border:1px solid rgba(94,234,212,.2);cursor:pointer}
-.lc.st{background:rgba(251,191,36,.45)}.lc.fd{background:rgba(74,222,128,.45);color:#052e16}
-.wl{display:flex;flex-wrap:wrap;gap:6px;justify-content:center;max-width:720px;margin:auto}
-.wl span{padding:4px 10px;border-radius:999px;background:rgba(255,255,255,.08);border:1px solid var(--line);font-weight:700;font-size:13px}
-.wl span.d{text-decoration:line-through;opacity:.5;background:rgba(74,222,128,.25)}
-.cw{display:grid;gap:2px;margin:auto}
-.cc{position:relative;background:rgba(255,255,255,.92);color:#042f2e;font-weight:900;display:flex;align-items:center;justify-content:center;border-radius:4px;cursor:pointer}
-.cc.blk{background:transparent;cursor:default}
-.cc.sel{background:#fde68a}.cc.row{background:#ccfbf1}.cc.bad{background:#fecdd3}.cc.ok{color:#047857}
-.cc i{position:absolute;left:2px;top:0;font-size:9px;font-style:normal;font-weight:700;color:#0f766e}
-.clues{max-width:760px;margin:auto;display:grid;grid-template-columns:1fr 1fr;gap:6px 18px;font-size:13px;text-align:left}
-.clues b{color:var(--gold)}
-.clue{cursor:pointer}.clue.a{background:rgba(251,191,36,.25);border-radius:6px}
-.pad{display:flex;flex-wrap:wrap;gap:4px;justify-content:center;max-width:640px;margin:auto}
-.pad .btn{padding:6px 0;width:38px;font-size:14px;box-shadow:0 2px 0 #0f766e}
-.mt{display:grid;grid-template-columns:1fr 1fr;gap:10px;max-width:760px;margin:auto;width:100%}
-.mt .btn{width:100%;text-align:center;font-size:14px}.mt .btn.sel{outline:3px solid var(--gold)}.mt .btn.done{opacity:.35;pointer-events:none;background:#4ade80}
-</style></head><body><div id="app"></div><script>
-const app=$('#app');
-const TH={
-'🔬 Fen Bilimleri':[['HÜCRE','Canlıların yapı taşı'],['MIKNATIS','Demiri çeken cisim'],['GÜNEŞ','Dünya\'ya ışık ve ısı veren yıldız'],['KÜTLE','Maddenin miktarı'],['ENERJİ','İş yapabilme yeteneği'],['ATOM','Maddenin en küçük yapı taşı'],['KUVVET','Cismin hareketini değiştiren etki'],['SÜRTÜNME','Hareketi zorlaştıran kuvvet'],['MERCEK','Işığı kıran saydam cisim'],['VOLKAN','Magmanın yeryüzüne çıktığı dağ'],['DEPREM','Yer kabuğunun sarsılması'],['İKLİM','Uzun yıllık hava olayları'],['MADDE','Kütlesi olan, yer kaplayan her şey'],['DEVRE','Elektriğin dolaştığı yol'],['PİL','Elektrik enerjisi kaynağı']],
-'🌍 Sosyal Bilgiler':[['HARİTA','Yeryüzünün küçültülmüş çizimi'],['KITA','Büyük kara parçası'],['OKYANUS','Dünyanın en büyük su kütlesi'],['ATATÜRK','Cumhuriyetimizin kurucusu'],['ANITKABİR','Atatürk\'ün kabri'],['PUSULA','Yön bulmaya yarar'],['ENLEM','Ekvatora paralel hayali çizgi'],['BOYLAM','Kutupları birleştiren hayali çizgi'],['ÖLÇEK','Haritada küçültme oranı'],['ANADOLU','Türkiye\'nin Asya\'daki yarımadası'],['DEMOKRASİ','Halkın yönetimi'],['CUMHURİYET','29 Ekim 1923\'te ilan edildi'],['TARİH','Geçmişi inceleyen bilim'],['KÜLTÜR','Bir toplumun yaşam biçimi'],['ADALET','Hak ve hukuka uygunluk']],
-'➗ Matematik':[['KESİR','Bütünün eşit parçaları'],['ÜÇGEN','Üç kenarlı şekil'],['ALAN','Bir yüzeyin kapladığı yer'],['ÇEVRE','Şeklin kenar uzunlukları toplamı'],['PAYDA','Kesirde alttaki sayı'],['ONDALIK','Virgüllü sayı'],['YÜZDE','Yüzde bir birimi (%)'],['SİMETRİ','Ayna yansıması'],['DİKDÖRTGEN','Karşılıklı kenarları eşit dört kenar'],['TOPLAMA','Sayıları birleştirme işlemi'],['ÇARPMA','Tekrarlı toplama'],['BÖLME','Eşit paylaştırma işlemi'],['AÇI','İki ışının birleşimi'],['DOĞRU','İki yana sınırsız uzanan çizgi'],['SAYI','Miktarı gösteren değer']],
-'📝 Türkçe':[['SIFAT','İsmi niteleyen sözcük'],['ZAMİR','İsmin yerini tutan sözcük'],['ÖZNE','İşi yapan'],['YÜKLEM','Cümlenin yargı bildiren öğesi'],['FİİL','Eylem bildiren sözcük'],['DEYİM','Kalıplaşmış, mecaz anlamlı söz'],['ATASÖZÜ','Öğüt veren kalıp söz'],['KAFİYE','Uyak'],['METİN','Yazılı anlatım parçası'],['ŞİİR','Dizelerden oluşan edebi tür'],['NOKTA','Cümleyi bitiren işaret'],['VİRGÜL','Sıralamada kullanılan işaret'],['ANLAM','Sözcüğün karşıladığı kavram'],['HİKÂYE','Olay anlatan yazı'],['ROMAN','Uzun kurmaca eser']],
-'🇬🇧 İngilizce':[['APPLE','elma'],['SCHOOL','okul'],['FRIEND','arkadaş'],['FAMILY','aile'],['WINDOW','pencere'],['BANANA','muz'],['TEACHER','öğretmen'],['PENCIL','kurşun kalem'],['GARDEN','bahçe'],['SUMMER','yaz'],['MOTHER','anne'],['WINTER','kış'],['ORANGE','portakal / turuncu'],['YELLOW','sarı'],['BOOK','kitap']],
-'🏛️ Dünya & Kültür':[['PİRAMİT','Mısır\'ın dev mezar yapıları'],['KAPADOKYA','Peri bacalarıyla ünlü bölge'],['GÖBEKLİTEPE','12 bin yıllık tapınak alanı'],['AYASOFYA','İstanbul\'daki tarihi kubbeli yapı'],['PAMUKKALE','Beyaz travertenleriyle ünlü'],['EFES','İzmir\'deki antik kent'],['EYFEL','Paris\'in demir kulesi'],['KOLEZYUM','Roma\'daki dev amfitiyatro'],['PETRA','Kayalara oyulmuş Ürdün kenti'],['TACMAHAL','Hindistan\'daki beyaz türbe'],['AMAZON','Dünyanın en büyük yağmur ormanı'],['SAHARA','Dünyanın en büyük sıcak çölü'],['EVEREST','Dünyanın en yüksek dağı'],['TUNA','Avrupa\'nın büyük nehri'],['NİL','Afrika\'nın uzun nehri']]};
-const TRU=s=>s.toLocaleUpperCase('tr-TR');
-const AL_TR='ABCÇDEFGĞHIİJKLMNOÖPRSŞTUÜVYZ',AL_EN='ABCDEFGHIJKLMNOPQRSTUVWXYZ';
-let theme,items,mode;
-function menu(){app.innerHTML='';app.append(h('div',{class:'top'},h('h2',{},'🔤 Kelime Bulmacaları')),h('div',{class:'center'},h('div',{class:'big'},'🔤 Wordwall tarzı kelime oyunları'),h('div',{class:'msg'},'Konu ve oyun türünü seç!'),
- h('div',{class:'row'},Object.keys(TH).map(t=>h('button',{class:'btn alt'+(theme===t?' on':''),style:theme===t?'outline:3px solid var(--gold)':'',onclick:()=>{theme=t;menu()}},t))),
- h('div',{class:'row'},[['search','🔎 Kelime Avı'],['cross','✏️ Çapraz Bulmaca'],['match','🔗 Kelime–Anlam Eşleştirme'],['anag','🔀 Karışık Harfler']].map(([m,l])=>h('button',{class:'btn',disabled:!theme,onclick:()=>{mode=m;items=shuf(TH[theme]).map(x=>[TRU(x[0]),x[1]]);GM[m]()}},l)))))}
-const isEN=()=>theme&&theme.includes('İngilizce');
-const alpha=()=>isEN()?AL_EN:AL_TR;
-function head(t,extra){return h('div',{class:'top'},h('h2',{},t),h('span',{class:'sp'}),extra||'',h('button',{class:'btn alt',onclick:()=>GM[mode]()},'🔄 Yeni'),h('button',{class:'btn alt',onclick:menu},'☰'))}
-function win(msg){sfx.win();window.__won=true;const m=$('#ms');if(m){m.className='msg ok pop';m.textContent=msg}}
-// ---------- Kelime Avı
-const DIRS=[[0,1],[1,0],[1,1],[0,-1],[-1,0],[-1,-1],[1,-1],[-1,1]];
-function buildSearch(words,N,nd){const g=Array.from({length:N},()=>Array(N).fill(''));const placed=[];
- for(const w of words){let ok=false;for(let a=0;a<300&&!ok;a++){const d=pick(DIRS.slice(0,nd));const L=w.length;const r=rnd(0,N-1),c=rnd(0,N-1);const er=r+d[0]*(L-1),ec=c+d[1]*(L-1);if(er<0||er>=N||ec<0||ec>=N)continue;
-  let f=true;for(let i=0;i<L;i++){const x=g[r+d[0]*i][c+d[1]*i];if(x&&x!==w[i]){f=false;break}}if(!f)continue;for(let i=0;i<L;i++)g[r+d[0]*i][c+d[1]*i]=w[i];placed.push({w,r,c,d});ok=true}
-  if(!ok)return null}
- const al=alpha();for(let r=0;r<N;r++)for(let c=0;c<N;c++)if(!g[r][c])g[r][c]=al[rnd(0,al.length-1)];return{g,placed}}
-let SG;
-function search(){const N=12;const words=items.slice(0,8).map(x=>x[0]).filter(w=>w.length<=N);let res=null;for(let i=0;i<30&&!res;i++)res=buildSearch(words,N,5);SG={...res,N,found:new Set(),first:null,cells:new Set(),words};drawSearch()}
-function drawSearch(){app.innerHTML='';app.append(head('🔎 Kelime Avı · '+theme,h('span',{class:'chip',id:'cnt'},SG.found.size+'/'+SG.words.length)));
- const cs=Math.floor(Math.min(innerHeight-250,innerWidth-30,520)/SG.N);const g=h('div',{class:'gridw',style:`grid-template-columns:repeat(${SG.N},${cs}px);font-size:${cs*.5}px`});
- for(let r=0;r<SG.N;r++)for(let c=0;c<SG.N;c++){const k=r*SG.N+c;g.append(h('div',{class:'lc'+(SG.cells.has(k)?' fd':'')+(SG.first===k?' st':''),'data-k':k,style:`height:${cs}px`,onclick:()=>tapS(r,c)},SG.g[r][c]))}
- app.append(g,h('div',{class:'wl'},SG.words.map(w=>h('span',{class:SG.found.has(w)?'d':''},w))),h('div',{class:'msg',id:'ms'},'Kelimenin ilk ve son harfine dokun.'))}
-function tapS(r,c){const k=r*SG.N+c;if(SG.first===null){SG.first=k;sfx.tap();drawSearch();return}
- const r0=Math.floor(SG.first/SG.N),c0=SG.first%SG.N;SG.first=null;const dr=Math.sign(r-r0),dc=Math.sign(c-c0),L=Math.max(Math.abs(r-r0),Math.abs(c-c0))+1;
- if(!(r===r0||c===c0||Math.abs(r-r0)===Math.abs(c-c0))){drawSearch();return}
- let s='';const ks=[];for(let i=0;i<L;i++){s+=SG.g[r0+dr*i][c0+dc*i];ks.push((r0+dr*i)*SG.N+c0+dc*i)}
- const rev=[...s].reverse().join('');const w=SG.words.find(x=>(x===s||x===rev)&&!SG.found.has(x));
- if(w){SG.found.add(w);ks.forEach(x=>SG.cells.add(x));sfx.ok()}else sfx.bad();drawSearch();if(w&&SG.found.size===SG.words.length)win('🎉 Hepsini buldun!')}
-// ---------- Çapraz Bulmaca
-let CW;
-function buildCross(words){const S=19;const g=Array.from({length:S},()=>Array(S).fill(''));const pl=[];
- const can=(w,r,c,h2)=>{const dr=h2?0:1,dc=h2?1:0;if(r<0||c<0||r+dr*(w.length-1)>=S||c+dc*(w.length-1)>=S)return false;
-  const pr=r-dr,pc=c-dc;if(pr>=0&&pc>=0&&g[pr][pc])return false;const nr=r+dr*w.length,nc=c+dc*w.length;if(nr<S&&nc<S&&g[nr][nc])return false;let cross=0;
-  for(let i=0;i<w.length;i++){const rr=r+dr*i,cc=c+dc*i,x=g[rr][cc];if(x){if(x!==w[i])return false;cross++}else{if(h2){if((rr>0&&g[rr-1][cc])||(rr<S-1&&g[rr+1][cc]))return false}else{if((cc>0&&g[rr][cc-1])||(cc<S-1&&g[rr][cc+1]))return false}}}return cross}
- const put=(w,r,c,h2)=>{const dr=h2?0:1,dc=h2?1:0;for(let i=0;i<w.length;i++)g[r+dr*i][c+dc*i]=w[i];pl.push({w,r,c,h:h2})};
- const ws=words.slice().sort((a,b)=>b[0].length-a[0].length);const f=ws.shift();put(f[0],9,Math.floor((S-f[0].length)/2),true);pl[0].clue=f[1];
- for(let round=0;round<3;round++)for(let i=0;i<ws.length;i++){const[w,cl]=ws[i];if(pl.some(p=>p.w===w))continue;let best=null;
-  for(const p of pl){for(let a=0;a<w.length;a++)for(let b=0;b<p.w.length;b++){if(w[a]!==p.w[b])continue;const h2=!p.h;const r=h2?p.r+(p.h?b:0)*0+(p.h?0:b):p.r-a,c=h2?p.c-a:p.c+b;
-    const rr=h2?p.r+b:p.r-a,cc=h2?p.c-a:p.c+b;const R=h2?(p.h?p.r:p.r+b):rr,C=h2?(p.h?p.c-a:p.c-a):cc;
-    const rs=h2?p.r+b:p.r-a,cs2=h2?p.c-a:p.c+b;if(can(w,rs,cs2,h2)){best={w,cl,r:rs,c:cs2,h:h2};break}}if(best)break}
-  if(best){put(best.w,best.r,best.c,best.h);pl[pl.length-1].clue=cl}}
- return{g,pl}}
-function cross(){let res;for(let i=0;i<25;i++){res=buildCross(items.slice(0,12));if(res.pl.length>=7)break;items=shuf(items)}
- let r0=99,r1=0,c0=99,c1=0;res.pl.forEach(p=>{r0=Math.min(r0,p.r);c0=Math.min(c0,p.c);r1=Math.max(r1,p.r+(p.h?0:p.w.length-1));c1=Math.max(c1,p.c+(p.h?p.w.length-1:0))});
- const H=r1-r0+1,W=c1-c0+1;const ans=Array.from({length:H},()=>Array(W).fill(''));const num=Array.from({length:H},()=>Array(W).fill(0));
- res.pl.forEach(p=>{p.r-=r0;p.c-=c0;for(let i=0;i<p.w.length;i++)ans[p.r+(p.h?0:i)][p.c+(p.h?i:0)]=p.w[i]});
- let n=0;const order=res.pl.slice().sort((a,b)=>a.r-b.r||a.c-b.c);order.forEach(p=>{if(!num[p.r][p.c])num[p.r][p.c]=++n;p.n=num[p.r][p.c]});
- CW={H,W,ans,num,pl:res.pl,inp:Array.from({length:H},()=>Array(W).fill('')),sel:null,dir:true,bad:new Set()};drawCross()}
-function curWord(){if(!CW.sel)return null;const[r,c]=CW.sel;return CW.pl.find(p=>p.h===CW.dir&&((p.h&&p.r===r&&c>=p.c&&c<p.c+p.w.length)||(!p.h&&p.c===c&&r>=p.r&&r<p.r+p.w.length)))||CW.pl.find(p=>((p.h&&p.r===r&&c>=p.c&&c<p.c+p.w.length)||(!p.h&&p.c===c&&r>=p.r&&r<p.r+p.w.length)))}
-function drawCross(){app.innerHTML='';const cw=curWord();app.append(head('✏️ Çapraz Bulmaca · '+theme));
- const cs=Math.floor(Math.min((innerHeight-330),innerWidth-30,560)/Math.max(CW.H,CW.W));const g=h('div',{class:'cw',style:`grid-template-columns:repeat(${CW.W},${cs}px);font-size:${cs*.55}px`});
- for(let r=0;r<CW.H;r++)for(let c=0;c<CW.W;c++){if(!CW.ans[r][c]){g.append(h('div',{class:'cc blk',style:`height:${cs}px`}));continue}
-  const inW=cw&&((cw.h&&cw.r===r&&c>=cw.c&&c<cw.c+cw.w.length)||(!cw.h&&cw.c===c&&r>=cw.r&&r<cw.r+cw.w.length));const sel=CW.sel&&CW.sel[0]===r&&CW.sel[1]===c;
-  g.append(h('div',{class:'cc'+(sel?' sel':inW?' row':'')+(CW.bad.has(r*99+c)?' bad':''),'data-r':r,'data-c':c,style:`height:${cs}px`,onclick:()=>{if(CW.sel&&CW.sel[0]===r&&CW.sel[1]===c)CW.dir=!CW.dir;CW.sel=[r,c];drawCross()}},CW.num[r][c]?h('i',{},CW.num[r][c]):'',CW.inp[r][c]))}
- app.append(g);
- const clue=(h2)=>CW.pl.filter(p=>p.h===h2).sort((a,b)=>a.n-b.n).map(p=>h('div',{class:'clue'+(cw===p?' a':''),onclick:()=>{CW.sel=[p.r,p.c];CW.dir=p.h;drawCross()}},h('b',{},p.n+'.'),' '+p.clue+' ('+p.w.length+')'));
- app.append(h('div',{class:'clues'},h('div',{},h('b',{},'→ Soldan sağa'),clue(true)),h('div',{},h('b',{},'↓ Yukarıdan aşağı'),clue(false))));
- const pad=h('div',{class:'pad'});[...alpha()].forEach(ch=>pad.append(h('button',{class:'btn',onclick:()=>typeL(ch)},ch)));pad.append(h('button',{class:'btn alt',onclick:()=>typeL('')},'⌫'));
- app.append(pad,h('div',{class:'row'},h('button',{class:'btn',onclick:checkC},'✓ Kontrol'),h('button',{class:'btn alt',onclick:hintC},'💡 Harf ipucu')),h('div',{class:'msg',id:'ms'},''))}
-function typeL(ch){if(!CW.sel)return;const[r,c]=CW.sel;CW.inp[r][c]=ch;CW.bad.delete(r*99+c);sfx.tap();if(ch){const nr=CW.dir?r:r+1,nc=CW.dir?c+1:c;if(CW.ans[nr]&&CW.ans[nr][nc])CW.sel=[nr,nc]}drawCross();if(solvedC())win('🎉 Bulmacayı çözdün!')}
-function solvedC(){for(let r=0;r<CW.H;r++)for(let c=0;c<CW.W;c++)if(CW.ans[r][c]&&CW.inp[r][c]!==CW.ans[r][c])return false;return true}
-function checkC(){CW.bad=new Set();let ok=true;for(let r=0;r<CW.H;r++)for(let c=0;c<CW.W;c++){if(CW.ans[r][c]&&CW.inp[r][c]&&CW.inp[r][c]!==CW.ans[r][c]){CW.bad.add(r*99+c);ok=false}}drawCross();$('#ms').textContent=CW.bad.size?'Kırmızı kutular yanlış.':'Şimdilik hatasız!';CW.bad.size?sfx.bad():sfx.ok()}
-function hintC(){const w=curWord();if(!w)return;for(let i=0;i<w.w.length;i++){const r=w.r+(w.h?0:i),c=w.c+(w.h?i:0);if(CW.inp[r][c]!==CW.ans[r][c]){CW.inp[r][c]=CW.ans[r][c];break}}drawCross();if(solvedC())win('🎉 Bulmacayı çözdün!')}
-// ---------- Eşleştirme
-function match(){const it=items.slice(0,7);const L=shuf(it.map((x,i)=>({i,t:x[0]})));const R=shuf(it.map((x,i)=>({i,t:x[1]})));let selL=null,done=0,mist=0;
- function draw(){app.innerHTML='';app.append(head('🔗 Kelime–Anlam · '+theme,h('span',{class:'chip'},'❌ '+mist)));
-  app.append(h('div',{class:'mt'},h('div',{class:'center',style:'gap:8px'},L.map(x=>h('button',{class:'btn'+(selL===x?' sel':'')+(x.d?' done':''),onclick:()=>{selL=x;sfx.tap();draw()}},x.t))),
-   h('div',{class:'center',style:'gap:8px'},R.map(x=>h('button',{class:'btn alt'+(x.d?' done':''),onclick:()=>{if(!selL)return;if(selL.i===x.i){selL.d=x.d=true;done++;sfx.ok();selL=null;draw();if(done===it.length)win('🎉 Hepsini eşleştirdin!')}else{mist++;sfx.bad();selL=null;draw()}}},x.t)))),h('div',{class:'msg',id:'ms'},'Önce kelimeyi, sonra anlamını seç.'))}
- draw()}
-// ---------- Karışık harfler
-function anag(){let i=0,pts=0;function nx(){if(i>=Math.min(8,items.length)){app.innerHTML='';app.append(h('div',{class:'center pop'},h('div',{class:'big'},'🎉 Tamamlandı!'),h('div',{class:'msg'},'Puan: '+pts),h('button',{class:'btn',onclick:anag},'Tekrar')));window.__won=true;return}
-  const[w,cl]=items[i];let sh;do{sh=shuf([...w])}while(sh.join('')===w&&w.length>2);let g=[],used=[];
-  function draw(){app.innerHTML='';app.append(head('🔀 Karışık Harfler',h('span',{class:'chip'},'Puan '+pts)));app.append(h('div',{class:'center'},h('div',{class:'msg'},'💡 '+cl+' ('+w.length+' harf)'),h('div',{class:'big',style:'letter-spacing:6px'},g.join('')||'…'),
-   h('div',{class:'row'},sh.map((ch,k)=>h('button',{class:'btn',disabled:used.includes(k),onclick:()=>{g.push(ch);used.push(k);sfx.tap();if(g.length===w.length){if(g.join('')===w){pts+=10;sfx.ok();i++;setTimeout(nx,500)}else{sfx.bad();g=[];used=[];draw()}}else draw()}},ch))),
-   h('div',{class:'row'},h('button',{class:'btn alt',onclick:()=>{g=[];used=[];draw()}},'Temizle'),h('button',{class:'btn alt',onclick:()=>{i++;nx()}},'Geç'))))}
-  draw()}nx()}
-const GM={search,cross,match,anag};
-menu();
-</script></body></html>
-'''
-
-ARCADE_HTML['macera'] = r'''<!DOCTYPE html><html lang="tr"><head><!--SHARED--><style>
-.story{width:min(96%,720px);margin:auto;border-radius:26px;border:3px solid var(--ac);background:linear-gradient(160deg,#0b4a55,#052a31);padding:20px;box-shadow:0 14px 40px rgba(0,0,0,.4)}
-.story .em{font-size:64px;text-align:center}.story p{font-size:clamp(16px,2.6vw,20px);line-height:1.55;margin:10px 0}
-.opt{display:block;width:100%;text-align:left;margin:8px 0;padding:12px 16px;border-radius:16px;border:2px solid var(--line);background:rgba(255,255,255,.08);color:var(--t);font-size:16px;font-weight:700;cursor:pointer;font-family:inherit}
-.opt:hover{background:rgba(45,212,191,.25);border-color:var(--ac)}.opt.good{background:rgba(74,222,128,.35)}.opt.bad{background:rgba(251,113,133,.35)}
-.learn{margin-top:10px;padding:10px 12px;border-radius:14px;background:rgba(251,191,36,.15);border:1px solid rgba(251,191,36,.5);font-size:14px}
-.stats{display:flex;gap:8px}.cardA{width:230px;padding:16px;border-radius:22px;background:rgba(255,255,255,.07);border:2px solid var(--line);cursor:pointer;text-align:center}
-.cardA:hover{border-color:var(--ac)}.cardA b{display:block;margin:6px 0 4px;font-size:18px}.cardA span{font-size:13px;color:var(--mut)}
-</style></head><body><div id="app"></div><script>
-const app=$('#app');
-const ADV={
-kapadokya:{t:'Kapadokya: Kayıp Balon Haritası',e:'🎈',d:'Peri bacaları arasında saklı bir haritayı bulmak için sabah balonuyla yola çık!',s:'a1',n:{
- a1:{e:'🌄',t:'Sabahın ilk ışıklarında Göreme\'desin. Rehberin Elif, eski bir haritanın peri bacalarından birinde saklı olduğunu söylüyor. Önce nereye gidersin?',c:[{t:'🎈 Balona binip yukarıdan bakarım',to:'a2'},{t:'🚶 Vadide yürüyerek incelerim',to:'a3'}]},
- a2:{e:'🎈',t:'Balon yükselirken aşağıda koni şeklinde kayalar görüyorsun. Elif soruyor:',q:{s:'Peri bacaları nasıl oluştu?',o:['Volkanik tüfün yağmur ve rüzgârla aşınmasıyla','İnsanlar tarafından inşa edilerek','Denizin çekilmesiyle'],a:0,ok:'a4',no:'a4',learn:'Peri bacaları, volkanlardan çıkan yumuşak tüf tabakasının yağmur ve rüzgârla yüzyıllarca aşınmasıyla oluştu.'}},
- a3:{e:'🥾',t:'Vadide yürürken yerde bir delik buluyorsun: bir yeraltı şehrinin girişi! Elif "Dikkatli ol, burası çok derin" diyor.',c:[{t:'🔦 Fener alıp içeri inerim',to:'a5'},{t:'📸 Önce fotoğraf çekip haritaya bakarım',to:'a4',fx:{bilgi:1}}]},
- a4:{e:'🗺️',t:'Haritanın bir köşesini rüzgâr getirmiş! Üzerinde yazıyor: "Gerçek hazine, merak edenlerindir. Yeraltının kapısını Derinkuyu\'da ara."',c:[{t:'⬇️ Derinkuyu\'ya git',to:'a5'}]},
- a5:{e:'🕯️',t:'Yeraltı şehrinin dar koridorlarındasın. Duvarda havalandırma bacaları ve devasa yuvarlak taş kapılar var. Elif sorar:',q:{s:'Yeraltı şehirleri en çok ne amaçla kullanılmış?',o:['Saldırılardan korunmak ve saklanmak','Gökyüzünü gözlemlemek','Balık tutmak'],a:0,ok:'a6',no:'a6',learn:'Kapadokya\'daki yeraltı şehirleri (Derinkuyu, Kaymaklı) insanların saldırılardan korunmak için sığındığı çok katlı yerleşimlerdir.'}},
- a6:{e:'🚪',t:'Önünde iki yol var: sol koridor serin ve sessiz, sağ koridorda ışık sızıyor.',c:[{t:'⬅️ Sessiz koridor',to:'a7',fx:{enerji:-1}},{t:'➡️ Işıklı koridor',to:'a8',fx:{hazine:1}}]},
- a7:{e:'😮‍💨',t:'Koridor çıkmaz çıktı, geri dönmek seni yordu. Ama duvarda eski bir kabartma var: bir haritanın parçası!',c:[{t:'🧩 Parçayı al ve geri dön',to:'a9',fx:{hazine:1}}]},
- a8:{e:'💡',t:'Işık, tavandaki havalandırma bacasından geliyormuş. Yanında bir sandık var!',c:[{t:'📦 Sandığı aç',to:'a9'}]},
- a9:{e:'🔑',t:'Sandıkta harita parçası ve bir bilmece var: "Ben Kapadokya\'nın başkenti sayılırım, kayalara oyulmuş kiliselerim var. Müze olarak gezilirim. Neyim?"',q:{s:'Bilmecenin cevabı hangisi?',o:['Göreme Açık Hava Müzesi','Anıtkabir','Ayasofya'],a:0,ok:'a10',no:'a10',learn:'Göreme Açık Hava Müzesi, kayalara oyulmuş kiliseleri ve freskleriyle UNESCO Dünya Mirası Listesi\'ndedir (1985).'}},
- a10:{e:'🏆',end:'win',t:'Haritanın tüm parçalarını birleştirdin! Hazine; Kapadokya\'nın tarihini ve doğasını koruma sözü. Elif seni "Kapadokya Kâşifi" ilan ediyor.'},
- a11:{e:'💤',end:'lose',t:'Çok yoruldun ve enerjin bitti. Elif seni dinlenmeye götürüyor. Yarın yeniden dene!'}}},
-gobekli:{t:'Göbeklitepe: Zamanın Sırrı',e:'🗿',d:'12 bin yıl öncesine yolculuk: T biçimli sütunların sırrını çöz!',s:'g1',n:{
- g1:{e:'🏜️',t:'Şanlıurfa\'da, Göbeklitepe kazı alanındasın. Arkeolog Zeynep elinde bir fırça ile sana bakıyor: "Burada yeryüzünün bilinen en eski anıtsal yapılarından biri var."',c:[{t:'🔍 Sütunları yakından incelerim',to:'g2'},{t:'📖 Önce kazı rehberini okurum',to:'g3',fx:{bilgi:1}}]},
- g2:{e:'🗿',t:'Dev sütunlar T harfine benziyor ve üzerlerinde hayvan kabartmaları var: tilki, yılan, akbaba...',q:{s:'Göbeklitepe yaklaşık kaç yıl öncesine aittir?',o:['Yaklaşık 12.000 yıl','Yaklaşık 2.000 yıl','Yaklaşık 500 yıl'],a:0,ok:'g4',no:'g4',learn:'Göbeklitepe yaklaşık 12.000 yıllıktır; Stonehenge ve piramitlerden çok daha eskidir.'}},
- g3:{e:'📘',t:'Rehberde şöyle yazıyor: "Burada yaşayan topluluklar henüz tarım yapmıyor, avcı-toplayıcıydı." Zeynep gülümsüyor: "Peki, bunu nasıl anlıyoruz?"',c:[{t:'🦴 Hayvan kemiklerinden',to:'g4',fx:{bilgi:1}},{t:'📜 Yazılı belgelerden',to:'g4'}]},
- g4:{e:'⛏️',t:'Zeynep sana bir kazı alanı verip "Haydi, ilk ipucunu bul!" diyor. İki bölge var.',c:[{t:'🧱 Daire biçimli yapının içi',to:'g5',fx:{hazine:1}},{t:'🌿 Tepenin çevresi',to:'g6',fx:{enerji:-1}}]},
- g5:{e:'🪨',t:'Dairenin ortasında iki büyük sütun duruyor. Zeynep: "Bunları kim dikti? O dönemde metal alet yoktu!"',q:{s:'O dönemde sütunlar hangi aletle işlenmiş olabilir?',o:['Çakmaktaşı gibi taş aletlerle','Elektrikli testereyle','Demir çekiçle'],a:0,ok:'g7',no:'g7',learn:'Göbeklitepe yapıcıları metal kullanmıyordu; sütunları çakmaktaşı gibi taş aletlerle yontuyorlardı.'}},
- g6:{e:'🥵',t:'Güneş çok sıcak; susadın. Yine de çevrede küçük taş aletler buldun!',c:[{t:'🧰 Aletleri Zeynep\'e götür',to:'g7',fx:{bilgi:1}}]},
- g7:{e:'🌍',t:'Zeynep, 2018\'de Göbeklitepe\'nin UNESCO Dünya Mirası Listesi\'ne alındığını anlatıyor. "Bu keşif insanlık tarihini yeniden yazdırdı. Çünkü..."',q:{s:'Göbeklitepe neden tarih kitaplarını değiştirdi?',o:['Tarım ve yerleşik hayattan önce de anıtsal yapılar yapıldığını gösterdi','Piramitlerden daha yüksek olduğu için','Bir şehir surunun kalıntısı olduğu için'],a:0,ok:'g8',no:'g8',learn:'Göbeklitepe, insanların yerleşik hayata ve tarıma geçmeden önce de büyük ortak yapılar inşa edebildiğini gösterdi.'}},
- g8:{e:'🏆',end:'win',t:'Zeynep sana "Genç Arkeolog" rozetini takıyor. Göbeklitepe\'nin sırrını çözmen insanlık tarihine ışık tuttu!'},
- g9:{e:'💤',end:'lose',t:'Enerjin bitti. Ekip seni gölgeye alıyor. Dinlenip tekrar deneyebilirsin!'}}},
-uzay:{t:'Uzay İstasyonu: Acil Durum!',e:'🚀',d:'Güneş sisteminde yolunu bul, istasyonu kurtar!',s:'u1',n:{
- u1:{e:'🛰️',t:'Uluslararası uzay istasyonunda alarm çalıyor! Kaptan Ayşe: "Güneş fırtınası yaklaşıyor. Enerji panellerini yönlendirmeli ve Dünya\'ya haber vermeliyiz."',c:[{t:'☀️ Önce panelleri Güneş\'e çeviririm',to:'u2'},{t:'📡 Önce Dünya\'ya mesaj gönderirim',to:'u3'}]},
- u2:{e:'🔆',t:'Paneller dönerken Ayşe soruyor:',q:{s:'Işık Güneş\'ten Dünya\'ya yaklaşık kaç dakikada gelir?',o:['Yaklaşık 8 dakika','Yaklaşık 8 saniye','Yaklaşık 8 saat'],a:0,ok:'u4',no:'u4',learn:'Güneş ışığı Dünya\'ya yaklaşık 8 dakikada ulaşır.'}},
- u3:{e:'📡',t:'Mesaj gönderildi. Cevap beklerken Ayşe\'nin yüzü asılıyor: "Sinyal gecikmeli geliyor, o yüzden panelleri de çevirmeliyiz."',c:[{t:'☀️ Panelleri çevir',to:'u2',fx:{bilgi:1}}]},
- u4:{e:'🪐',t:'Fırtına geçti ama yönlendirme bilgisayarı bozuldu. Haritayı elle okumalısın. Önünde gezegenler var.',q:{s:'Güneş\'e en yakın gezegen hangisidir?',o:['Merkür','Venüs','Mars'],a:0,ok:'u5',no:'u5',learn:'Güneş\'e en yakın gezegen Merkür\'dür.'}},
- u5:{e:'🔴',t:'Bir sonraki görev Mars\'a veri göndermek. Mars neden kırmızı görünüyor?',q:{s:'Mars\'ın kırmızı renginin sebebi nedir?',o:['Yüzeyindeki demir oksit (pas)','Üzerindeki yanardağ lavları','Atmosferindeki kırmızı gaz'],a:0,ok:'u6',no:'u6',learn:'Mars\'ın yüzeyi demir oksit (pas) içerdiği için kırmızı görünür.'}},
- u6:{e:'🪐',t:'İstasyonun yakıtı azalıyor. İki seçeneğin var:',c:[{t:'♻️ Gereksiz cihazları kapatıp enerji tasarrufu yaparım',to:'u7',fx:{bilgi:1}},{t:'🚀 Tam güçle hızlı dönerim',to:'u7',fx:{enerji:-1}}]},
- u7:{e:'🌍',t:'Dünya\'ya yaklaşırken Ay\'ı da görüyorsun.',q:{s:'Ay, Dünya\'nın nesi sayılır?',o:['Doğal uydusu','Komşu gezegeni','Yıldızı'],a:0,ok:'u8',no:'u8',learn:'Ay, Dünya\'nın tek doğal uydusudur.'}},
- u8:{e:'🏆',end:'win',t:'İstasyon kurtuldu! Dünya\'daki merkez seni "Uzay Kahramanı" ilan ediyor.'},
- u9:{e:'💤',end:'lose',t:'Enerjin tükendi, istasyon otomatik pilota geçti. Bir dahaki sefere daha dikkatli ol!'}}},
-matematik:{t:'Matematik Ormanı',e:'🌲',d:'Sayıları ve şekilleri kullanarak ormanın bekçisini bul!',s:'m1',n:{
- m1:{e:'🌲',t:'Matematik Ormanı\'nın girişindesin. Bilge Baykuş: "Ormandan çıkmak için üç kapıyı açmalısın. Hazır mısın?"',c:[{t:'🦉 Hazırım!',to:'m2'}]},
- m2:{e:'🍰',t:'Birinci kapıda bir pasta var. Baykuş: "Pastanın yarısı ve dörtte biri yenmiş."',q:{s:'1/2 + 1/4 kaç eder?',o:['3/4','2/6','1/8'],a:0,ok:'m3',no:'m3',learn:'Paydaları eşitle: 1/2 = 2/4; 2/4 + 1/4 = 3/4.'}},
- m3:{e:'🔺',t:'İkinci kapı üçgen biçiminde. Üzerinde iki açı yazıyor: 60° ve 70°.',q:{s:'Üçüncü açı kaç derecedir?',o:['50°','60°','70°'],a:0,ok:'m4',no:'m4',learn:'Üçgenin iç açıları toplamı 180°. 180 − (60 + 70) = 50.'}},
- m4:{e:'🛤️',t:'Önünde iki patika ayrılıyor.',c:[{t:'🌿 Gür otlu patika',to:'m5',fx:{enerji:-1}},{t:'🪨 Taşlı patika',to:'m5',fx:{hazine:1}}]},
- m5:{e:'📏',t:'Bir çit gördün: uzunluğu 8 m, genişliği 5 m olan dikdörtgen bahçeyi çevreliyor.',q:{s:'Bahçenin çevresi kaç metredir?',o:['26 m','40 m','13 m'],a:0,ok:'m6',no:'m6',learn:'Dikdörtgenin çevresi 2 × (8 + 5) = 26 m.'}},
- m6:{e:'🧮',t:'Son kapı: bir sandıkta 80 elmanın %50\'sini istiyor.',q:{s:'Kaç elma almalısın?',o:['40','50','30'],a:0,ok:'m7',no:'m7',learn:'%50 yarım demektir: 80 ÷ 2 = 40.'}},
- m7:{e:'🏆',end:'win',t:'Üç kapı da açıldı! Bilge Baykuş sana "Matematik Bekçisi" rozetini veriyor.'},
- m8:{e:'💤',end:'lose',t:'Çok yoruldun ve ormanda mola vermen gerekti. Yeniden deneyebilirsin!'}}}};
-let A,node,st,learned,hist;
-function menu(){app.innerHTML='';app.append(h('div',{class:'top'},h('h2',{},'🧭 İnteraktif Macera')),h('div',{class:'center'},h('div',{class:'msg'},'Bir macera seç. Seçimlerin hikâyeyi değiştirir; bilgi sorularını doğru yanıtla!'),
- h('div',{class:'row'},Object.entries(ADV).map(([k,a])=>h('div',{class:'cardA',onclick:()=>start(k)},h('div',{style:'font-size:44px'},a.e),h('b',{},a.t),h('span',{},a.d))))))}
-function start(k){A=ADV[k];node=A.s;st={enerji:3,bilgi:0,hazine:0};learned=[];draw()}
-function fx(f){if(!f)return;for(const k in f)st[k]=(st[k]||0)+f[k]}
-function bar(){return h('div',{class:'top'},h('h2',{},A.e+' '+A.t),h('span',{class:'sp'}),h('div',{class:'stats'},h('span',{class:'chip'},'❤️ '+st.enerji),h('span',{class:'chip'},'🧠 '+st.bilgi),h('span',{class:'chip'},'🪙 '+st.hazine)),h('button',{class:'btn alt',onclick:menu},'☰'))}
-function go(to){if(st.enerji<=0){const L=Object.keys(A.n).find(k=>A.n[k].end==='lose');node=L;draw();return}node=to;draw()}
-function draw(){app.innerHTML='';app.append(bar());const n=A.n[node];const box=h('div',{class:'story pop'},h('div',{class:'em'},n.e),h('p',{},n.t));
- if(n.end){sfx[n.end==='win'?'win':'bad']();const score=st.bilgi*10+st.hazine*5+st.enerji*5;
-  box.append(h('div',{class:'msg '+(n.end==='win'?'ok':'bad')},n.end==='win'?'🎉 Macera tamamlandı! Puan: '+score:'Macera yarıda kaldı'),learned.length?h('div',{class:'learn'},h('b',{},'📚 Öğrendiklerin:'),h('ul',{},learned.map(x=>h('li',{},x)))):'',h('div',{class:'row'},h('button',{class:'btn',onclick:()=>start(Object.keys(ADV).find(k=>ADV[k]===A))},'🔄 Tekrar'),h('button',{class:'btn alt',onclick:menu},'Maceralar')));if(n.end==='win')window.__won=true}
- else if(n.q){const q=n.q;box.append(h('p',{style:'font-weight:800;color:var(--gold)'},'❓ '+q.s));const opts=shuf(q.o.map((t,i)=>({t,i})));let answered=false;
-  const wrap=h('div');opts.forEach(o=>wrap.append(h('button',{class:'opt',onclick:e=>{if(answered)return;answered=true;const ok=o.i===q.a;e.target.classList.add(ok?'good':'bad');if(ok){st.bilgi++;sfx.ok()}else{st.enerji--;sfx.bad();[...wrap.children][opts.findIndex(x=>x.i===q.a)].classList.add('good')}
-   learned.push(q.learn);box.append(h('div',{class:'learn'},(ok?'✅ Doğru! ':'❌ Doğrusu: '+q.o[q.a]+'. ')+q.learn),h('button',{class:'btn',style:'margin-top:10px',onclick:()=>go(ok?q.ok:q.no)},'Devam ▶'));$('#ms')}},o.t)));box.append(wrap)}
- else n.c.forEach(c=>box.append(h('button',{class:'opt',onclick:()=>{fx(c.fx);sfx.tap();go(c.to)}},c.t)));
- app.append(box,h('div',{class:'msg',id:'ms'},''))}
-menu();
-</script></body></html>
-'''
-
-ARCADE_HTML['kultur'] = r'''<!DOCTYPE html><html lang="tr"><head><!--SHARED--><style>
-.gal{display:flex;gap:12px;flex-wrap:wrap;justify-content:center;max-width:900px;margin:auto}
-.tile0{width:140px;cursor:pointer;text-align:center;font-size:13px;font-weight:700}
-.tile0 .im{width:140px;height:140px;border-radius:18px;overflow:hidden;border:3px solid var(--line);position:relative}
-.tile0:hover .im{border-color:var(--ac)}.tile0 .st{position:absolute;right:4px;top:4px;font-size:16px}
-.pz{display:grid;gap:3px;margin:auto;border:3px solid var(--ac);border-radius:12px;padding:3px;background:#052f37}
-.pt{overflow:hidden;cursor:pointer;border-radius:6px;position:relative;border:2px solid transparent}
-.pt.empty{background:rgba(255,255,255,.05);cursor:default}.pt.sel{border-color:var(--gold)}.pt.ok{border-color:rgba(74,222,128,.7)}
-.pt svg{display:block;width:100%;height:100%}.pt b{position:absolute;left:4px;top:2px;font-size:13px;color:#fff;text-shadow:0 1px 3px #000}
-.info{width:min(96%,640px);margin:auto;border-radius:22px;border:3px solid var(--ac);background:linear-gradient(160deg,#0b4a55,#052a31);padding:16px;text-align:left}
-.tabs .btn.on{outline:3px solid var(--gold)}
-.prev{width:150px;height:150px;border-radius:14px;overflow:hidden;border:3px solid var(--line)}
-</style></head><body><div id="app"></div><script>
-const app=$('#app');
-let _sk=0;const SK=(a,b)=>{const id="sk"+(++_sk);return `<defs><linearGradient id="${id}" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="${a}"/><stop offset="1" stop-color="${b}"/></linearGradient></defs><rect width="300" height="300" fill="url(#${id})"/>`};
-const R=(x,y,w,h,f,x2='')=>`<rect x="${x}" y="${y}" width="${w}" height="${h}" fill="${f}" ${x2}/>`;
-const P=(pts,f)=>`<polygon points="${pts}" fill="${f}"/>`;
-const C=(x,y,r,f)=>`<circle cx="${x}" cy="${y}" r="${r}" fill="${f}"/>`;
-const E=(x,y,rx,ry,f)=>`<ellipse cx="${x}" cy="${y}" rx="${rx}" ry="${ry}" fill="${f}"/>`;
-const cols=(x0,y,n,gap,w,h,f)=>Array.from({length:n},(_,i)=>R(x0+i*gap,y,w,h,f)).join('');
-const ART={
-giza:()=>SK('#fde68a','#fb923c')+C(235,60,26,'#fff7ed')+R(0,210,300,90,'#f5c26b')+P('40,215 120,100 200,215','#d9a04a')+P('120,100 200,215 150,215','#b9822f')+P('150,215 220,130 290,215','#e2ad56')+P('220,130 290,215 250,215','#c18a35')+P('10,225 55,175 100,225','#e8b963'),
-cin:()=>SK('#bae6fd','#e0f2fe')+P('0,300 0,150 90,110 170,160 260,90 300,120 300,300','#4d7c0f')+P('0,300 0,200 100,170 180,210 300,150 300,300','#65a30d')+'<path d="M0 230 L60 190 L100 205 L150 160 L200 170 L260 110 L300 120" stroke="#a8a29e" stroke-width="16" fill="none"/>'+[[60,190],[150,160],[260,110]].map(([x,y])=>R(x-12,y-34,24,34,'#78716c')+R(x-14,y-40,28,8,'#57534e')).join(''),
-petra:()=>SK('#fed7aa','#fdba74')+P('0,300 0,60 70,40 70,300','#c2410c')+P('300,300 300,50 230,40 230,300','#c2410c')+R(70,90,160,210,'#e9967a')+R(100,120,100,180,'#f0a58a')+P('90,120 150,80 210,120','#e9967a')+cols(108,150,5,20,12,100,'#fbcfae')+R(130,230,40,70,'#7c2d12')+E(150,300,90,16,'#d97706'),
-isa:()=>SK('#7dd3fc','#e0f2fe')+E(60,70,40,14,'#fff')+E(240,50,50,16,'#fff')+P('0,300 120,160 250,260 300,300','#166534')+P('60,300 150,130 260,300','#15803d')+R(143,60,14,80,'#f8fafc')+R(110,78,80,12,'#f8fafc')+C(150,52,9,'#f8fafc')+P('135,140 165,140 175,160 125,160','#e5e7eb'),
-machu:()=>SK('#99f6e4','#ecfeff')+P('150,40 270,230 30,230','#365314')+P('150,40 190,100 110,100','#4d7c0f')+R(0,230,300,70,'#4d7c0f')+[0,1,2,3,4].map(i=>R(40+i*8,210-i*28,220-i*16,22,i%2?'#86a34a':'#a3b86c')).join('')+[0,1,2,3].map(i=>R(120+i*10,200-i*26,22,18,'#d6d3d1')).join('')+P('0,300 60,200 120,300','#3f6212')+P('180,300 250,190 300,300','#3f6212'),
-chichen:()=>SK('#a7f3d0','#ecfccb')+R(0,240,300,60,'#65a30d')+[0,1,2,3,4,5,6].map(i=>R(50+i*10,230-i*24,200-i*20,24,i%2?'#d6d3d1':'#a8a29e')).join('')+R(130,85,40,30,'#78716c')+R(143,95,14,20,'#292524')+R(138,100,24,140,'#e7e5e4','opacity=".55"')+C(240,50,22,'#fde047'),
-kolezyum:()=>SK('#fecaca','#fef3c7')+E(150,235,140,28,'#a8a29e')+R(15,120,270,115,'#d6c1a0')+[0,1,2].map(r=>Array.from({length:9},(_,i)=>`<path d="M${28+i*28} ${150+r*30} v-14 a10 10 0 0 1 20 0 v14z" fill="#7c5a3a"/>`).join('')).join('')+E(150,120,135,22,'#e7d3b0')+R(0,262,300,38,'#84cc16'),
-tac:()=>SK('#c4b5fd','#fce7f3')+R(0,230,300,70,'#bae6fd')+R(70,150,160,80,'#fafafa')+`<path d="M95 150 a55 55 0 0 1 110 0z" fill="#fff"/>`+R(148,70,4,20,'#fde68a')+C(150,96,6,'#fde68a')+R(40,100,22,130,'#f5f5f4')+R(238,100,22,130,'#f5f5f4')+P('40,100 51,78 62,100','#f5f5f4')+P('238,100 249,78 260,100','#f5f5f4')+`<path d="M130 230 v-50 a20 20 0 0 1 40 0 v50z" fill="#94a3b8"/>`+R(60,250,180,8,'#e0f2fe','opacity=".6"'),
-kapadokya:()=>SK('#fb923c','#fde68a')+P('0,300 0,190 120,150 300,200 300,300','#d9a066')+[[60,230,70],[120,240,90],[190,225,80],[250,245,60]].map(([x,y,h])=>P(`${x-16},${y+60} ${x},${y-h+60} ${x+16},${y+60}`,'#c98a52')+C(x,y-h+62,9,'#a96b3c')).join('')+[[70,70,'#ef4444'],[160,50,'#facc15'],[240,90,'#3b82f6']].map(([x,y,c])=>E(x,y,22,26,c)+R(x-6,y+26,12,10,'#78350f')).join(''),
-gobekli:()=>SK('#fde68a','#fbbf24')+R(0,230,300,70,'#c9a26b')+E(150,235,130,30,'#b8905a')+[[60,200,80],[110,185,100],[190,185,100],[240,200,80]].map(([x,y,h])=>R(x-14,y-h+80,28,h,'#8d6e4a')+R(x-34,y-h+68,68,20,'#8d6e4a')).join('')+R(138,115,24,115,'#a8845a')+R(116,105,68,20,'#a8845a')+P('145,150 150,140 155,150','#5a4630')+C(235,55,24,'#fff7ed'),
-ayasofya:()=>SK('#fdba74','#fed7aa')+R(0,250,300,50,'#78716c')+R(60,170,180,85,'#d6a77a')+`<path d="M85 170 a65 62 0 0 1 130 0z" fill="#b45f3a"/>`+`<path d="M60 190 a30 30 0 0 1 30-30 v30z" fill="#c0724a"/><path d="M240 190 a30 30 0 0 0 -30 -30 v30z" fill="#c0724a"/>`+[30,262].map(x=>R(x-6,100,12,150,'#e7e5e4')+P(`${x-9},100 ${x},60 ${x+9},100`,'#475569')).join('')+cols(80,200,6,26,12,50,'#8c4f2e')+R(147,92,6,16,'#fde047'),
-pamukkale:()=>SK('#7dd3fc','#e0f2fe')+P('0,300 0,110 300,200 300,300','#f8fafc')+[[60,170],[130,195],[200,220],[260,240]].map(([x,y])=>E(x,y,52,16,'#67e8f9')+E(x,y-3,46,11,'#a5f3fc')).join('')+[[100,150],[170,175],[240,200]].map(([x,y])=>E(x,y,40,12,'#38bdf8')).join('')+P('0,300 0,260 80,300','#d6d3d1'),
-efes:()=>SK('#bfdbfe','#fef9c3')+R(0,250,300,50,'#d6d3d1')+R(60,110,180,145,'#e9d5b0')+R(60,100,180,14,'#c8a96e')+P('55,100 150,60 245,100','#d9bd88')+cols(70,125,6,28,14,125,'#f5e6c4')+cols(70,125,6,28,14,3,'#a8905c')+[0,1,2].map(i=>`<path d="M${100+i*50} 250 v-45 a14 14 0 0 1 28 0 v45z" fill="#6b5a3a"/>`).join('')+R(60,184,180,6,'#c8a96e'),
-anitkabir:()=>SK('#fecdd3','#ffe4e6')+R(0,255,300,45,'#a8a29e')+R(40,150,220,105,'#e7dcc6')+R(40,142,220,12,'#d6c7a3')+cols(52,158,10,21,12,95,'#f5ebd3')+R(130,70,40,80,'#e7dcc6')+R(125,62,50,10,'#d6c7a3')+P('130,62 150,40 170,62','#d6c7a3')+R(100,236,100,19,'#d1d5db')+R(20,262,260,6,'#78716c'),
-eyfel:()=>SK('#a5b4fc','#fbcfe8')+R(0,265,300,35,'#65a30d')+P('150,30 120,265 180,265','#44403c')+`<path d="M139 110 H161 M130 160 H170 M118 215 H182" stroke="#78716c" stroke-width="5"/>`+`<path d="M120 265 q30 -60 60 0" fill="none" stroke="#78716c" stroke-width="6"/>`+R(128,130,44,5,'#78716c')+C(240,60,20,'#fff7ed'),
-ozgurluk:()=>SK('#99f6e4','#e0f2fe')+R(0,255,300,45,'#0ea5e9')+R(105,200,90,55,'#a8a29e')+R(120,160,60,45,'#9ca3af')+P('120,160 180,160 170,90 130,90','#6ee7b7')+C(150,76,16,'#6ee7b7')+P('135,64 142,48 150,62 158,46 165,64','#6ee7b7')+R(168,70,10,6,'#6ee7b7')+R(172,30,8,50,'#6ee7b7')+P('170,30 176,8 182,30','#fde047')};
-const LM=[
-{k:'giza',g:0,n:'Gize Piramitleri',c:'Mısır',f:'Antik Dünyanın Yedi Harikası\'ndan günümüze ulaşan tek yapıdır; yaklaşık 4500 yıl önce yapıldı.'},
-{k:'cin',g:0,n:'Çin Seddi',c:'Çin',f:'Yüzyıllar boyunca eklenen bölümleriyle binlerce kilometre uzanan dev bir savunma duvarıdır.'},
-{k:'petra',g:0,n:'Petra',c:'Ürdün',f:'Nebatiler tarafından pembe kumtaşı kayalara oyulmuştur; "Gül Kenti" diye bilinir.'},
-{k:'isa',g:0,n:'Kurtarıcı İsa Heykeli',c:'Brezilya',f:'Rio de Janeiro\'da Corcovado Dağı\'nın tepesindedir ve 1931\'de tamamlanmıştır.'},
-{k:'machu',g:0,n:'Machu Picchu',c:'Peru',f:'İnka uygarlığının And Dağları\'nda yaklaşık 2400 m yükseklikteki kenti, 15. yüzyıla aittir.'},
-{k:'chichen',g:0,n:'Chichén Itzá (El Castillo)',c:'Meksika',f:'Maya uygarlığının önemli şehridir; basamaklı piramidi bir takvim gibi tasarlanmıştır.'},
-{k:'kolezyum',g:0,n:'Kolezyum',c:'İtalya',f:'Roma\'daki bu dev amfitiyatro yaklaşık 50 bin seyirci alabiliyordu.'},
-{k:'tac',g:0,n:'Tac Mahal',c:'Hindistan',f:'Agra\'da, Şah Cihan\'ın eşi Mümtaz Mahal için yaptırdığı beyaz mermer türbedir (17. yüzyıl).'},
-{k:'kapadokya',g:1,n:'Kapadokya',c:'Türkiye',f:'Nevşehir çevresindeki peri bacaları volkanik tüfün aşınmasıyla oluştu; UNESCO Dünya Mirası\'dır (1985).'},
-{k:'gobekli',g:1,n:'Göbeklitepe',c:'Türkiye',f:'Şanlıurfa\'da yaklaşık 12.000 yıllık, bilinen en eski anıtsal tapınak alanıdır; UNESCO listesine 2018\'de girdi.'},
-{k:'ayasofya',g:1,n:'Ayasofya',c:'Türkiye',f:'İstanbul\'da 537 yılında tamamlanan devasa kubbeli yapı, mimarlık tarihinin başyapıtlarındandır.'},
-{k:'pamukkale',g:1,n:'Pamukkale',c:'Türkiye',f:'Denizli\'de kalsiyum karbonat bakımından zengin termal sular beyaz travertenler oluşturmuştur.'},
-{k:'efes',g:1,n:'Efes Antik Kenti',c:'Türkiye',f:'İzmir\'in Selçuk ilçesindedir; Celsus Kütüphanesi ile ünlüdür, Artemis Tapınağı antik dünyanın yedi harikasındandı.'},
-{k:'anitkabir',g:1,n:'Anıtkabir',c:'Türkiye',f:'Ankara\'da, Atatürk\'ün anıt mezarıdır; 1953\'te tamamlanmıştır.'},
-{k:'eyfel',g:2,n:'Eyfel Kulesi',c:'Fransa',f:'Paris\'te 1889 Dünya Fuarı için yapılmıştır; yaklaşık 330 m yüksekliğindedir.'},
-{k:'ozgurluk',g:2,n:'Özgürlük Heykeli',c:'ABD',f:'New York\'ta, Fransa\'nın ABD\'ye hediyesidir ve 1886\'da açılmıştır.'}];
-const GN=['🌍 Dünyanın Harikaları','🇹🇷 Türkiye','🗼 İkonik Yerler'];
-let grp=0,L,mode,N,tiles,empty,moves,sel,t0,tm,done;
-const stars=()=>store('lm')||{};
-const svg=(k,vb)=>`<svg viewBox="${vb||'0 0 300 300'}" preserveAspectRatio="xMidYMid slice" xmlns="http://www.w3.org/2000/svg">${ART[k]()}</svg>`;
-function menu(){clearInterval(tm);app.innerHTML='';const S=stars();
- app.append(h('div',{class:'top'},h('h2',{},'🗺️ Kültür & Coğrafya Puzzle')),h('div',{class:'center',style:'justify-content:flex-start'},h('div',{class:'msg'},'Bir yapı seç, puzzle\'ı tamamla ve hakkında ilginç bilgiler öğren!'),
- h('div',{class:'row tabs'},GN.map((t,i)=>h('button',{class:'btn alt'+(grp===i?' on':''),onclick:()=>{grp=i;menu()}},t))),
- h('div',{class:'gal'},LM.filter(x=>x.g===grp).map(x=>h('div',{class:'tile0',onclick:()=>choose(x)},h('div',{class:'im',html:svg(x.k)+(S[x.k]?'<span class="st">'+'⭐'.repeat(S[x.k])+'</span>':'')}),x.n)))))}
-function choose(x){L=x;app.innerHTML='';app.append(h('div',{class:'top'},h('h2',{},L.n),h('span',{class:'sp'}),h('button',{class:'btn alt',onclick:menu},'☰')),h('div',{class:'center'},h('div',{class:'prev',html:svg(L.k)}),h('div',{class:'msg'},'Puzzle türünü seç'),
- h('div',{class:'row'},[['slide',3,'🔢 Kaydırmalı 3×3'],['slide',4,'🔢 Kaydırmalı 4×4'],['swap',3,'🧩 Yapboz 3×3'],['swap',4,'🧩 Yapboz 4×4']].map(([m,n,l])=>h('button',{class:'btn',onclick:()=>start(m,n)},l)))))}
-function start(m,n){mode=m;N=n;moves=0;sel=null;done=false;t0=Date.now();
- tiles=[...Array(N*N).keys()];
- if(m==='slide'){empty=N*N-1;let last=-1;for(let i=0;i<N*N*14;i++){const nb=nbrs(empty).filter(x=>x!==last);const j=pick(nb);[tiles[empty],tiles[j]]=[tiles[j],tiles[empty]];last=empty;empty=j}if(tiles.every((v,i)=>v===i))return start(m,n)}
- else{do{tiles=shuf(tiles)}while(tiles.every((v,i)=>v===i)||tiles.some((v,i)=>false))}
- clearInterval(tm);tm=setInterval(()=>{const e=$('#tm');if(e&&!done)e.textContent='⏱ '+fmt((Date.now()-t0)/1000|0)},1000);draw()}
-function fmt(s){return Math.floor(s/60)+':'+String(s%60).padStart(2,'0')}
-function nbrs(i){const r=Math.floor(i/N),c=i%N,o=[];if(r>0)o.push(i-N);if(r<N-1)o.push(i+N);if(c>0)o.push(i-1);if(c<N-1)o.push(i+1);return o}
-function draw(){app.innerHTML='';const size=Math.min(innerHeight-210,innerWidth-40,520);const cs=Math.floor(size/N);
- app.append(h('div',{class:'top'},h('h2',{},L.n),h('span',{class:'sp'}),h('span',{class:'chip',id:'tm'},'⏱ '+fmt((Date.now()-t0)/1000|0)),h('span',{class:'chip'},'Hamle '+moves),h('button',{class:'btn alt',onclick:()=>choose(L)},'↩'),h('button',{class:'btn alt',onclick:menu},'☰')));
- const g=h('div',{class:'pz',style:`grid-template-columns:repeat(${N},${cs}px)`});
- tiles.forEach((v,i)=>{const isE=mode==='slide'&&i===empty;const el=h('div',{class:'pt'+(isE?' empty':'')+(sel===i?' sel':'')+(!isE&&v===i?' ok':''),'data-i':i,style:`width:${cs}px;height:${cs}px`,onclick:()=>tap(i)});
-  if(!isE){const r=Math.floor(v/N),c=v%N,w=300/N;el.innerHTML=svg(L.k,`${c*w} ${r*w} ${w} ${w}`)+(mode==='slide'?`<b>${v+1}</b>`:'')}g.append(el)});
- app.append(g,h('div',{class:'msg',id:'ms'},mode==='slide'?'Parçaya dokun, boşluğa kayar.':'İki parçaya sırayla dokunarak yerlerini değiştir.'),h('div',{class:'row'},h('div',{class:'prev',style:'width:90px;height:90px',html:svg(L.k)})))}
-function tap(i){if(done)return;if(mode==='slide'){if(!nbrs(empty).includes(i))return;[tiles[empty],tiles[i]]=[tiles[i],tiles[empty]];empty=i;moves++;sfx.tap()}
- else{if(sel===null){sel=i;sfx.tap();draw();return}if(sel!==i){[tiles[sel],tiles[i]]=[tiles[i],tiles[sel]];moves++;sfx.tap()}sel=null}
- draw();if(tiles.every((v,i)=>v===i))finish()}
-function finish(){done=true;clearInterval(tm);sfx.win();const secs=(Date.now()-t0)/1000|0;const par=N*N*(mode==='slide'?9:2);const s=moves<=par?3:moves<=par*2?2:1;const S=stars();S[L.k]=Math.max(S[L.k]||0,s);store('lm',S);
- const opts=shuf([L.c,...shuf([...new Set(LM.map(x=>x.c))].filter(c=>c!==L.c)).slice(0,2)]);
- app.innerHTML='';app.append(h('div',{class:'top'},h('h2',{},'🎉 Puzzle tamam!'),h('span',{class:'sp'}),h('button',{class:'btn alt',onclick:menu},'☰')),
-  h('div',{class:'center'},h('div',{class:'prev',style:'width:min(80vw,280px);height:min(80vw,280px)',html:svg(L.k)}),h('div',{class:'stars'},'⭐'.repeat(s)+'☆'.repeat(3-s)),
-   h('div',{class:'info'},h('b',{style:'font-size:20px'},L.n),h('div',{class:'msg',style:'text-align:left'},`${moves} hamle · ${fmt(secs)}`),h('p',{},L.f),
-    h('div',{class:'msg',style:'text-align:left'},'❓ Bu yapı hangi ülkede?'),h('div',{class:'row',id:'qo'},opts.map(o=>h('button',{class:'btn alt',onclick:e=>{const ok=o===L.c;e.target.className='btn '+(ok?'':'bad');ok?sfx.ok():sfx.bad();$('#qr').textContent=ok?'✅ Doğru! '+L.c:'❌ Doğrusu: '+L.c;if(ok)window.__won=true}},o))),h('div',{class:'msg',id:'qr'},'')),
-   h('div',{class:'row'},h('button',{class:'btn',onclick:()=>start(mode,N)},'🔄 Tekrar'),h('button',{class:'btn alt',onclick:menu},'Diğer yapılar'))));window.__done=true}
-menu();
-</script></body></html>
-'''
-
 ARCADE_HTML['kesir'] = r'''<!DOCTYPE html><html lang="tr"><head><!--SHARED--><style>
 .bar{display:flex;width:min(92%,640px);height:90px;border-radius:16px;overflow:hidden;border:3px solid #fff;margin:6px auto;position:relative;background:#7c4a1e}
 .pc{flex:1;border-right:3px dashed rgba(255,255,255,.9);display:flex;align-items:center;justify-content:center;font-size:18px;font-weight:900;cursor:pointer;background:linear-gradient(135deg,#a0602a,#7c4a1e);transition:.25s;color:#fde68a}
@@ -4039,7 +3336,371 @@ menu();
 </script></body></html>
 '''
 
-ARCADES = [('uno', '🃏', 'UNO', 'linear-gradient(135deg, #ef4444, #f59e0b)', 'Robot rakiplere karşı kart savaşı'), ('sudoku', '🔢', 'Sudoku', 'linear-gradient(135deg, #0ea5e9, #6366f1)', '4×4, 6×6, 9×9 mantık bulmacası'), ('satranc', '♞', 'Satranç', 'linear-gradient(135deg, #334155, #0f766e)', 'Yapay zekâya karşı tam kurallı'), ('kelimeler', '🔤', 'Kelime Bulmacaları', 'linear-gradient(135deg, #f97316, #db2777)', 'Kelime avı, çapraz bulmaca, eşleştirme'), ('macera', '🧭', 'İnteraktif Macera', 'linear-gradient(135deg, #0d9488, #4f46e5)', 'Seçimlerinle hikâyeyi yönlendir'), ('kultur', '🗺️', 'Kültür & Coğrafya Puzzle', 'linear-gradient(135deg, #ca8a04, #dc2626)', 'Dünya harikaları, Kapadokya, Göbeklitepe'), ('sinema', '🤫', 'Sessiz Sinema', 'linear-gradient(135deg, #f43f5e, #9333ea)', 'Mimikle anlat, takımın bilsin'), ('kesir', '🍫', 'Kesir Dilimleme', 'linear-gradient(135deg, #f59e0b, #b45309)', 'Kes, böl, karşılaştır, topla'), ('cebir', '🐉', 'Ejderha Cebir', 'linear-gradient(135deg, #a855f7, #6366f1)', 'Denklemi oyunla çöz'), ('canavar', '👾', 'Sayı Canavarları', 'linear-gradient(135deg, #22c55e, #0d9488)', 'Sayı çubuklarıyla doyur'), ('buyuk', '🔟', 'Büyük Sayılar', 'linear-gradient(135deg, #ec4899, #8b5cf6)', 'Basamak blokları, eldeli işlem'), ('zihin', '🧠', 'Zihin Antrenmanı', 'linear-gradient(135deg, #14b8a6, #06b6d4)', 'Hafıza, dikkat, hız, mantık')]
+ARCADES = [('uno', '🃏', 'UNO', 'linear-gradient(135deg, #ef4444, #f59e0b)', 'Robot rakiplere karşı kart savaşı'), ('sudoku', '🔢', 'Sudoku', 'linear-gradient(135deg, #0ea5e9, #6366f1)', '4×4, 6×6, 9×9 mantık bulmacası'), ('satranc', '♞', 'Satranç', 'linear-gradient(135deg, #334155, #0f766e)', 'Yapay zekâya karşı tam kurallı'), ('sinema', '🤫', 'Sessiz Sinema', 'linear-gradient(135deg, #f43f5e, #9333ea)', 'Mimikle anlat, takımın bilsin'), ('kesir', '🍫', 'Kesir Dilimleme', 'linear-gradient(135deg, #f59e0b, #b45309)', 'Kes, böl, karşılaştır, topla'), ('cebir', '🐉', 'Ejderha Cebir', 'linear-gradient(135deg, #a855f7, #6366f1)', 'Denklemi oyunla çöz'), ('canavar', '👾', 'Sayı Canavarları', 'linear-gradient(135deg, #22c55e, #0d9488)', 'Sayı çubuklarıyla doyur'), ('buyuk', '🔟', 'Büyük Sayılar', 'linear-gradient(135deg, #ec4899, #8b5cf6)', 'Basamak blokları, eldeli işlem'), ('zihin', '🧠', 'Zihin Antrenmanı', 'linear-gradient(135deg, #14b8a6, #06b6d4)', 'Hafıza, dikkat, hız, mantık')]
+
+
+def pick_arcade(k):
+    st.session_state["selected_arcade"] = k
+
+
+def leave_arcade():
+    st.session_state["selected_arcade"] = None
+
+
+def arcade_page(key):
+    info = next(g for g in ARCADES if g[0] == key)
+    c1, c2, c3 = st.columns([1.2, 1.3, 5.5])
+    with c1:
+        st.button("⬅️ Geri", key="back_arcade", on_click=leave_arcade)
+    with c2:
+        components.html(FS_BUTTON, height=52)
+    with c3:
+        st.markdown(f'<div class="gamebar-title">{info[1]} {esc(info[2])} · Oyun Salonu</div>', unsafe_allow_html=True)
+    html = ARCADE_HTML[key].replace("<!--SHARED-->", ARCADE_SHARED)
+    with st.container(key="balloon_wrap"):
+        components.html(html, height=760)
 
 
 
+# =============================================================================
+# 10. ANA AKIŞ
+# =============================================================================
+subj = st.session_state["selected_subject"]
+unit = st.session_state["selected_unit"]
+game = st.session_state["selected_game"]
+arcade = st.session_state.get("selected_arcade")
+in_game = bool(subj and unit and game) or bool(arcade)
+
+css = BASE_CSS + (GAME_CSS if in_game else "") + (BALLOON_CSS if (in_game and game == "balon") or arcade else "")
+st.markdown(f"<style>{css}</style>", unsafe_allow_html=True)
+
+# --- Kenar çubuğu: oyun dışında görünür ---
+if not in_game:
+    with st.sidebar:
+        st.button("🏠 Ana Sayfaya Dön", key="home_btn", on_click=go_home)
+        st.markdown("---")
+        render_adenmind("side")
+
+# --- Üst başlık: oyun dışında görünür ---
+if not in_game:
+    st.markdown(
+        '<div class="hero"><div class="badge">🎒</div><div><h1>MEB 5. Sınıf Akıllı Eğitsel Oyun Merkezi</h1>'
+        "<small>AdenMind Koçluk · Murat KANDIRMAZ</small></div></div>",
+        unsafe_allow_html=True,
+    )
+
+# --- AŞAMA 1: DERS SEÇİMİ (karta tıklamak yeterli) ---
+if arcade:
+    arcade_page(arcade)
+
+elif not subj:
+    st.markdown('<div class="section-title">🌟 Çalışmak istediğin dersi seç</div>', unsafe_allow_html=True)
+    items = [(name, d["ikon"], name, d["renk"]) for name, d in MEB_CURRICULUM.items()]
+    card_grid(items, 3, "sub", pick_subject, CARD_H)
+    st.markdown('<div class="section-title">🕹️ Yapay Zekâ ile Oyun Salonu</div>', unsafe_allow_html=True)
+    card_grid([(g[0], g[1], g[2], g[3], g[4]) for g in ARCADES], 3, "arc", pick_arcade, CARD_H)
+
+# --- AŞAMA 2: ÜNİTE SEÇİMİ ---
+elif not unit:
+    data = MEB_CURRICULUM[subj]
+    st.markdown(
+        f'<div class="crumb"><span class="pill">{data["ikon"]} {esc(subj)}</span><span>›</span>'
+        '<span class="pill alt">Ünite seç</span></div>',
+        unsafe_allow_html=True,
+    )
+    st.button("⬅️ Ders Seçimine Dön", key="back_subj", on_click=go_home)
+    st.markdown('<div class="section-title">📚 Hangi üniteyi çalışalım?</div>', unsafe_allow_html=True)
+    items = [(u, "📖", u, data["renk"]) for u in data["uniteler"]]
+    card_grid(items, 3, "unit", pick_unit, CARD_H)
+
+# --- AŞAMA 3: OYUN SEÇİMİ ---
+elif not game:
+    data = MEB_CURRICULUM[subj]
+    st.markdown(
+        f'<div class="crumb"><span class="pill">{data["ikon"]} {esc(subj)}</span><span>›</span>'
+        f'<span class="pill alt">{esc(unit)}</span></div>',
+        unsafe_allow_html=True,
+    )
+    st.button("↩️ Ünite Değiştir", key="back_unit", on_click=back_to_units)
+    st.markdown('<div class="section-title">🎮 Bir oyun seç, hemen başlasın!</div>', unsafe_allow_html=True)
+    items = [tuple(g) for g in GAMES]
+    card_grid(items, 3, "game", pick_game, CARD_H)
+
+# --- AŞAMA 4: OYUN (tam ekran düzeni) ---
+else:
+    gs = get_gs(game)
+    ikon = GAME_INFO[game][1]
+    game_topbar(f"{ikon} {GAME_INFO[game][2]} · {subj} · {unit}")
+    if gs.get("offline"):
+        st.info("📴 Yapay zekâya ulaşılamadı; yerel üretici / kayıtlı sorular kullanılıyor.")
+
+    # 1. Balon patlatmaca
+    if game == "balon":
+        prompt = (
+            ctx() + "TAM 5 ADET özgün, gerçek hayat senaryolu çoktan seçmeli (A, B, C, D) soru üret.\n"
+            + VISUAL_RULES + MCQ_FORMAT
+        )
+        data = load_data(gs, prompt, list, ("soru", "secenekler", "dogru_cevap"), "Balon soruları hazırlanıyor...", kind="mcq")
+        if data:
+            payload = json.dumps(data, ensure_ascii=False).replace("</", "<\\/")
+            with st.container(key="balloon_wrap"):
+                components.html(BALLOON_HTML.replace("__QUESTIONS__", payload), height=760)
+
+    # 2. 5 soruluk kazanım yarışması
+    elif game == "sinav10":
+        prompt = ctx() + "TAM 5 ADET yepyeni çoktan seçmeli (4 şıklı) soru üret.\n" + VISUAL_RULES + MCQ_FORMAT
+        data = load_data(gs, prompt, list, ("soru", "secenekler", "dogru_cevap"), "Kazanım soruları hazırlanıyor...", kind="mcq")
+        if data:
+            run_quiz(gs, data, build_mcq)
+
+    # 3. Doğru / Yanlış
+    elif game == "dogruyanlis":
+        prompt = (
+            ctx() + "TAM 5 ADET yepyeni Doğru veya Yanlış önermesi üret. Doğru ve yanlış önermeleri dengeli dağıt.\n"
+            + VISUAL_RULES
+            + 'Yalnızca geçerli JSON liste döndür: [{"ifade":"...","cevap":"D","aciklama":"...",'
+            '"gorsel_tipi":"yok","gorsel_parametre":""}] (cevap yalnızca D veya Y olsun).'
+        )
+        data = load_data(gs, prompt, list, ("ifade", "cevap"), "Önermeler hazırlanıyor...", kind="tf")
+        if data:
+            run_quiz(gs, data, build_tf)
+
+    # 4. Boşluk doldurma
+    elif game == "bosluk":
+        prompt = (
+            ctx() + "Cümle içinde boşluk (____) bırakılmış TAM 5 adet soru üret. Her soruda 4 seçenek olsun.\n"
+            + VISUAL_RULES
+            + 'Yalnızca geçerli JSON liste döndür: [{"cumle":"... ____ ...","dogru_kelime":"...",'
+            '"secenekler":["...","...","...","..."],"gorsel_tipi":"yok","gorsel_parametre":""}]'
+        )
+        data = load_data(gs, prompt, list, ("cumle", "dogru_kelime", "secenekler"), "Sorular hazırlanıyor...")
+        if data:
+            run_quiz(gs, data, build_fill)
+
+    # 5. Soru kartları
+    elif game == "kartlar":
+        prompt = (
+            ctx() + "TAM 5 ADET yepyeni flashcard üret. Yalnızca geçerli JSON liste döndür: "
+            '[{"on_yuz":"...","arka_yuz":"..."}]'
+        )
+        data = load_data(gs, prompt, list, ("on_yuz", "arka_yuz"), "Kartlar hazırlanıyor...")
+        if data:
+            idx = gs["idx"]
+            if idx < len(data):
+                card = data[idx]
+                st.progress(idx / len(data))
+                st.markdown(
+                    f'<div class="flash" style="background:linear-gradient(135deg,#0d9488,#06b6d4)">'
+                    f'<div class="tag">Kart {idx + 1} / {len(data)}</div>'
+                    f'<div class="txt">❓ {esc(str(card["on_yuz"]))}</div></div>',
+                    unsafe_allow_html=True,
+                )
+                if gs["show"]:
+                    st.markdown(
+                        f'<div class="flash" style="background:linear-gradient(135deg,#7c3aed,#d946ef)">'
+                        f'<div class="tag">Cevap / Açıklama</div>'
+                        f'<div class="txt">💡 {esc(str(card["arka_yuz"]))}</div></div>',
+                        unsafe_allow_html=True,
+                    )
+
+                def _fc_move(d):
+                    gs["idx"] = max(0, gs["idx"] + d)
+                    gs["show"] = False
+
+                def _fc_toggle():
+                    gs["show"] = not gs["show"]
+
+                c1, c2, c3 = st.columns(3)
+                with c1:
+                    st.button("⬅️ Önceki", key="fc_prev", disabled=idx == 0, on_click=_fc_move, args=(-1,))
+                with c2:
+                    st.button("🙈 Cevabı Gizle" if gs["show"] else "👀 Cevabı Göster", key="fc_toggle", on_click=_fc_toggle)
+                with c3:
+                    st.button("Sonraki ➡️", key="fc_next", on_click=_fc_move, args=(1,))
+            else:
+                st.markdown(
+                    '<div class="result"><div class="trophy">🎉</div><h2>Tüm kartları gözden geçirdin!</h2></div>',
+                    unsafe_allow_html=True,
+                )
+                st.button("🔄 Başa Dön", key="again", on_click=lambda: gs.update(idx=0, show=False))
+
+    # 6. Oynayarak öğren
+    elif game == "oynayarak":
+        prompt = (
+            ctx() + "Gerçek hayattan esinlenen bir karar verme senaryosu ve çoktan seçmeli mini görev üret. "
+            'Yalnızca geçerli JSON döndür: {"senaryo":"...","gorev_sorusu":"...",'
+            '"secenekler":["A) ...","B) ...","C) ...","D) ..."],"ipucu":"..."}'
+        )
+        iq = load_data(gs, prompt, dict, ("senaryo", "gorev_sorusu", "secenekler"), "Macera hazırlanıyor...")
+        if iq:
+            st.markdown(
+                f'<div class="qcard"><div class="qmeta"><span>📖 Görev Senaryosu</span></div>'
+                f'<div style="font-size:1.1rem;line-height:1.6">{esc(str(iq["senaryo"]))}</div>'
+                f'<hr style="border-color:rgba(94,234,212,.3);margin:16px 0">'
+                f'<div class="qmeta"><span>🎯 Karar Noktası</span></div>'
+                f'<div class="qtext">{esc(str(iq["gorev_sorusu"]))}</div></div>',
+                unsafe_allow_html=True,
+            )
+
+            def _choose(opt):
+                gs["choice"] = opt
+                gs["eval"] = None
+
+            def _hint():
+                gs["show"] = not gs["show"]
+
+            if gs["choice"] is None:
+                with st.container(key="optbox"):
+                    cols = st.columns(2)
+                    for i, o in enumerate(iq["secenekler"]):
+                        with cols[i % 2]:
+                            st.button(md_safe(o), key=f"iq_{i}", on_click=_choose, args=(o,))
+            else:
+                st.markdown(f'<div class="pill">Seçimin: {esc(str(gs["choice"]))}</div>', unsafe_allow_html=True)
+                if gs["eval"] is None:
+                    with loading("AdenMind değerlendiriyor", 5, kind="eval"):
+                        gs["eval"] = ai_generate_content(
+                            f"Ders: {subj}, Ünite: {unit}.\nGörev Sorusu: {iq['gorev_sorusu']}\n"
+                            f"Öğrencinin Seçtiği Şık: {gs['choice']}\n"
+                            "Bu seçimin doğru olup olmadığını değerlendir, nedenini sevimli bir dille kısaca açıkla."
+                        ) or "Değerlendirme yapılamadı, tekrar dene."
+                st.info(gs["eval"])
+                st.button("↩️ Başka Şık Dene", key="iq_retry", on_click=_choose, args=(None,))
+            st.button("💡 AdenMind'den İpucu", key="iq_hint", on_click=_hint)
+            if gs["show"]:
+                st.info(f"🦊 **İpucu:** {iq.get('ipucu', '')}")
+
+    # 7. Etkinliklerle öğren
+    elif game == "etkinlik":
+        prompt = (
+            ctx() + "Evde veya sınıfta yapılabilecek 3 adet yaratıcı öğrenme etkinliği, deney veya pratik uygulama öner. "
+            "Her biri için gerekli malzemeleri ve adımları kısa maddelerle yaz. Markdown kullan."
+        )
+        text = load_data(gs, prompt, str, (), "Etkinlikler hazırlanıyor...")
+        if text:
+            with st.container(border=True):
+                st.markdown(text)
+
+    # 8. Kelime avı
+    elif game == "kelime":
+        prompt = (
+            ctx() + "TAM 5 ADET anahtar kelime (tek sözcük, 4-10 harf, Türkçe veya dersin diline uygun) ve tanım ipucu üret. "
+            'Yalnızca geçerli JSON liste döndür: [{"kelime":"TERİM","ipucu":"..."}]'
+        )
+        data = load_data(gs, prompt, list, ("kelime", "ipucu"), "Bulmaca hazırlanıyor...", kind="words", item_ok=word_ok)
+        if data:
+            idx = gs["idx"]
+            if idx < len(data):
+                item = data[idx]
+                word = re.sub(r"\s+", "", str(item["kelime"]))
+                word = word.upper() if subj in LANG_SUBJECTS else tr_upper(word)
+                if gs["pool_for"] != idx:
+                    pool = list(word)
+                    extras = [c for c in "ABCÇDEFGĞHIİJKLMNOÖPRSŞTUÜVYZ" if c not in pool]
+                    pool += random.sample(extras, min(3, len(extras)))
+                    random.shuffle(pool)
+                    gs.update(pool=pool, pool_for=idx, guess=[], used=[])
+
+                def _add(i, ch, n):
+                    if len(gs["guess"]) < n:
+                        gs["guess"].append(ch)
+                        gs["used"].append(i)
+                        gs["msg"] = None
+
+                def _undo():
+                    if gs["guess"]:
+                        gs["guess"].pop()
+                        gs["used"].pop()
+
+                def _clear():
+                    gs["guess"], gs["used"] = [], []
+
+                def _skip():
+                    gs["idx"] += 1
+                    gs["msg"] = None
+
+                def _check():
+                    if "".join(gs["guess"]) == word:
+                        gs["score"] += max(1, 100 // len(data))
+                        gs["idx"] += 1
+                        gs["msg"] = ("ok", "🎉 Tebrikler, doğru kelime!")
+                    else:
+                        gs["msg"] = ("bad", "❌ Eksik veya yanlış harf! Son harfi silip düzeltebilirsin.")
+
+                st.progress(idx / len(data))
+                st.markdown(
+                    f'<div class="qcard"><div class="qmeta"><span>Bulmaca {idx + 1} / {len(data)} · '
+                    f'{len(word)} harf</span><span class="score-chip">⭐ {gs["score"]} puan</span></div>'
+                    f'<div class="qtext">💡 {esc(str(item["ipucu"]))}</div></div>',
+                    unsafe_allow_html=True,
+                )
+                tiles = "".join(
+                    f'<div class="tile {"on" if i < len(gs["guess"]) else ""}">'
+                    f'{esc(gs["guess"][i]) if i < len(gs["guess"]) else ""}</div>'
+                    for i in range(len(word))
+                )
+                st.markdown(f'<div class="tiles">{tiles}</div>', unsafe_allow_html=True)
+                if gs["msg"]:
+                    (st.success if gs["msg"][0] == "ok" else st.error)(gs["msg"][1])
+
+                with st.container(key="letters"):
+                    for r in range(0, len(gs["pool"]), 8):
+                        cols = st.columns(8)
+                        for j, ch in enumerate(gs["pool"][r:r + 8]):
+                            i = r + j
+                            used = i in gs["used"]
+                            with cols[j]:
+                                st.button(
+                                    "✔" if used else ch, key=f"ch_{idx}_{i}", disabled=used,
+                                    on_click=_add, args=(i, ch, len(word)),
+                                )
+                c1, c2, c3, c4 = st.columns(4)
+                with c1:
+                    st.button("🔄 Sıfırla", key="k_clear", on_click=_clear)
+                with c2:
+                    st.button("↩️ Son Harfi Sil", key="k_undo", on_click=_undo)
+                with c3:
+                    st.button("⏭️ Pas Geç", key="pass_k", on_click=_skip)
+                with c4:
+                    st.button("✅ Kontrol Et", key="k_check", on_click=_check)
+            else:
+                st.markdown(
+                    f'<div class="result"><div class="trophy">🏆</div><h2>Tüm bulmacaları tamamladın!</h2>'
+                    f'<div class="big">{gs["score"]}<small> / 100</small></div></div>',
+                    unsafe_allow_html=True,
+                )
+                st.button("🔄 Yeni Bulmaca", key="again", on_click=regen)
+
+    # 9. Klasik yazılı simülatörü
+    elif game == "acik":
+        prompt = (
+            ctx() + "TAM 5 ADET açık uçlu yazılı sorusu ve ideal cevaplarını üret. "
+            'Yalnızca geçerli JSON liste döndür: [{"soru":"...","beklenen_cevap":"..."}]'
+        )
+        data = load_data(gs, prompt, list, ("soru", "beklenen_cevap"), "Yazılı soruları hazırlanıyor...")
+        if data:
+            with st.form("classic_form"):
+                answers = []
+                for i, cq in enumerate(data):
+                    st.markdown(
+                        f'<div class="qcard" style="padding:16px 22px"><div class="qmeta"><span>Soru {i + 1}</span></div>'
+                        f'<div class="qtext" style="font-size:1.15rem">{esc(str(cq["soru"]))}</div></div>',
+                        unsafe_allow_html=True,
+                    )
+                    answers.append(st.text_area(f"Cevabın ({i + 1})", key=f"ans_{gs['nonce']}_{i}"))
+                submitted = st.form_submit_button("📨 Yazılı Kağıdını Puanlat")
+            if submitted:
+                gs["results"] = []
+                with loading("AdenMind kâğıdını okuyor", 6, kind="eval"):
+                    for i, cq in enumerate(data):
+                        if answers[i].strip():
+                            res = ai_generate_content(
+                                f"Soru: {cq['soru']}\nİdeal cevap: {cq['beklenen_cevap']}\nÖğrenci: {answers[i]}\n"
+                                "0-20 arası puan ve kısa, cesaretlendirici bir açıklama ver."
+                            )
+                            gs["results"].append((i, res or "Değerlendirme yapılamadı."))
+            for i, res in gs["results"] or []:
+                st.info(f"**Soru {i + 1} Değerlendirmesi**\n\n{res}")
+
+    elif game in NEW_GAMES:
+        NEW_GAMES[game](gs, game)
