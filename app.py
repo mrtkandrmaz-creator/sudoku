@@ -509,8 +509,12 @@ CARD_H = 150  # TÜM sayfalardaki (ders, ünite, oyun) kartların ortak, sabit y
 def card_css(key, gradient, height=CARD_H):
     """Bir butonu tamamen oyun kartına çevirir (tek tıkla seçim). Yükseklik sabittir; uzun yazılar kırpılır."""
     return (
-        f".st-key-{key}{{margin-bottom:10px}}"
-        f".st-key-{key} button{{position:relative;overflow:hidden;height:{CARD_H}px !important;"
+        f".st-key-{key}{{margin-bottom:10px;width:100% !important;max-width:100% !important}}"
+        f".st-key-{key} > div,.st-key-{key} [data-testid='stButton'],.st-key-{key} .stButton{{width:100% !important;"
+        f"max-width:100% !important;display:block !important}}"
+        f".st-key-{key} button{{width:100% !important;min-width:100% !important;max-width:100% !important;"
+        f"box-sizing:border-box !important;display:flex !important;align-items:center;justify-content:center;"
+        f"position:relative;overflow:hidden;height:{CARD_H}px !important;"
         f"min-height:{CARD_H}px !important;max-height:{CARD_H}px !important;padding:10px 16px !important;"
         f"background:{gradient} !important;color:#fff !important;border-radius:28px !important;border:0 !important;"
         f"box-shadow:0 8px 0 rgba(0,0,0,.30),0 18px 32px rgba(0,0,0,.28) !important}}"
@@ -543,7 +547,7 @@ def card_grid(items, cols_n, prefix, on_pick, height):
             i = r + j
             with cols[j]:
                 label = f"{it[1]}\n\n**{md_safe(it[2])}**" + (f"\n\n{md_safe(it[4])}" if len(it) > 4 and it[4] else "")
-                st.button(label, key=f"{prefix}_{i}", on_click=on_pick, args=(it[0],))
+                st.button(label, key=f"{prefix}_{i}", on_click=on_pick, args=(it[0],), use_container_width=True)
 
 
 def md_safe(text):
