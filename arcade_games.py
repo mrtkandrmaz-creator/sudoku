@@ -684,7 +684,240 @@ menu();
 </script></body></html>
 '''
 
-ARCADES = [('uno', '🃏', 'UNO', 'linear-gradient(135deg, #ef4444, #f59e0b)', 'Robot rakiplere karşı kart savaşı'), ('sudoku', '🔢', 'Sudoku', 'linear-gradient(135deg, #0ea5e9, #6366f1)', '4×4, 6×6, 9×9 mantık bulmacası'), ('satranc', '♞', 'Satranç', 'linear-gradient(135deg, #334155, #0f766e)', 'Yapay zekâya karşı tam kurallı'),
-('kultur', '🗺️', 'Kültür & Coğrafya Puzzle', 'linear-gradient(135deg, #ca8a04, #dc2626)', 'Dünya harikaları, Kapadokya, Göbeklitepe'), ('sinema', '🤫', 'Sessiz Sinema', 'linear-gradient(135deg, #f43f5e, #9333ea)', 'Mimikle anlat, takımın bilsin'), ('kesir', '🍫', 'Kesir Dilimleme', 'linear-gradient(135deg, #f59e0b, #b45309)', 'Kes, böl, karşılaştır, topla'), ('cebir', '🐉', 'Ejderha Cebir', 'linear-gradient(135deg, #a855f7, #6366f1)', 'Denklemi oyunla çöz'), ('canavar', '👾', 'Sayı Canavarları', 'linear-gradient(135deg, #22c55e, #0d9488)', 'Sayı çubuklarıyla doyur'), ('buyuk', '🔟', 'Büyük Sayılar', 'linear-gradient(135deg, #ec4899, #8b5cf6)', 'Basamak blokları, eldeli işlem'), ('zihin', '🧠', 'Zihin Antrenmanı', 'linear-gradient(135deg, #14b8a6, #06b6d4)', 'Hafıza, dikkat, hız, mantık')]
+ARCADE_HTML['kelimeler'] = r'''<!DOCTYPE html><html lang="tr"><head><!--SHARED--><style>
+.gridw{display:grid;gap:3px;margin:auto;touch-action:none;user-select:none}
+.lc{display:flex;align-items:center;justify-content:center;font-weight:800;border-radius:8px;background:rgba(255,255,255,.08);border:1px solid rgba(94,234,212,.2);cursor:pointer}
+.lc.st{background:rgba(251,191,36,.45)}.lc.fd{background:rgba(74,222,128,.45);color:#052e16}
+.wl{display:flex;flex-wrap:wrap;gap:6px;justify-content:center;max-width:720px;margin:auto}
+.wl span{padding:4px 10px;border-radius:999px;background:rgba(255,255,255,.08);border:1px solid var(--line);font-weight:700;font-size:13px}
+.wl span.d{text-decoration:line-through;opacity:.5;background:rgba(74,222,128,.25)}
+.cw{display:grid;gap:2px;margin:auto}
+.cc{position:relative;background:rgba(255,255,255,.92);color:#042f2e;font-weight:900;display:flex;align-items:center;justify-content:center;border-radius:4px;cursor:pointer}
+.cc.blk{background:transparent;cursor:default}
+.cc.sel{background:#fde68a}.cc.row{background:#ccfbf1}.cc.bad{background:#fecdd3}.cc.ok{color:#047857}
+.cc i{position:absolute;left:2px;top:0;font-size:9px;font-style:normal;font-weight:700;color:#0f766e}
+.clues{max-width:760px;margin:auto;display:grid;grid-template-columns:1fr 1fr;gap:6px 18px;font-size:13px;text-align:left}
+.clues b{color:var(--gold)}
+.clue{cursor:pointer}.clue.a{background:rgba(251,191,36,.25);border-radius:6px}
+.pad{display:flex;flex-wrap:wrap;gap:4px;justify-content:center;max-width:640px;margin:auto}
+.pad .btn{padding:6px 0;width:38px;font-size:14px;box-shadow:0 2px 0 #0f766e}
+.mt{display:grid;grid-template-columns:1fr 1fr;gap:10px;max-width:760px;margin:auto;width:100%}
+.mt .btn{width:100%;text-align:center;font-size:14px}.mt .btn.sel{outline:3px solid var(--gold)}.mt .btn.done{opacity:.35;pointer-events:none;background:#4ade80}
+</style></head><body><div id="app"></div><script>
+const app=$('#app');
+const TH={
+'🔬 Fen Bilimleri':[['HÜCRE','Canlıların yapı taşı'],['MIKNATIS','Demiri çeken cisim'],['GÜNEŞ','Dünya\'ya ışık ve ısı veren yıldız'],['KÜTLE','Maddenin miktarı'],['ENERJİ','İş yapabilme yeteneği'],['ATOM','Maddenin en küçük yapı taşı'],['KUVVET','Cismin hareketini değiştiren etki'],['SÜRTÜNME','Hareketi zorlaştıran kuvvet'],['MERCEK','Işığı kıran saydam cisim'],['VOLKAN','Magmanın yeryüzüne çıktığı dağ'],['DEPREM','Yer kabuğunun sarsılması'],['İKLİM','Uzun yıllık hava olayları'],['MADDE','Kütlesi olan, yer kaplayan her şey'],['DEVRE','Elektriğin dolaştığı yol'],['PİL','Elektrik enerjisi kaynağı']],
+'🌍 Sosyal Bilgiler':[['HARİTA','Yeryüzünün küçültülmüş çizimi'],['KITA','Büyük kara parçası'],['OKYANUS','Dünyanın en büyük su kütlesi'],['ATATÜRK','Cumhuriyetimizin kurucusu'],['ANITKABİR','Atatürk\'ün kabri'],['PUSULA','Yön bulmaya yarar'],['ENLEM','Ekvatora paralel hayali çizgi'],['BOYLAM','Kutupları birleştiren hayali çizgi'],['ÖLÇEK','Haritada küçültme oranı'],['ANADOLU','Türkiye\'nin Asya\'daki yarımadası'],['DEMOKRASİ','Halkın yönetimi'],['CUMHURİYET','29 Ekim 1923\'te ilan edildi'],['TARİH','Geçmişi inceleyen bilim'],['KÜLTÜR','Bir toplumun yaşam biçimi'],['ADALET','Hak ve hukuka uygunluk']],
+'➗ Matematik':[['KESİR','Bütünün eşit parçaları'],['ÜÇGEN','Üç kenarlı şekil'],['ALAN','Bir yüzeyin kapladığı yer'],['ÇEVRE','Şeklin kenar uzunlukları toplamı'],['PAYDA','Kesirde alttaki sayı'],['ONDALIK','Virgüllü sayı'],['YÜZDE','Yüzde bir birimi (%)'],['SİMETRİ','Ayna yansıması'],['DİKDÖRTGEN','Karşılıklı kenarları eşit dört kenar'],['TOPLAMA','Sayıları birleştirme işlemi'],['ÇARPMA','Tekrarlı toplama'],['BÖLME','Eşit paylaştırma işlemi'],['AÇI','İki ışının birleşimi'],['DOĞRU','İki yana sınırsız uzanan çizgi'],['SAYI','Miktarı gösteren değer']],
+'📝 Türkçe':[['SIFAT','İsmi niteleyen sözcük'],['ZAMİR','İsmin yerini tutan sözcük'],['ÖZNE','İşi yapan'],['YÜKLEM','Cümlenin yargı bildiren öğesi'],['FİİL','Eylem bildiren sözcük'],['DEYİM','Kalıplaşmış, mecaz anlamlı söz'],['ATASÖZÜ','Öğüt veren kalıp söz'],['KAFİYE','Uyak'],['METİN','Yazılı anlatım parçası'],['ŞİİR','Dizelerden oluşan edebi tür'],['NOKTA','Cümleyi bitiren işaret'],['VİRGÜL','Sıralamada kullanılan işaret'],['ANLAM','Sözcüğün karşıladığı kavram'],['HİKÂYE','Olay anlatan yazı'],['ROMAN','Uzun kurmaca eser']],
+'🇬🇧 İngilizce':[['APPLE','elma'],['SCHOOL','okul'],['FRIEND','arkadaş'],['FAMILY','aile'],['WINDOW','pencere'],['BANANA','muz'],['TEACHER','öğretmen'],['PENCIL','kurşun kalem'],['GARDEN','bahçe'],['SUMMER','yaz'],['MOTHER','anne'],['WINTER','kış'],['ORANGE','portakal / turuncu'],['YELLOW','sarı'],['BOOK','kitap']],
+'🏛️ Dünya & Kültür':[['PİRAMİT','Mısır\'ın dev mezar yapıları'],['KAPADOKYA','Peri bacalarıyla ünlü bölge'],['GÖBEKLİTEPE','12 bin yıllık tapınak alanı'],['AYASOFYA','İstanbul\'daki tarihi kubbeli yapı'],['PAMUKKALE','Beyaz travertenleriyle ünlü'],['EFES','İzmir\'deki antik kent'],['EYFEL','Paris\'in demir kulesi'],['KOLEZYUM','Roma\'daki dev amfitiyatro'],['PETRA','Kayalara oyulmuş Ürdün kenti'],['TACMAHAL','Hindistan\'daki beyaz türbe'],['AMAZON','Dünyanın en büyük yağmur ormanı'],['SAHARA','Dünyanın en büyük sıcak çölü'],['EVEREST','Dünyanın en yüksek dağı'],['TUNA','Avrupa\'nın büyük nehri'],['NİL','Afrika\'nın uzun nehri']]};
+const TRU=s=>s.toLocaleUpperCase('tr-TR');
+const AL_TR='ABCÇDEFGĞHIİJKLMNOÖPRSŞTUÜVYZ',AL_EN='ABCDEFGHIJKLMNOPQRSTUVWXYZ';
+let theme,items,mode;
+function menu(){app.innerHTML='';app.append(h('div',{class:'top'},h('h2',{},'🔤 Kelime Bulmacaları')),h('div',{class:'center'},h('div',{class:'big'},'🔤 Wordwall tarzı kelime oyunları'),h('div',{class:'msg'},'Konu ve oyun türünü seç!'),
+ h('div',{class:'row'},Object.keys(TH).map(t=>h('button',{class:'btn alt'+(theme===t?' on':''),style:theme===t?'outline:3px solid var(--gold)':'',onclick:()=>{theme=t;menu()}},t))),
+ h('div',{class:'row'},[['search','🔎 Kelime Avı'],['cross','✏️ Çapraz Bulmaca'],['match','🔗 Kelime–Anlam Eşleştirme'],['anag','🔀 Karışık Harfler'],['miss','🔠 Eksik Harf'],['group','🗂️ Grupla (Sınıflandır)']].map(([m,l])=>h('button',{class:'btn',disabled:!theme&&m!=='group',onclick:()=>{mode=m;items=theme?shuf(TH[theme]).map(x=>[TRU(x[0]),x[1]]):[];GM[m]()}},l)))))}
+const isEN=()=>theme&&theme.includes('İngilizce');
+const alpha=()=>isEN()?AL_EN:AL_TR;
+function head(t,extra){return h('div',{class:'top'},h('h2',{},t),h('span',{class:'sp'}),extra||'',h('button',{class:'btn alt',onclick:()=>GM[mode]()},'🔄 Yeni'),h('button',{class:'btn alt',onclick:menu},'☰'))}
+function win(msg){sfx.win();window.__won=true;const m=$('#ms');if(m){m.className='msg ok pop';m.textContent=msg}}
+// ---------- Kelime Avı
+const DIRS=[[0,1],[1,0],[1,1],[0,-1],[-1,0],[-1,-1],[1,-1],[-1,1]];
+function buildSearch(words,N,nd){const g=Array.from({length:N},()=>Array(N).fill(''));const placed=[];
+ for(const w of words){let ok=false;for(let a=0;a<300&&!ok;a++){const d=pick(DIRS.slice(0,nd));const L=w.length;const r=rnd(0,N-1),c=rnd(0,N-1);const er=r+d[0]*(L-1),ec=c+d[1]*(L-1);if(er<0||er>=N||ec<0||ec>=N)continue;
+  let f=true;for(let i=0;i<L;i++){const x=g[r+d[0]*i][c+d[1]*i];if(x&&x!==w[i]){f=false;break}}if(!f)continue;for(let i=0;i<L;i++)g[r+d[0]*i][c+d[1]*i]=w[i];placed.push({w,r,c,d});ok=true}
+  if(!ok)return null}
+ const al=alpha();for(let r=0;r<N;r++)for(let c=0;c<N;c++)if(!g[r][c])g[r][c]=al[rnd(0,al.length-1)];return{g,placed}}
+let SG;
+function search(){const N=12;const words=items.slice(0,8).map(x=>x[0]).filter(w=>w.length<=N);let res=null;for(let i=0;i<30&&!res;i++)res=buildSearch(words,N,5);SG={...res,N,found:new Set(),first:null,cells:new Set(),words};drawSearch()}
+function drawSearch(){app.innerHTML='';app.append(head('🔎 Kelime Avı · '+theme,h('span',{class:'chip',id:'cnt'},SG.found.size+'/'+SG.words.length)));
+ const cs=Math.floor(Math.min(innerHeight-250,innerWidth-30,520)/SG.N);const g=h('div',{class:'gridw',style:`grid-template-columns:repeat(${SG.N},${cs}px);font-size:${cs*.5}px`});
+ for(let r=0;r<SG.N;r++)for(let c=0;c<SG.N;c++){const k=r*SG.N+c;g.append(h('div',{class:'lc'+(SG.cells.has(k)?' fd':'')+(SG.first===k?' st':''),'data-k':k,style:`height:${cs}px`,onclick:()=>tapS(r,c)},SG.g[r][c]))}
+ app.append(g,h('div',{class:'wl'},SG.words.map(w=>h('span',{class:SG.found.has(w)?'d':''},w))),h('div',{class:'msg',id:'ms'},'Kelimenin ilk ve son harfine dokun.'))}
+function tapS(r,c){const k=r*SG.N+c;if(SG.first===null){SG.first=k;sfx.tap();drawSearch();return}
+ const r0=Math.floor(SG.first/SG.N),c0=SG.first%SG.N;SG.first=null;const dr=Math.sign(r-r0),dc=Math.sign(c-c0),L=Math.max(Math.abs(r-r0),Math.abs(c-c0))+1;
+ if(!(r===r0||c===c0||Math.abs(r-r0)===Math.abs(c-c0))){drawSearch();return}
+ let s='';const ks=[];for(let i=0;i<L;i++){s+=SG.g[r0+dr*i][c0+dc*i];ks.push((r0+dr*i)*SG.N+c0+dc*i)}
+ const rev=[...s].reverse().join('');const w=SG.words.find(x=>(x===s||x===rev)&&!SG.found.has(x));
+ if(w){SG.found.add(w);ks.forEach(x=>SG.cells.add(x));sfx.ok()}else sfx.bad();drawSearch();if(w&&SG.found.size===SG.words.length)win('🎉 Hepsini buldun!')}
+// ---------- Çapraz Bulmaca
+let CW;
+function buildCross(words){const S=19;const g=Array.from({length:S},()=>Array(S).fill(''));const pl=[];
+ const can=(w,r,c,h2)=>{const dr=h2?0:1,dc=h2?1:0;if(r<0||c<0||r+dr*(w.length-1)>=S||c+dc*(w.length-1)>=S)return false;
+  const pr=r-dr,pc=c-dc;if(pr>=0&&pc>=0&&g[pr][pc])return false;const nr=r+dr*w.length,nc=c+dc*w.length;if(nr<S&&nc<S&&g[nr][nc])return false;let cross=0;
+  for(let i=0;i<w.length;i++){const rr=r+dr*i,cc=c+dc*i,x=g[rr][cc];if(x){if(x!==w[i])return false;cross++}else{if(h2){if((rr>0&&g[rr-1][cc])||(rr<S-1&&g[rr+1][cc]))return false}else{if((cc>0&&g[rr][cc-1])||(cc<S-1&&g[rr][cc+1]))return false}}}return cross}
+ const put=(w,r,c,h2)=>{const dr=h2?0:1,dc=h2?1:0;for(let i=0;i<w.length;i++)g[r+dr*i][c+dc*i]=w[i];pl.push({w,r,c,h:h2})};
+ const ws=words.slice().sort((a,b)=>b[0].length-a[0].length);const f=ws.shift();put(f[0],9,Math.floor((S-f[0].length)/2),true);pl[0].clue=f[1];
+ for(let round=0;round<3;round++)for(let i=0;i<ws.length;i++){const[w,cl]=ws[i];if(pl.some(p=>p.w===w))continue;let best=null;
+  for(const p of pl){for(let a=0;a<w.length;a++)for(let b=0;b<p.w.length;b++){if(w[a]!==p.w[b])continue;const h2=!p.h;const r=h2?p.r+(p.h?b:0)*0+(p.h?0:b):p.r-a,c=h2?p.c-a:p.c+b;
+    const rr=h2?p.r+b:p.r-a,cc=h2?p.c-a:p.c+b;const R=h2?(p.h?p.r:p.r+b):rr,C=h2?(p.h?p.c-a:p.c-a):cc;
+    const rs=h2?p.r+b:p.r-a,cs2=h2?p.c-a:p.c+b;if(can(w,rs,cs2,h2)){best={w,cl,r:rs,c:cs2,h:h2};break}}if(best)break}
+  if(best){put(best.w,best.r,best.c,best.h);pl[pl.length-1].clue=cl}}
+ return{g,pl}}
+function cross(){let res;for(let i=0;i<25;i++){res=buildCross(items.slice(0,12));if(res.pl.length>=7)break;items=shuf(items)}
+ let r0=99,r1=0,c0=99,c1=0;res.pl.forEach(p=>{r0=Math.min(r0,p.r);c0=Math.min(c0,p.c);r1=Math.max(r1,p.r+(p.h?0:p.w.length-1));c1=Math.max(c1,p.c+(p.h?p.w.length-1:0))});
+ const H=r1-r0+1,W=c1-c0+1;const ans=Array.from({length:H},()=>Array(W).fill(''));const num=Array.from({length:H},()=>Array(W).fill(0));
+ res.pl.forEach(p=>{p.r-=r0;p.c-=c0;for(let i=0;i<p.w.length;i++)ans[p.r+(p.h?0:i)][p.c+(p.h?i:0)]=p.w[i]});
+ let n=0;const order=res.pl.slice().sort((a,b)=>a.r-b.r||a.c-b.c);order.forEach(p=>{if(!num[p.r][p.c])num[p.r][p.c]=++n;p.n=num[p.r][p.c]});
+ CW={H,W,ans,num,pl:res.pl,inp:Array.from({length:H},()=>Array(W).fill('')),sel:null,dir:true,bad:new Set()};drawCross()}
+function curWord(){if(!CW.sel)return null;const[r,c]=CW.sel;return CW.pl.find(p=>p.h===CW.dir&&((p.h&&p.r===r&&c>=p.c&&c<p.c+p.w.length)||(!p.h&&p.c===c&&r>=p.r&&r<p.r+p.w.length)))||CW.pl.find(p=>((p.h&&p.r===r&&c>=p.c&&c<p.c+p.w.length)||(!p.h&&p.c===c&&r>=p.r&&r<p.r+p.w.length)))}
+function drawCross(){app.innerHTML='';const cw=curWord();app.append(head('✏️ Çapraz Bulmaca · '+theme));
+ const cs=Math.floor(Math.min((innerHeight-330),innerWidth-30,560)/Math.max(CW.H,CW.W));const g=h('div',{class:'cw',style:`grid-template-columns:repeat(${CW.W},${cs}px);font-size:${cs*.55}px`});
+ for(let r=0;r<CW.H;r++)for(let c=0;c<CW.W;c++){if(!CW.ans[r][c]){g.append(h('div',{class:'cc blk',style:`height:${cs}px`}));continue}
+  const inW=cw&&((cw.h&&cw.r===r&&c>=cw.c&&c<cw.c+cw.w.length)||(!cw.h&&cw.c===c&&r>=cw.r&&r<cw.r+cw.w.length));const sel=CW.sel&&CW.sel[0]===r&&CW.sel[1]===c;
+  g.append(h('div',{class:'cc'+(sel?' sel':inW?' row':'')+(CW.bad.has(r*99+c)?' bad':''),'data-r':r,'data-c':c,style:`height:${cs}px`,onclick:()=>{if(CW.sel&&CW.sel[0]===r&&CW.sel[1]===c)CW.dir=!CW.dir;CW.sel=[r,c];drawCross()}},CW.num[r][c]?h('i',{},CW.num[r][c]):'',CW.inp[r][c]))}
+ app.append(g);
+ const clue=(h2)=>CW.pl.filter(p=>p.h===h2).sort((a,b)=>a.n-b.n).map(p=>h('div',{class:'clue'+(cw===p?' a':''),onclick:()=>{CW.sel=[p.r,p.c];CW.dir=p.h;drawCross()}},h('b',{},p.n+'.'),' '+p.clue+' ('+p.w.length+')'));
+ app.append(h('div',{class:'clues'},h('div',{},h('b',{},'→ Soldan sağa'),clue(true)),h('div',{},h('b',{},'↓ Yukarıdan aşağı'),clue(false))));
+ const pad=h('div',{class:'pad'});[...alpha()].forEach(ch=>pad.append(h('button',{class:'btn',onclick:()=>typeL(ch)},ch)));pad.append(h('button',{class:'btn alt',onclick:()=>typeL('')},'⌫'));
+ app.append(pad,h('div',{class:'row'},h('button',{class:'btn',onclick:checkC},'✓ Kontrol'),h('button',{class:'btn alt',onclick:hintC},'💡 Harf ipucu')),h('div',{class:'msg',id:'ms'},''))}
+function typeL(ch){if(!CW.sel)return;const[r,c]=CW.sel;CW.inp[r][c]=ch;CW.bad.delete(r*99+c);sfx.tap();if(ch){const nr=CW.dir?r:r+1,nc=CW.dir?c+1:c;if(CW.ans[nr]&&CW.ans[nr][nc])CW.sel=[nr,nc]}drawCross();if(solvedC())win('🎉 Bulmacayı çözdün!')}
+function solvedC(){for(let r=0;r<CW.H;r++)for(let c=0;c<CW.W;c++)if(CW.ans[r][c]&&CW.inp[r][c]!==CW.ans[r][c])return false;return true}
+function checkC(){CW.bad=new Set();let ok=true;for(let r=0;r<CW.H;r++)for(let c=0;c<CW.W;c++){if(CW.ans[r][c]&&CW.inp[r][c]&&CW.inp[r][c]!==CW.ans[r][c]){CW.bad.add(r*99+c);ok=false}}drawCross();$('#ms').textContent=CW.bad.size?'Kırmızı kutular yanlış.':'Şimdilik hatasız!';CW.bad.size?sfx.bad():sfx.ok()}
+function hintC(){const w=curWord();if(!w)return;for(let i=0;i<w.w.length;i++){const r=w.r+(w.h?0:i),c=w.c+(w.h?i:0);if(CW.inp[r][c]!==CW.ans[r][c]){CW.inp[r][c]=CW.ans[r][c];break}}drawCross();if(solvedC())win('🎉 Bulmacayı çözdün!')}
+// ---------- Eşleştirme
+function match(){const it=items.slice(0,7);const L=shuf(it.map((x,i)=>({i,t:x[0]})));const R=shuf(it.map((x,i)=>({i,t:x[1]})));let selL=null,done=0,mist=0;
+ function draw(){app.innerHTML='';app.append(head('🔗 Kelime–Anlam · '+theme,h('span',{class:'chip'},'❌ '+mist)));
+  app.append(h('div',{class:'mt'},h('div',{class:'center',style:'gap:8px'},L.map(x=>h('button',{class:'btn'+(selL===x?' sel':'')+(x.d?' done':''),onclick:()=>{selL=x;sfx.tap();draw()}},x.t))),
+   h('div',{class:'center',style:'gap:8px'},R.map(x=>h('button',{class:'btn alt'+(x.d?' done':''),onclick:()=>{if(!selL)return;if(selL.i===x.i){selL.d=x.d=true;done++;sfx.ok();selL=null;draw();if(done===it.length)win('🎉 Hepsini eşleştirdin!')}else{mist++;sfx.bad();selL=null;draw()}}},x.t)))),h('div',{class:'msg',id:'ms'},'Önce kelimeyi, sonra anlamını seç.'))}
+ draw()}
+// ---------- Karışık harfler
+function anag(){let i=0,pts=0;function nx(){if(i>=Math.min(8,items.length)){app.innerHTML='';app.append(h('div',{class:'center pop'},h('div',{class:'big'},'🎉 Tamamlandı!'),h('div',{class:'msg'},'Puan: '+pts),h('button',{class:'btn',onclick:anag},'Tekrar')));window.__won=true;return}
+  const[w,cl]=items[i];let sh;do{sh=shuf([...w])}while(sh.join('')===w&&w.length>2);let g=[],used=[];
+  function draw(){app.innerHTML='';app.append(head('🔀 Karışık Harfler',h('span',{class:'chip'},'Puan '+pts)));app.append(h('div',{class:'center'},h('div',{class:'msg'},'💡 '+cl+' ('+w.length+' harf)'),h('div',{class:'big',style:'letter-spacing:6px'},g.join('')||'…'),
+   h('div',{class:'row'},sh.map((ch,k)=>h('button',{class:'btn',disabled:used.includes(k),onclick:()=>{g.push(ch);used.push(k);sfx.tap();if(g.length===w.length){if(g.join('')===w){pts+=10;sfx.ok();i++;setTimeout(nx,500)}else{sfx.bad();g=[];used=[];draw()}}else draw()}},ch))),
+   h('div',{class:'row'},h('button',{class:'btn alt',onclick:()=>{g=[];used=[];draw()}},'Temizle'),h('button',{class:'btn alt',onclick:()=>{i++;nx()}},'Geç'))))}
+  draw()}nx()}
 
+// ---------- Eksik Harf
+function miss(){let i=0,pts=0;const N=Math.min(8,items.length);function nx(){if(i>=N){app.innerHTML='';app.append(h('div',{class:'center pop'},h('div',{class:'big'},'🎉 Tamamlandı!'),h('div',{class:'msg'},'Puan: '+pts+' / '+N*10),h('button',{class:'btn',onclick:()=>{items=shuf(items);miss()}},'Tekrar')));window.__won=true;return}
+  const[w,cl]=items[i];const k=w.length<=5?1:2;const hole=shuf([...w].map((_,q)=>q)).slice(0,k).sort((a,b)=>a-b);let fill=[];
+  function draw(){app.innerHTML='';app.append(head('🔠 Eksik Harf · '+theme,h('span',{class:'chip'},(i+1)+'/'+N+' · Puan '+pts)));
+   const shown=[...w].map((ch,p)=>hole.includes(p)?(fill[hole.indexOf(p)]||'_'):ch).join(' ');
+   const pad=h('div',{class:'pad'});[...alpha()].forEach(ch=>pad.append(h('button',{class:'btn',onclick:()=>{if(fill.length>=k)return;fill.push(ch);sfx.tap();if(fill.length===k){const ok=hole.every((p,j)=>fill[j]===w[p]);if(ok){pts+=10;sfx.ok();i++;draw();setTimeout(nx,600);return}sfx.bad();fill=[]}draw()}},ch)));
+   app.append(h('div',{class:'center'},h('div',{class:'msg'},'💡 '+cl),h('div',{class:'big',style:'letter-spacing:4px'},shown),pad,h('div',{class:'row'},h('button',{class:'btn alt',onclick:()=>{fill=[];draw()}},'Temizle'),h('button',{class:'btn alt',onclick:()=>{i++;nx()}},'Geç')),h('div',{class:'msg',id:'ms'},'')))}
+  draw()}nx()}
+// ---------- Grupla (sınıflandırma)
+const GROUPS=[
+{t:'Canlı mı, cansız mı?',a:'🌱 Canlı',b:'🪨 Cansız',i:[['Kedi','a'],['Ağaç','a'],['Papatya','a'],['Balık','a'],['Mantar','a'],['Kaya','b'],['Su','b'],['Masa','b'],['Güneş','b'],['Kum','b']]},
+{t:'Katı mı, sıvı mı?',a:'🧊 Katı',b:'💧 Sıvı',i:[['Buz','a'],['Taş','a'],['Odun','a'],['Demir','a'],['Tebeşir','a'],['Süt','b'],['Su','b'],['Zeytinyağı','b'],['Meyve suyu','b'],['Bal','b']]},
+{t:'Tek mi, çift mi?',a:'1️⃣ Tek sayı',b:'2️⃣ Çift sayı',i:[['7','a'],['25','a'],['41','a'],['9','a'],['63','a'],['12','b'],['18','b'],['30','b'],['64','b'],['100','b']]},
+{t:'Asal mı, değil mi?',a:'⭐ Asal',b:'❌ Asal değil',i:[['2','a'],['3','a'],['5','a'],['7','a'],['11','a'],['13','a'],['4','b'],['6','b'],['9','b'],['12','b'],['15','b']]},
+{t:'Hangi ülkede?',a:'🇹🇷 Türkiye',b:'🌍 Başka ülke',i:[['Kapadokya','a'],['Pamukkale','a'],['Efes','a'],['Ayasofya','a'],['Göbeklitepe','a'],['Eyfel Kulesi','b'],['Kolezyum','b'],['Piramitler','b'],['Tac Mahal','b'],['Özgürlük Heykeli','b']]},
+{t:'İsim mi, fiil mi?',a:'📦 İsim',b:'🏃 Fiil',i:[['kalem','a'],['deniz','a'],['okul','a'],['çiçek','a'],['masa','a'],['koşmak','b'],['yazmak','b'],['okumak','b'],['gülmek','b'],['yüzmek','b']]},
+{t:'Enerji kaynağı',a:'♻️ Yenilenebilir',b:'🛢️ Yenilenemez',i:[['Güneş','a'],['Rüzgâr','a'],['Akarsu','a'],['Jeotermal','a'],['Kömür','b'],['Petrol','b'],['Doğalgaz','b'],['Taş kömürü','b']]},
+{t:'Yaşam alanı',a:'🦁 Karada yaşar',b:'🐬 Suda yaşar',i:[['Aslan','a'],['Kedi','a'],['Tavşan','a'],['Fil','a'],['Zürafa','a'],['Balık','b'],['Yunus','b'],['Ahtapot','b'],['Köpekbalığı','b'],['Denizanası','b']]}];
+function group(){const G=pick(GROUPS);const q=shuf(G.i);let i=0,ok=0,bad=0;
+ function draw(){app.innerHTML='';app.append(head('🗂️ Grupla · '+G.t,h('span',{class:'chip'},'✅ '+ok+'  ❌ '+bad)));
+  if(i>=q.length){const sc=Math.round(100*ok/q.length);app.append(h('div',{class:'center pop'},h('div',{class:'big'},sc>=80?'🏆 Harika!':'👍 İyi iş!'),h('div',{class:'msg'},ok+' / '+q.length+' doğru'),h('div',{class:'row'},h('button',{class:'btn',onclick:group},'Başka set'))));window.__won=true;sfx.win();return}
+  app.append(h('div',{class:'center'},h('div',{class:'msg'},(i+1)+' / '+q.length+' — Bu hangisine ait?'),h('div',{class:'cardx pop',style:'width:min(90%,420px);border-radius:24px;border:3px solid var(--ac);padding:26px;font-size:clamp(26px,6vw,44px);font-weight:900;background:rgba(255,255,255,.07)'},q[i][0]),
+   h('div',{class:'row'},[['a',G.a],['b',G.b]].map(([k,l])=>h('button',{class:'btn',style:'min-width:150px;font-size:18px',onclick:()=>{if(q[i][1]===k){ok++;sfx.ok()}else{bad++;sfx.bad()}i++;draw()}},l))),h('div',{class:'msg',id:'ms'},'')))}
+ draw()}
+const GM={search,cross,match,anag,miss,group};
+menu();
+</script></body></html>
+'''
 
+ARCADE_HTML['macera'] = r'''<!DOCTYPE html><html lang="tr"><head><!--SHARED--><style>
+.story{width:min(96%,720px);margin:auto;border-radius:26px;border:3px solid var(--ac);background:linear-gradient(160deg,#0b4a55,#052a31);padding:20px;box-shadow:0 14px 40px rgba(0,0,0,.4)}
+.story .em{font-size:64px;text-align:center}.story p{font-size:clamp(16px,2.6vw,20px);line-height:1.55;margin:10px 0}
+.opt{display:block;width:100%;text-align:left;margin:8px 0;padding:12px 16px;border-radius:16px;border:2px solid var(--line);background:rgba(255,255,255,.08);color:var(--t);font-size:16px;font-weight:700;cursor:pointer;font-family:inherit}
+.opt:hover{background:rgba(45,212,191,.25);border-color:var(--ac)}.opt.good{background:rgba(74,222,128,.35)}.opt.bad{background:rgba(251,113,133,.35)}
+.learn{margin-top:10px;padding:10px 12px;border-radius:14px;background:rgba(251,191,36,.15);border:1px solid rgba(251,191,36,.5);font-size:14px}
+.stats{display:flex;gap:8px}.cardA{width:230px;padding:16px;border-radius:22px;background:rgba(255,255,255,.07);border:2px solid var(--line);cursor:pointer;text-align:center}
+.cardA:hover{border-color:var(--ac)}.cardA b{display:block;margin:6px 0 4px;font-size:18px}.cardA span{font-size:13px;color:var(--mut)}
+</style></head><body><div id="app"></div><script>
+const app=$('#app');
+const ADV={
+kapadokya:{t:'Kapadokya: Kayıp Balon Haritası',e:'🎈',d:'Peri bacaları arasında saklı bir haritayı bulmak için sabah balonuyla yola çık!',s:'a1',n:{
+ a1:{e:'🌄',t:'Sabahın ilk ışıklarında Göreme\'desin. Rehberin Elif, eski bir haritanın peri bacalarından birinde saklı olduğunu söylüyor. Önce nereye gidersin?',c:[{t:'🎈 Balona binip yukarıdan bakarım',to:'a2'},{t:'🚶 Vadide yürüyerek incelerim',to:'a3'}]},
+ a2:{e:'🎈',t:'Balon yükselirken aşağıda koni şeklinde kayalar görüyorsun. Elif soruyor:',q:{s:'Peri bacaları nasıl oluştu?',o:['Volkanik tüfün yağmur ve rüzgârla aşınmasıyla','İnsanlar tarafından inşa edilerek','Denizin çekilmesiyle'],a:0,ok:'a4',no:'a4',learn:'Peri bacaları, volkanlardan çıkan yumuşak tüf tabakasının yağmur ve rüzgârla yüzyıllarca aşınmasıyla oluştu.'}},
+ a3:{e:'🥾',t:'Vadide yürürken yerde bir delik buluyorsun: bir yeraltı şehrinin girişi! Elif "Dikkatli ol, burası çok derin" diyor.',c:[{t:'🔦 Fener alıp içeri inerim',to:'a5'},{t:'📸 Önce fotoğraf çekip haritaya bakarım',to:'a4',fx:{bilgi:1}}]},
+ a4:{e:'🗺️',t:'Haritanın bir köşesini rüzgâr getirmiş! Üzerinde yazıyor: "Gerçek hazine, merak edenlerindir. Yeraltının kapısını Derinkuyu\'da ara."',c:[{t:'⬇️ Derinkuyu\'ya git',to:'a5'}]},
+ a5:{e:'🕯️',t:'Yeraltı şehrinin dar koridorlarındasın. Duvarda havalandırma bacaları ve devasa yuvarlak taş kapılar var. Elif sorar:',q:{s:'Yeraltı şehirleri en çok ne amaçla kullanılmış?',o:['Saldırılardan korunmak ve saklanmak','Gökyüzünü gözlemlemek','Balık tutmak'],a:0,ok:'a6',no:'a6',learn:'Kapadokya\'daki yeraltı şehirleri (Derinkuyu, Kaymaklı) insanların saldırılardan korunmak için sığındığı çok katlı yerleşimlerdir.'}},
+ a6:{e:'🚪',t:'Önünde iki yol var: sol koridor serin ve sessiz, sağ koridorda ışık sızıyor.',c:[{t:'⬅️ Sessiz koridor',to:'a7',fx:{enerji:-1}},{t:'➡️ Işıklı koridor',to:'a8',fx:{hazine:1}}]},
+ a7:{e:'😮‍💨',t:'Koridor çıkmaz çıktı, geri dönmek seni yordu. Ama duvarda eski bir kabartma var: bir haritanın parçası!',c:[{t:'🧩 Parçayı al ve geri dön',to:'a9',fx:{hazine:1}}]},
+ a8:{e:'💡',t:'Işık, tavandaki havalandırma bacasından geliyormuş. Yanında bir sandık var!',c:[{t:'📦 Sandığı aç',to:'a9'}]},
+ a9:{e:'🔑',t:'Sandıkta harita parçası ve bir bilmece var: "Ben Kapadokya\'nın başkenti sayılırım, kayalara oyulmuş kiliselerim var. Müze olarak gezilirim. Neyim?"',q:{s:'Bilmecenin cevabı hangisi?',o:['Göreme Açık Hava Müzesi','Anıtkabir','Ayasofya'],a:0,ok:'a10',no:'a10',learn:'Göreme Açık Hava Müzesi, kayalara oyulmuş kiliseleri ve freskleriyle UNESCO Dünya Mirası Listesi\'ndedir (1985).'}},
+ a10:{e:'🏆',end:'win',t:'Haritanın tüm parçalarını birleştirdin! Hazine; Kapadokya\'nın tarihini ve doğasını koruma sözü. Elif seni "Kapadokya Kâşifi" ilan ediyor.'},
+ a11:{e:'💤',end:'lose',t:'Çok yoruldun ve enerjin bitti. Elif seni dinlenmeye götürüyor. Yarın yeniden dene!'}}},
+gobekli:{t:'Göbeklitepe: Zamanın Sırrı',e:'🗿',d:'12 bin yıl öncesine yolculuk: T biçimli sütunların sırrını çöz!',s:'g1',n:{
+ g1:{e:'🏜️',t:'Şanlıurfa\'da, Göbeklitepe kazı alanındasın. Arkeolog Zeynep elinde bir fırça ile sana bakıyor: "Burada yeryüzünün bilinen en eski anıtsal yapılarından biri var."',c:[{t:'🔍 Sütunları yakından incelerim',to:'g2'},{t:'📖 Önce kazı rehberini okurum',to:'g3',fx:{bilgi:1}}]},
+ g2:{e:'🗿',t:'Dev sütunlar T harfine benziyor ve üzerlerinde hayvan kabartmaları var: tilki, yılan, akbaba...',q:{s:'Göbeklitepe yaklaşık kaç yıl öncesine aittir?',o:['Yaklaşık 12.000 yıl','Yaklaşık 2.000 yıl','Yaklaşık 500 yıl'],a:0,ok:'g4',no:'g4',learn:'Göbeklitepe yaklaşık 12.000 yıllıktır; Stonehenge ve piramitlerden çok daha eskidir.'}},
+ g3:{e:'📘',t:'Rehberde şöyle yazıyor: "Burada yaşayan topluluklar henüz tarım yapmıyor, avcı-toplayıcıydı." Zeynep gülümsüyor: "Peki, bunu nasıl anlıyoruz?"',c:[{t:'🦴 Hayvan kemiklerinden',to:'g4',fx:{bilgi:1}},{t:'📜 Yazılı belgelerden',to:'g4'}]},
+ g4:{e:'⛏️',t:'Zeynep sana bir kazı alanı verip "Haydi, ilk ipucunu bul!" diyor. İki bölge var.',c:[{t:'🧱 Daire biçimli yapının içi',to:'g5',fx:{hazine:1}},{t:'🌿 Tepenin çevresi',to:'g6',fx:{enerji:-1}}]},
+ g5:{e:'🪨',t:'Dairenin ortasında iki büyük sütun duruyor. Zeynep: "Bunları kim dikti? O dönemde metal alet yoktu!"',q:{s:'O dönemde sütunlar hangi aletle işlenmiş olabilir?',o:['Çakmaktaşı gibi taş aletlerle','Elektrikli testereyle','Demir çekiçle'],a:0,ok:'g7',no:'g7',learn:'Göbeklitepe yapıcıları metal kullanmıyordu; sütunları çakmaktaşı gibi taş aletlerle yontuyorlardı.'}},
+ g6:{e:'🥵',t:'Güneş çok sıcak; susadın. Yine de çevrede küçük taş aletler buldun!',c:[{t:'🧰 Aletleri Zeynep\'e götür',to:'g7',fx:{bilgi:1}}]},
+ g7:{e:'🌍',t:'Zeynep, 2018\'de Göbeklitepe\'nin UNESCO Dünya Mirası Listesi\'ne alındığını anlatıyor. "Bu keşif insanlık tarihini yeniden yazdırdı. Çünkü..."',q:{s:'Göbeklitepe neden tarih kitaplarını değiştirdi?',o:['Tarım ve yerleşik hayattan önce de anıtsal yapılar yapıldığını gösterdi','Piramitlerden daha yüksek olduğu için','Bir şehir surunun kalıntısı olduğu için'],a:0,ok:'g8',no:'g8',learn:'Göbeklitepe, insanların yerleşik hayata ve tarıma geçmeden önce de büyük ortak yapılar inşa edebildiğini gösterdi.'}},
+ g8:{e:'🏆',end:'win',t:'Zeynep sana "Genç Arkeolog" rozetini takıyor. Göbeklitepe\'nin sırrını çözmen insanlık tarihine ışık tuttu!'},
+ g9:{e:'💤',end:'lose',t:'Enerjin bitti. Ekip seni gölgeye alıyor. Dinlenip tekrar deneyebilirsin!'}}},
+uzay:{t:'Uzay İstasyonu: Acil Durum!',e:'🚀',d:'Güneş sisteminde yolunu bul, istasyonu kurtar!',s:'u1',n:{
+ u1:{e:'🛰️',t:'Uluslararası uzay istasyonunda alarm çalıyor! Kaptan Ayşe: "Güneş fırtınası yaklaşıyor. Enerji panellerini yönlendirmeli ve Dünya\'ya haber vermeliyiz."',c:[{t:'☀️ Önce panelleri Güneş\'e çeviririm',to:'u2'},{t:'📡 Önce Dünya\'ya mesaj gönderirim',to:'u3'}]},
+ u2:{e:'🔆',t:'Paneller dönerken Ayşe soruyor:',q:{s:'Işık Güneş\'ten Dünya\'ya yaklaşık kaç dakikada gelir?',o:['Yaklaşık 8 dakika','Yaklaşık 8 saniye','Yaklaşık 8 saat'],a:0,ok:'u4',no:'u4',learn:'Güneş ışığı Dünya\'ya yaklaşık 8 dakikada ulaşır.'}},
+ u3:{e:'📡',t:'Mesaj gönderildi. Cevap beklerken Ayşe\'nin yüzü asılıyor: "Sinyal gecikmeli geliyor, o yüzden panelleri de çevirmeliyiz."',c:[{t:'☀️ Panelleri çevir',to:'u2',fx:{bilgi:1}}]},
+ u4:{e:'🪐',t:'Fırtına geçti ama yönlendirme bilgisayarı bozuldu. Haritayı elle okumalısın. Önünde gezegenler var.',q:{s:'Güneş\'e en yakın gezegen hangisidir?',o:['Merkür','Venüs','Mars'],a:0,ok:'u5',no:'u5',learn:'Güneş\'e en yakın gezegen Merkür\'dür.'}},
+ u5:{e:'🔴',t:'Bir sonraki görev Mars\'a veri göndermek. Mars neden kırmızı görünüyor?',q:{s:'Mars\'ın kırmızı renginin sebebi nedir?',o:['Yüzeyindeki demir oksit (pas)','Üzerindeki yanardağ lavları','Atmosferindeki kırmızı gaz'],a:0,ok:'u6',no:'u6',learn:'Mars\'ın yüzeyi demir oksit (pas) içerdiği için kırmızı görünür.'}},
+ u6:{e:'🪐',t:'İstasyonun yakıtı azalıyor. İki seçeneğin var:',c:[{t:'♻️ Gereksiz cihazları kapatıp enerji tasarrufu yaparım',to:'u7',fx:{bilgi:1}},{t:'🚀 Tam güçle hızlı dönerim',to:'u7',fx:{enerji:-1}}]},
+ u7:{e:'🌍',t:'Dünya\'ya yaklaşırken Ay\'ı da görüyorsun.',q:{s:'Ay, Dünya\'nın nesi sayılır?',o:['Doğal uydusu','Komşu gezegeni','Yıldızı'],a:0,ok:'u8',no:'u8',learn:'Ay, Dünya\'nın tek doğal uydusudur.'}},
+ u8:{e:'🏆',end:'win',t:'İstasyon kurtuldu! Dünya\'daki merkez seni "Uzay Kahramanı" ilan ediyor.'},
+ u9:{e:'💤',end:'lose',t:'Enerjin tükendi, istasyon otomatik pilota geçti. Bir dahaki sefere daha dikkatli ol!'}}},
+su:{t:'Su Damlası Yolculuğu',e:'💧',d:'Bir su damlası olarak su döngüsünü baştan sona yaşa!',s:'s1',n:{
+ s1:{e:'🌊',t:'Sen denizde yüzen küçük bir su damlasısın. Güneş ısınıyor ve içinde tuhaf bir hafiflik hissediyorsun.',q:{s:'Su damlası ısınıp gaz hâline geçerse bu olaya ne denir?',o:['Buharlaşma','Yoğuşma','Donma'],a:0,ok:'s2',no:'s2',learn:'Sıvı suyun ısınarak gaz (su buharı) hâline geçmesine buharlaşma denir.'}},
+ s2:{e:'☁️',t:'Su buharı olarak yükseliyorsun. Yukarısı soğuk! Yanındaki damlalar bir araya toplanıp bulut oluşturuyor.',q:{s:'Su buharının soğuyarak sıvı damlacıklara dönüşmesine ne denir?',o:['Yoğuşma','Erime','Kaynama'],a:0,ok:'s3',no:'s3',learn:'Gazın soğuyarak sıvıya dönüşmesine yoğuşma denir; bulutlar böyle oluşur.'}},
+ s3:{e:'🌬️',t:'Rüzgâr bulutu dağlara doğru itiyor. İki yol görüyorsun:',c:[{t:'⛰️ Yüksek dağın üstüne gideyim',to:'s4',fx:{bilgi:1}},{t:'🌾 Ovanın üstünde kalayım',to:'s4'}]},
+ s4:{e:'🌧️',t:'Bulut ağırlaştı ve damlalar yağmur olarak düşmeye başladı! Çok yüksek ve soğuk bir yerde olsaydın başka bir hâlde düşebilirdin.',q:{s:'Çok soğuk havada yağış hangi hâlde yağabilir?',o:['Kar veya dolu','Sis','Çiy'],a:0,ok:'s5',no:'s5',learn:'Hava çok soğuksa su kar veya dolu olarak yeryüzüne düşer; bunların hepsi yağıştır.'}},
+ s5:{e:'🏞️',t:'Bir dere yatağına düştün. Akıntı seni nehre, nehir de tekrar denize götürüyor. Yolda bir çiftçi seni tarlasını sulamak için kullanmak istiyor.',c:[{t:'🌱 Tarlaya karış, bitkiye yardım et',to:'s6',fx:{hazine:1}},{t:'🌊 Akıntıyla denize devam et',to:'s6'}]},
+ s6:{e:'🔁',t:'Döngü tamamlanmak üzere. Son soru:',q:{s:'Dünya\'daki suyun büyük kısmı nerededir?',o:['Okyanus ve denizlerde','Nehirlerde','Bulutlarda'],a:0,ok:'s7',no:'s7',learn:'Dünya\'daki suyun yaklaşık %97\'si okyanus ve denizlerdedir; tatlı su çok daha azdır.'}},
+ s7:{e:'🏆',end:'win',t:'Su döngüsünü tamamladın! Buharlaşma, yoğuşma ve yağışı birebir yaşadın. Suyu tasarruflu kullanmayı da unutma!'},
+ s8:{e:'💤',end:'lose',t:'Çok yoruldun ve bir göle sıkıştın. Yeniden dene, döngü seni bekliyor!'}}},
+cumhuriyet:{t:'Cumhuriyet Yolu: Tarih Dedektifi',e:'🇹🇷',d:'Zaman makinesiyle Cumhuriyet\'in kuruluş günlerini keşfet!',s:'c1',n:{
+ c1:{e:'⏳',t:'Zaman makinen seni Ankara\'ya, 1920\'lere getirdi. Genç bir öğretmen olan Selim sana yardım edecek: "Burada tarih yazılıyor, ipuçlarını birleştirelim!"',c:[{t:'🏛️ Meclis binasına git',to:'c2'},{t:'📰 Gazete bayisine uğra',to:'c3',fx:{bilgi:1}}]},
+ c2:{e:'🏛️',t:'Büyük Millet Meclisi\'nin önündesin. Selim anlatıyor:',q:{s:'TBMM hangi tarihte açıldı?',o:['23 Nisan 1920','29 Ekim 1923','30 Ağustos 1922'],a:0,ok:'c4',no:'c4',learn:'Türkiye Büyük Millet Meclisi 23 Nisan 1920\'de Ankara\'da açıldı; bu tarih Ulusal Egemenlik ve Çocuk Bayramı olarak kutlanır.'}},
+ c3:{e:'📰',t:'Gazetede kalın harflerle şu yazıyor: "Millet iradesi egemenlik demektir." Selim gülümsüyor: "Haydi, Meclis\'e gidelim."',c:[{t:'🏛️ Meclis binasına git',to:'c2'}]},
+ c4:{e:'🪖',t:'Selim seni bir müzeye götürüyor ve Kurtuluş Savaşı\'nın zaferini anlatıyor.',q:{s:'Başkomutanlık Meydan Muharebesi\'nin kazanıldığı gün hangi bayram olarak kutlanır?',o:['30 Ağustos Zafer Bayramı','19 Mayıs','10 Kasım'],a:0,ok:'c5',no:'c5',learn:'Büyük Taarruz sonrası kazanılan zafer, 30 Ağustos 1922 tarihiyle Zafer Bayramı olarak kutlanır.'}},
+ c5:{e:'🏙️',t:'Zaman makinesi seni 1923 sonbaharına atıyor. Ankara\'da büyük bir heyecan var!',q:{s:'Cumhuriyet hangi tarihte ilan edildi?',o:['29 Ekim 1923','23 Nisan 1920','10 Kasım 1938'],a:0,ok:'c6',no:'c6',learn:'Cumhuriyet 29 Ekim 1923\'te ilan edildi ve Mustafa Kemal Atatürk ilk Cumhurbaşkanı seçildi.'}},
+ c6:{e:'🗺️',t:'Selim sana bir harita veriyor. Ankara\'nın başkent oluşunun hikâyesini çözmen gerek.',c:[{t:'🔎 Haritada Ankara\'yı incele',to:'c7',fx:{bilgi:1}},{t:'🚂 Tren istasyonunu kontrol et',to:'c7',fx:{hazine:1}}]},
+ c7:{e:'🏆',t:'Selim: "Son soru: Ankara ne zaman başkent oldu?"',q:{s:'Ankara\'nın başkent oluşu hangi tarihtir?',o:['13 Ekim 1923','29 Ekim 1923','23 Nisan 1920'],a:0,ok:'c8',no:'c8',learn:'Ankara, Cumhuriyet\'in ilanından 16 gün önce, 13 Ekim 1923\'te başkent oldu.'}},
+ c8:{e:'🏆',end:'win',t:'Tarih dedektifliği tamam! Selim sana "Genç Tarihçi" madalyasını takıyor. Zaman makinen seni evine geri götürüyor.'},
+ c9:{e:'💤',end:'lose',t:'Zaman makinesinin enerjisi bitti ve bugüne geri döndün. Yeniden deneyebilirsin!'}}},
+matematik:{t:'Matematik Ormanı',e:'🌲',d:'Sayıları ve şekilleri kullanarak ormanın bekçisini bul!',s:'m1',n:{
+ m1:{e:'🌲',t:'Matematik Ormanı\'nın girişindesin. Bilge Baykuş: "Ormandan çıkmak için üç kapıyı açmalısın. Hazır mısın?"',c:[{t:'🦉 Hazırım!',to:'m2'}]},
+ m2:{e:'🍰',t:'Birinci kapıda bir pasta var. Baykuş: "Pastanın yarısı ve dörtte biri yenmiş."',q:{s:'1/2 + 1/4 kaç eder?',o:['3/4','2/6','1/8'],a:0,ok:'m3',no:'m3',learn:'Paydaları eşitle: 1/2 = 2/4; 2/4 + 1/4 = 3/4.'}},
+ m3:{e:'🔺',t:'İkinci kapı üçgen biçiminde. Üzerinde iki açı yazıyor: 60° ve 70°.',q:{s:'Üçüncü açı kaç derecedir?',o:['50°','60°','70°'],a:0,ok:'m4',no:'m4',learn:'Üçgenin iç açıları toplamı 180°. 180 − (60 + 70) = 50.'}},
+ m4:{e:'🛤️',t:'Önünde iki patika ayrılıyor.',c:[{t:'🌿 Gür otlu patika',to:'m5',fx:{enerji:-1}},{t:'🪨 Taşlı patika',to:'m5',fx:{hazine:1}}]},
+ m5:{e:'📏',t:'Bir çit gördün: uzunluğu 8 m, genişliği 5 m olan dikdörtgen bahçeyi çevreliyor.',q:{s:'Bahçenin çevresi kaç metredir?',o:['26 m','40 m','13 m'],a:0,ok:'m6',no:'m6',learn:'Dikdörtgenin çevresi 2 × (8 + 5) = 26 m.'}},
+ m6:{e:'🧮',t:'Son kapı: bir sandıkta 80 elmanın %50\'sini istiyor.',q:{s:'Kaç elma almalısın?',o:['40','50','30'],a:0,ok:'m7',no:'m7',learn:'%50 yarım demektir: 80 ÷ 2 = 40.'}},
+ m7:{e:'🏆',end:'win',t:'Üç kapı da açıldı! Bilge Baykuş sana "Matematik Bekçisi" rozetini veriyor.'},
+ m8:{e:'💤',end:'lose',t:'Çok yoruldun ve ormanda mola vermen gerekti. Yeniden deneyebilirsin!'}}}};
+let A,node,st,learned,hist;
+function menu(){app.innerHTML='';app.append(h('div',{class:'top'},h('h2',{},'🧭 İnteraktif Macera')),h('div',{class:'center'},h('div',{class:'msg'},'Bir macera seç. Seçimlerin hikâyeyi değiştirir; bilgi sorularını doğru yanıtla!'),
+ h('div',{class:'row'},Object.entries(ADV).map(([k,a])=>h('div',{class:'cardA',onclick:()=>start(k)},h('div',{style:'font-size:44px'},a.e),h('b',{},a.t),h('span',{},a.d))))))}
+function start(k){A=ADV[k];node=A.s;st={enerji:3,bilgi:0,hazine:0};learned=[];draw()}
+function fx(f){if(!f)return;for(const k in f)st[k]=(st[k]||0)+f[k]}
+function bar(){return h('div',{class:'top'},h('h2',{},A.e+' '+A.t),h('span',{class:'sp'}),h('div',{class:'stats'},h('span',{class:'chip'},'❤️ '+st.enerji),h('span',{class:'chip'},'🧠 '+st.bilgi),h('span',{class:'chip'},'🪙 '+st.hazine)),h('button',{class:'btn alt',onclick:menu},'☰'))}
+function go(to){if(st.enerji<=0){const L=Object.keys(A.n).find(k=>A.n[k].end==='lose');node=L;draw();return}node=to;draw()}
+function draw(){app.innerHTML='';app.append(bar());const n=A.n[node];const box=h('div',{class:'story pop'},h('div',{class:'em'},n.e),h('p',{},n.t));
+ if(n.end){sfx[n.end==='win'?'win':'bad']();const score=st.bilgi*10+st.hazine*5+st.enerji*5;
+  box.append(h('div',{class:'msg '+(n.end==='win'?'ok':'bad')},n.end==='win'?'🎉 Macera tamamlandı! Puan: '+score:'Macera yarıda kaldı'),learned.length?h('div',{class:'learn'},h('b',{},'📚 Öğrendiklerin:'),h('ul',{},learned.map(x=>h('li',{},x)))):'',h('div',{class:'row'},h('button',{class:'btn',onclick:()=>start(Object.keys(ADV).find(k=>ADV[k]===A))},'🔄 Tekrar'),h('button',{class:'btn alt',onclick:menu},'Maceralar')));if(n.end==='win')window.__won=true}
+ else if(n.q){const q=n.q;box.append(h('p',{style:'font-weight:800;color:var(--gold)'},'❓ '+q.s));const opts=shuf(q.o.map((t,i)=>({t,i})));let answered=false;
+  const wrap=h('div');opts.forEach(o=>wrap.append(h('button',{class:'opt',onclick:e=>{if(answered)return;answered=true;const ok=o.i===q.a;e.target.classList.add(ok?'good':'bad');if(ok){st.bilgi++;sfx.ok()}else{st.enerji--;sfx.bad();[...wrap.children][opts.findIndex(x=>x.i===q.a)].classList.add('good')}
+   learned.push(q.learn);box.append(h('div',{class:'learn'},(ok?'✅ Doğru! ':'❌ Doğrusu: '+q.o[q.a]+'. ')+q.learn),h('button',{class:'btn',style:'margin-top:10px',onclick:()=>go(ok?q.ok:q.no)},'Devam ▶'));$('#ms')}},o.t)));box.append(wrap)}
+ else n.c.forEach(c=>box.append(h('button',{class:'opt',onclick:()=>{fx(c.fx);sfx.tap();go(c.to)}},c.t)));
+ app.append(box,h('div',{class:'msg',id:'ms'},''))}
+menu();
+</script></body></html>
+'''
+
+ARCADES = [('uno', '🃏', 'UNO', 'linear-gradient(135deg, #ef4444, #f59e0b)', 'Robot rakiplere karşı kart savaşı'),
+('sudoku', '🔢', 'Sudoku', 'linear-gradient(135deg, #0ea5e9, #6366f1)', '4×4, 6×6, 9×9 mantık bulmacası'),
+('satranc', '♞', 'Satranç', 'linear-gradient(135deg, #334155, #0f766e)', 'Yapay zekâya karşı tam kurallı'),
+('kelimeler', '🔤', 'Kelime Bulmacaları', 'linear-gradient(135deg, #f97316, #db2777)', 'Kelime avı, çapraz bulmaca, eksik harf'),
+('macera', '🧭', 'İnteraktif Macera', 'linear-gradient(135deg, #0d9488, #4f46e5)', 'Seçimlerinle hikâyeyi yönlendir'),
+('kultur', '🗺️', 'Kültür & Coğrafya Puzzle', 'linear-gradient(135deg, #ca8a04, #dc2626)', 'Dünya harikaları, Kapadokya, Göbeklitepe'),
+('sinema', '🤫', 'Sessiz Sinema', 'linear-gradient(135deg, #f43f5e, #9333ea)', 'Mimikle anlat, takımın bilsin'),
+('kesir', '🍫', 'Kesir Dilimleme', 'linear-gradient(135deg, #f59e0b, #b45309)', 'Kes, böl, karşılaştır, topla'),
+('cebir', '🐉', 'Ejderha Cebir', 'linear-gradient(135deg, #a855f7, #6366f1)', 'Denklemi oyunla çöz'),
+('canavar', '👾', 'Sayı Canavarları', 'linear-gradient(135deg, #22c55e, #0d9488)', 'Sayı çubuklarıyla doyur'),
+('buyuk', '🔟', 'Büyük Sayılar', 'linear-gradient(135deg, #ec4899, #8b5cf6)', 'Basamak blokları, eldeli işlem'),
+('zihin', '🧠', 'Zihin Antrenmanı', 'linear-gradient(135deg, #14b8a6, #06b6d4)', 'Hafıza, dikkat, hız, mantık')]
