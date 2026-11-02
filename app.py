@@ -8,6 +8,11 @@ from html import escape as esc
 import streamlit as st
 import streamlit.components.v1 as components
 
+try:
+    import progress as PG
+except Exception:
+    PG = None
+
 try:  # AdenMind sohbet motoru ayrı dosyada: adenmind.py (aynı klasörde olmalı)
     import adenmind as AM
 except Exception:
@@ -521,11 +526,11 @@ def get_gs(game):
 
 # --- Gezinme geri çağrıları (tek tıkla geçiş için) ---
 def go_home():
-    st.session_state.update(selected_subject=None, selected_unit=None, selected_game=None)
+    st.session_state.update(selected_subject=None, selected_unit=None, selected_game=None, selected_page=None)
 
 
 def pick_subject(s):
-    st.session_state.update(selected_subject=s, selected_unit=None, selected_game=None)
+    st.session_state.update(selected_subject=s, selected_unit=None, selected_game=None, selected_page=None)
 
 
 def pick_unit(u):
@@ -1945,8 +1950,44 @@ def _same(a, b):
     return str(a).strip().lower() == str(b).strip().lower()
 
 
+def prof():
+    """Etkin öğrenci profili (yoksa None). Ad, adres çubuğundaki ?u= ile sayfa yenilenince de hatırlanır."""
+    if PG is None:
+        return None
+    p = st.session_state.get("prof")
+    if p is None:
+        try:
+            name = st.query_params.get("u")
+        except Exception:
+            name = None
+        if name:
+            p = PG.load(name)
+            st.session_state["prof"] = p
+    return p
+
+
+def P_do(fn, *a):
+    try:
+        p = prof()
+        if p:
+            getattr(PG, fn)(p, *a)
+    except Exception:
+        pass
+
+
+def _game_done(score):
+    gs = st.session_state.get("gs")
+    if gs is None or gs.get("rec"):
+        return
+    gs["rec"] = True
+    P_do("rec_game", st.session_state.get("selected_subject"), st.session_state.get("selected_unit"),
+         st.session_state.get("selected_game"), score)
+
+
 def _answer(gs, value, q, per_q):
     ok = _same(value, q["correct"])
+    P_do("rec_answer", st.session_state.get("selected_subject"), st.session_state.get("selected_unit"),
+         st.session_state.get("selected_game"), q, ok)
     if ok:
         gs["score"] += per_q
     label = next((lab for lab, val in q["options"] if _same(val, q["correct"])), q["correct"])
@@ -1965,6 +2006,7 @@ def run_quiz(gs, items, build):
 
     if idx >= total:
         score = gs["score"]
+        _game_done(score)
         stars = "⭐" * max(1, round(score / 20)) if score > 0 else "💪"
         st.markdown(
             f'<div class="result"><div class="trophy">🏆</div><h2>Oyun Tamamlandı!</h2>'
@@ -2327,6 +2369,7 @@ EN_ALPHABET = "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
 
 
 def show_result(score, sub="", title="Oyun Tamamlandı!", icon="🏆"):
+    _game_done(score)
     stars = "⭐" * max(1, round(score / 20)) if score > 0 else "💪"
     st.markdown(
         f'<div class="result"><div class="trophy">{icon}</div><h2>{esc(title)}</h2>'
@@ -2446,6 +2489,8 @@ def game_hangman(gs, game):
 def _duo_answer(gs, value):
     q = gs["queue"][0]
     ok = _same(value, q["correct"])
+    P_do("rec_answer", st.session_state.get("selected_subject"), st.session_state.get("selected_unit"),
+         st.session_state.get("selected_game"), q, ok)
     if ok:
         gs["streak"] += 1
     else:
@@ -2846,6 +2891,7 @@ def ai_make_pack(key):
 
 def pick_arcade(k):
     st.session_state["selected_arcade"] = k
+    P_do("rec_arcade", k)
 
 
 def leave_arcade():
@@ -2880,6 +2926,183 @@ def arcade_page(key):
 
 
 # =============================================================================
+# 9b. ÖĞRENCİ PANELİ: profil, günlük görevler, Yanlış Defteri
+# =============================================================================
+def open_panel():
+    st.session_state["selected_page"] = "panel"
+
+
+def _login(name):
+    name = PG.slug(name)
+    if len(name) < 2:
+        return
+    st.session_state["prof"] = PG.load(name)
+    try:
+        st.query_params["u"] = name
+    except Exception:
+        pass
+
+
+def _logout():
+    st.session_state["prof"] = None
+    try:
+        st.query_params.clear()
+    except Exception:
+        pass
+
+
+def login_form(key):
+    with st.form(f"login_{key}", clear_on_submit=False):
+        n = st.text_input("Adın", placeholder="Adını yaz (ilerlemen kaydedilsin)", key=f"login_name_{key}", label_visibility="collapsed")
+        if st.form_submit_button("🚀 Başla / Profilime gir", use_container_width=True):
+            _login(n)
+            st.rerun()
+
+
+def home_bar():
+    """Ana sayfanın üstünde: profil özeti veya giriş."""
+    if PG is None:
+        return
+    p = prof()
+    if not p:
+        with st.expander("👤 İlerlemeni kaydet: Adını yaz, seri ve rozet kazan", expanded=False):
+            login_form("home")
+        return
+    lv, cur, need = PG.level(p["xp"])
+    tasks = PG.daily_tasks(p)
+    done = sum(1 for t in tasks if t["done"])
+    c1, c2 = st.columns([4, 1.4])
+    c1.markdown(
+        f'<div class="pnl-bar"><b>👤 {esc(p["name"])}</b><span>🏅 Seviye {lv}</span><span>⭐ {p["xp"]} XP</span>'
+        f'<span>🔥 {p["streak"]} gün seri</span><span>✅ Görev {done}/{len(tasks)}</span>'
+        f'<span>📓 Defter {len(p["wrong"])}</span></div>', unsafe_allow_html=True)
+    c2.button("📊 Benim Panelim", key="open_panel_btn", on_click=open_panel, use_container_width=True)
+
+
+def _study_topic(s, u):
+    st.session_state.update(selected_page=None, selected_subject=s, selected_unit=u if u in MEB_CURRICULUM.get(s, {}).get("uniteler", []) else None,
+                            selected_game=None)
+
+
+def _wn_answer(item_id, ok, label, expl):
+    P_do("review", item_id, ok)
+    st.session_state["wn_fb"] = {"ok": ok, "label": label, "expl": expl}
+
+
+def _wn_next():
+    st.session_state["wn_fb"] = None
+
+
+def panel_page():
+    st.button("⬅️ Ana Sayfa", key="panel_home", on_click=go_home)
+    p = prof()
+    if PG is None:
+        st.warning("progress.py bulunamadı; panel kullanılamıyor.")
+        return
+    if not p:
+        st.markdown('<div class="section-title">👤 Önce adını yaz</div>', unsafe_allow_html=True)
+        login_form("panel")
+        return
+    t1, t2, t3 = st.tabs(["📊 Özet", "📓 Yanlış Defteri", "👤 Profil & Yedek"])
+    with t1:
+        lv, cur, need = PG.level(p["xp"])
+        c, w = PG.total(p)
+        acc = round(100 * c / (c + w)) if c + w else 0
+        st.markdown(
+            f'<div class="pnl-hero"><div><div class="pnl-name">{esc(p["name"])}</div><div>🏅 Seviye {lv} · ⭐ {p["xp"]} XP</div></div>'
+            f'<div class="pnl-stats"><div><b>🔥 {p["streak"]}</b><small>gün seri (en iyi {p["best_streak"]})</small></div>'
+            f'<div><b>🎯 %{acc}</b><small>doğruluk ({c} doğru / {w} yanlış)</small></div>'
+            f'<div><b>🎮 {p["games"]}</b><small>tamamlanan oyun</small></div></div></div>', unsafe_allow_html=True)
+        st.progress(min(1.0, cur / need), text=f"Sonraki seviyeye {need - cur} XP")
+        st.markdown('<div class="section-title">🗓️ Bugünkü görevler</div>', unsafe_allow_html=True)
+        for t in PG.daily_tasks(p):
+            st.markdown(f'<div class="pnl-task {"done" if t["done"] else ""}">{"✅" if t["done"] else "⬜"} {esc(t["label"])} '
+                        f'<span>{t["cur"]}/{t["target"]}</span></div>', unsafe_allow_html=True)
+        st.caption("Her tamamlanan görev +15 XP kazandırır.")
+        weak = PG.weak_topics(p)
+        st.markdown('<div class="section-title">🎯 AdenMind önerisi</div>', unsafe_allow_html=True)
+        if weak:
+            for r, n, s_, u_ in weak:
+                a, b = st.columns([4, 1.3])
+                a.markdown(f'<div class="pnl-task"><b>{esc(s_)} · {esc(u_)}</b> — %{round(r * 100)} doğruluk ({n} soru). Bu konuyu biraz daha çalışalım!</div>',
+                           unsafe_allow_html=True)
+                b.button("Çalış ▶", key=f"weak_{s_}_{u_}", on_click=_study_topic, args=(s_, u_), use_container_width=True)
+        elif c + w < 5:
+            st.info("Birkaç oyun oyna; zayıf ve güçlü konularını burada göreceksin.")
+        else:
+            st.success("Harika gidiyorsun! Zayıf konu görünmüyor. Yeni üniteler ve oyun salonu seni bekliyor 🚀")
+        st.markdown('<div class="section-title">🏆 Rozetler</div>', unsafe_allow_html=True)
+        chips = "".join(f'<span class="pnl-badge {"on" if bid in p["badges"] else ""}">{esc(lab)}</span>' for bid, lab, _ in PG.BADGES)
+        st.markdown(f'<div class="pnl-badges">{chips}</div>', unsafe_allow_html=True)
+        if p["stats"]:
+            st.markdown('<div class="section-title">📚 Derse göre başarı</div>', unsafe_allow_html=True)
+            for s_, us in p["stats"].items():
+                cc = sum(v["c"] for v in us.values())
+                ww = sum(v["w"] for v in us.values())
+                st.progress(cc / (cc + ww) if cc + ww else 0, text=f"{s_}: %{round(100 * cc / (cc + ww)) if cc + ww else 0} ({cc}/{cc + ww})")
+    with t2:
+        due = PG.due_wrong(p, 1)
+        st.markdown(f"**📓 Defterde {len(p['wrong'])} soru var · {len([x for x in p['wrong'] if x['due'] <= PG.today()])} tanesi bugün tekrar zamanı · "
+                    f"öğrenilen: {p['mastered']}**")
+        st.caption("Yanlış yaptığın sorular buraya düşer. 1, 3, 7 ve 14 gün sonra tekrar sorulur; 4 kez doğru bilirsen 'öğrenildi' sayılır.")
+        fb = st.session_state.get("wn_fb")
+        if fb:
+            cls = "ok" if fb["ok"] else "bad"
+            head = "🎉 Doğru!" if fb["ok"] else f"❌ Doğrusu: {esc(str(fb['label']))}"
+            st.markdown(f'<div class="fb {cls}"><b>{head}</b><div>{esc(str(fb["expl"]))}</div></div>', unsafe_allow_html=True)
+            st.button("➡️ Sonraki", key="wn_next", on_click=_wn_next)
+        elif due:
+            it = due[0]
+            st.markdown(f'<div class="qcard"><div class="qmeta"><span>{esc(it["subject"])} · {esc(it["unit"])}</span>'
+                        f'<span class="score-chip">Kutu {it["box"] + 1}/4</span></div><div class="qtext">{esc(it["text"])}</div></div>',
+                        unsafe_allow_html=True)
+            label = next((a for a, b in it["options"] if _same(b, it["correct"])), it["correct"])
+            with st.container(key="optbox"):
+                oc = st.columns(2)
+                for i, (a, b) in enumerate(it["options"]):
+                    with oc[i % 2]:
+                        st.button(md_safe(a), key=f"wn_{it['id']}_{i}", on_click=_wn_answer,
+                                  args=(it["id"], _same(b, it["correct"]), label, it["expl"]))
+        elif p["wrong"]:
+            st.success("Bugünlük tekrar bitti! 🎉 Kalan sorular ilerleyen günlerde sana tekrar gelecek.")
+        else:
+            st.info("Defterin boş. Yanlış yaptığın sorular burada birikecek; hata yapmak öğrenmenin parçası 💪")
+        if p["wrong"]:
+            with st.expander("Defterdeki tüm sorular"):
+                for x in p["wrong"][::-1][:60]:
+                    st.markdown(f"- **{esc(x['subject'])}** · {esc(x['text'][:110])} — _tekrar: {x['due']}_")
+    with t3:
+        st.markdown(f"**Profil:** {esc(p['name'])} · oluşturma: {p['created']}")
+        st.button("🚪 Profil değiştir / çıkış", key="logout_btn", on_click=_logout)
+        st.markdown("**💾 Yedek kodu**")
+        st.caption("Sunucu yeniden başlarsa ilerleme silinebilir. Bu kodu kopyalayıp bir yere kaydet; sonra aşağıya yapıştırıp geri yükleyebilirsin.")
+        st.text_area("Yedek kodun", PG.export_code(p), height=110, key="exp_code")
+        with st.form("imp_form"):
+            code = st.text_area("Yedek kodunu buraya yapıştır", height=90, key="imp_code")
+            if st.form_submit_button("📥 Yedekten yükle"):
+                q = PG.import_code(code or "")
+                if q:
+                    PG.save(q)
+                    st.session_state["prof"] = q
+                    st.rerun()
+                else:
+                    st.error("Kod geçersiz görünüyor.")
+
+
+PANEL_CSS = """
+.pnl-bar{display:flex;flex-wrap:wrap;gap:8px;align-items:center;padding:10px 14px;border-radius:18px;background:rgba(94,234,212,.1);
+border:1px solid rgba(94,234,212,.35);color:#e6fffb;font-size:.92rem}.pnl-bar span{background:rgba(255,255,255,.08);padding:3px 10px;border-radius:999px}
+.pnl-hero{display:flex;flex-wrap:wrap;gap:14px;justify-content:space-between;align-items:center;padding:18px;border-radius:24px;
+background:linear-gradient(135deg,#0f766e,#0e7490);color:#fff;margin-bottom:10px}.pnl-name{font-size:1.5rem;font-weight:900}
+.pnl-stats{display:flex;gap:18px;flex-wrap:wrap}.pnl-stats div{display:flex;flex-direction:column;text-align:center}.pnl-stats b{font-size:1.4rem}.pnl-stats small{opacity:.85}
+.pnl-task{padding:10px 14px;border-radius:14px;background:rgba(255,255,255,.07);border:1px solid rgba(94,234,212,.25);margin:6px 0;color:#e6fffb}
+.pnl-task.done{background:rgba(74,222,128,.18);border-color:rgba(74,222,128,.5)}.pnl-task span{float:right;font-weight:800}
+.pnl-badges{display:flex;flex-wrap:wrap;gap:8px}.pnl-badge{padding:6px 12px;border-radius:999px;background:rgba(255,255,255,.06);color:#8fd9cf;opacity:.5;filter:grayscale(1)}
+.pnl-badge.on{opacity:1;filter:none;background:rgba(251,191,36,.2);color:#fde68a;border:1px solid rgba(251,191,36,.5)}
+"""
+
+
+# =============================================================================
 # 10. ANA AKIŞ
 # =============================================================================
 subj = st.session_state["selected_subject"]
@@ -2888,13 +3111,15 @@ game = st.session_state["selected_game"]
 arcade = st.session_state.get("selected_arcade")
 in_game = bool(subj and unit and game) or bool(arcade)
 
-css = BASE_CSS + (GAME_CSS if in_game else "") + (BALLOON_CSS if (in_game and game == "balon") or arcade else "")
+css = BASE_CSS + PANEL_CSS + (GAME_CSS if in_game else "") + (BALLOON_CSS if (in_game and game == "balon") or arcade else "")
 st.markdown(f"<style>{css}</style>", unsafe_allow_html=True)
 
 # --- Kenar çubuğu: oyun dışında görünür ---
 if not in_game:
     with st.sidebar:
         st.button("🏠 Ana Sayfaya Dön", key="home_btn", on_click=go_home)
+        if PG is not None and prof():
+            st.button("📊 Benim Panelim", key="side_panel", on_click=open_panel)
         st.markdown("---")
         render_adenmind("side")
 
@@ -2907,10 +3132,14 @@ if not in_game:
     )
 
 # --- AŞAMA 1: DERS SEÇİMİ (karta tıklamak yeterli) ---
-if arcade:
+if st.session_state.get("selected_page") == "panel" and not in_game:
+    panel_page()
+
+elif arcade:
     arcade_page(arcade)
 
 elif not subj:
+    home_bar()
     st.markdown('<div class="section-title">🌟 Çalışmak istediğin dersi seç</div>', unsafe_allow_html=True)
     items = [(name, d["ikon"], name, d["renk"]) for name, d in MEB_CURRICULUM.items()]
     card_grid(items, 3, "sub", pick_subject, CARD_H)
