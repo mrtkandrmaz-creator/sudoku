@@ -416,7 +416,7 @@ menu();
 </script></body></html>
 '''
 
-ARCADE_HTML['macera'] = r'''<!DOCTYPE html><html lang="tr"><head><!--SHARED--><style>
+ARCADE_HTML['macera'] = r'''<!DOCTYPE html><html lang="tr"><head><!--SHARED--><!--AIPACK--><style>
 .story{width:min(96%,720px);margin:auto;border-radius:26px;border:3px solid var(--ac);background:linear-gradient(160deg,#0b4a55,#052a31);padding:20px;box-shadow:0 14px 40px rgba(0,0,0,.4)}
 .story .em{font-size:64px;text-align:center}.story p{font-size:clamp(16px,2.6vw,20px);line-height:1.55;margin:10px 0}
 .opt{display:block;width:100%;text-align:left;margin:8px 0;padding:12px 16px;border-radius:16px;border:2px solid var(--line);background:rgba(255,255,255,.08);color:var(--t);font-size:16px;font-weight:700;cursor:pointer;font-family:inherit}
@@ -487,19 +487,125 @@ matematik:{t:'Matematik Ormanı',e:'🌲',d:'Sayıları ve şekilleri kullanarak
  m6:{e:'🧮',t:'Son kapı: bir sandıkta 80 elmanın %50\'sini istiyor.',q:{s:'Kaç elma almalısın?',o:['40','50','30'],a:0,ok:'m7',no:'m7',learn:'%50 yarım demektir: 80 ÷ 2 = 40.'}},
  m7:{e:'🏆',end:'win',t:'Üç kapı da açıldı! Bilge Baykuş sana "Matematik Bekçisi" rozetini veriyor.'},
  m8:{e:'💤',end:'lose',t:'Çok yoruldun ve ormanda mola vermen gerekti. Yeniden deneyebilirsin!'}}}};
-let A,node,st,learned,hist;
-function menu(){app.innerHTML='';app.append(h('div',{class:'top'},h('h2',{},'🧭 İnteraktif Macera')),h('div',{class:'center'},h('div',{class:'msg'},'Bir macera seç. Seçimlerin hikâyeyi değiştirir; bilgi sorularını doğru yanıtla!'),
- h('div',{class:'row'},Object.entries(ADV).map(([k,a])=>h('div',{class:'cardA',onclick:()=>start(k)},h('div',{style:'font-size:44px'},a.e),h('b',{},a.t),h('span',{},a.d))))))}
-function start(k){A=ADV[k];node=A.s;st={enerji:3,bilgi:0,hazine:0};learned=[];draw()}
+// Kısa senaryo biçimi: [emoji, hikâye, soru, DOĞRU, yanlış1, yanlış2, öğrenilen bilgi, ipucu]
+const DSL={
+deprem:{t:'Deprem Anı: Çök-Kapan-Tutun',e:'🏚️',d:'Sarsıntı başladı! Doğru kararlarla kendini ve ailen koru.',who:'AFAD gönüllüsü Deniz',steps:[
+['🏠','Evdesin ve zemin sallanmaya başladı! Eşyalar düşüyor.','İlk tepkin ne olmalı?','Sağlam bir masanın yanında ÇÖK, KAPAN, TUTUN','Hemen asansöre koşarım','Balkona çıkıp bakarım','Sarsıntı sırasında hareket etmek düşme ve yaralanma riskini artırır. Çök-Kapan-Tutun uygulanır, asansör kullanılmaz.','Sallanırken koşmak yerine bulunduğun yerde kendini korumayı düşün.'],
+['💨','Sarsıntı durdu. Mutfaktan hafif gaz kokusu geliyor.','Ne yapmalısın?','Pencereleri açar, vanayı kapatır, elektrik düğmelerine dokunmam','Kibrit çakıp kaynağı ararım','Işığı yakıp bakarım','Gaz kokusunda kıvılcım çıkaracak her şeyden uzak durulur; havalandırılır, vana kapatılır ve güvenli yerden 187 aranır.','Kıvılcım gazı patlatabilir.'],
+['🚪','Binadan çıkman gerekiyor.','Hangi yolu seçersin?','Merdivenleri kullanırım','Asansörü kullanırım','Pencereden atlarım','Depremde elektrik kesilebilir; asansör mahsur kalmana neden olur. Merdiven güvenlidir.','Elektrik kesilirse asansöre ne olur?'],
+['🌳','Dışarı çıktın. Çevrede binalar, elektrik direkleri ve bir park var.','Nerede beklersin?','Parkta, binalardan ve direklerden uzakta','Bina duvarının dibinde','Hasarlı binanın girişinde','Açık alanlarda düşen cam, tuğla ve kablolardan uzak durulur. Toplanma alanları bu yüzden belirlenir.','Düşebilecek şeylerden uzaklaş.'],
+['🔁','Yarım saat sonra yeni bir sarsıntı hissettin: artçı deprem.','Artçı depremler hakkında hangisi doğrudur?','Ana depremden sonra günlerce sürebilir; hasarlı binaya girilmez','Asla olmaz','Sadece bir kez olur','Büyük depremlerden sonra artçı sarsıntılar günlerce hatta haftalarca sürebilir. Hasarlı binalara girilmemelidir.','"Artçı" kelimesi arkadan gelen demek.'],
+['🎒','Ailenle bir afet çantası hazırlıyorsunuz.','Çantada hangisi olmalı?','Su, düdük, el feneri, ilk yardım malzemesi','Oyun konsolu','Süslü kıyafetler','Afet çantasında su, yiyecek, düdük, fener, yedek pil, ilaç ve belgeler bulunur. Düdük enkazda sesini duyurmaya yarar.','Hayatta kalmaya yarayan şeyleri seç.']]},
+kasirga:{t:'Hortum ve Fırtına Uyarısı',e:'🌪️',d:'Gökyüzü kararıyor! Fırtınadan korunmanın yollarını öğren.',who:'Meteoroloji uzmanı Cem',steps:[
+['⛈️','Gökyüzü kararıyor, rüzgâr hızlanıyor ve bir hortum görüyorsun.','Evdeysen nereye sığınmalısın?','Pencerelerden uzak, en alt kattaki iç odaya','Camın önüne giderim','Çatıya çıkarım','Hortum ve şiddetli fırtınada cam ve çatı en tehlikeli yerlerdir; pencerelerden uzak iç oda güvenlidir.','Uçuşan cam parçaları tehlikelidir.'],
+['🚗','Arabayla yoldayken hortum yaklaşıyor.','Ne yaparsın?','Hemen güvenli bir binaya sığınırım','Hortumdan hızlı gitmeye çalışırım','Köprü altında beklerim','Araç hortumdan kaçmaya uygun değildir; mümkünse sağlam bir binaya sığınılır. Köprü altı rüzgâr ve enkaz için güvenli değildir.','Araçlar rüzgârda hafif kalır.'],
+['⚡','Fırtınada şimşekler çakıyor. Açık arazide yürüyorsun.','En doğru davranış hangisi?','Alçak bir yere çömelip ağaçlardan uzak durmak','Büyük bir ağacın altına sığınmak','Şemsiyeyi yukarı kaldırmak','Yıldırım yüksek ve sivri noktalara düşer. Tek ağaç, direk ve şemsiye risklidir.','Yıldırım nereye düşer?'],
+['📻','Elektrik kesildi.','Uyarıları nasıl takip edersin?','Pilli radyo veya telefonla resmî duyuruları dinlerim','Sosyal medyadaki söylentilere bakarım','Hiç dinlemem','Afet anında resmî kurumların (AFAD, Meteoroloji) açıklamalarına güvenilir.','Güvenilir kaynak hangisi?'],
+['🏚️','Fırtına geçti. Yerde kopmuş elektrik kablosu var.','Ne yaparsın?','Yaklaşmam, yetkililere haber veririm','Çubukla kenara iterim','Üzerinden atlarım','Yere düşen kablolar elektrik taşıyabilir. Uzak durulur ve 112 veya elektrik şirketi aranır.','Elektrik görünmez bir tehlikedir.'],
+['🌦️','Hava durumunu izlemeyi öğreniyorsun.','Kırmızı alarm ne demektir?','Çok şiddetli ve tehlikeli hava olayı bekleniyor','Hava çok güzel olacak','Sadece hafif yağmur var','Meteorolojik uyarılarda sarı, turuncu, kırmızı renkler artan tehlikeyi gösterir. Kırmızı en yüksek seviyedir.','Trafik ışığı gibi düşün.']]},
+yangin:{t:'Yangın Alarmı!',e:'🔥',d:'Evde yangın çıktı! Doğru kararlarla güvenle çık.',who:'İtfaiyeci Burak',steps:[
+['🚨','Duman dedektörü çalıyor. Odanın kapısından duman sızıyor.','İlk yapman gereken nedir?','Kapıyı açmadan önce sıcaklığına bakar, sıcaksa açmam','Kapıyı hemen açarım','Eşyalarımı toplamaya başlarım','Sıcak kapı arkasında yangın olduğunu gösterir. Açmak alevleri içeri çeker.','Elinin ön yüzünü değil, el sırtını kullan.'],
+['💨','Koridor dumanla dolu.','Dumanlı ortamda nasıl ilerlersin?','Yere yakın, eğilerek veya sürünerek','Ayakta koşarak','Nefesimi tutarak yukarı bakarak','Sıcak duman yukarıda toplanır; yere yakın yerde hava daha temizdir.','Duman sıcaktır ve hafiftir.'],
+['📞','Güvenli yere çıktın.','Hangi numarayı ararsın?','112 (İtfaiye ve acil çağrı)','155','Kimseyi aramam','Türkiye’de acil durumlar için 112 aranır. Adres ve olay kısaca anlatılır.','Tek acil çağrı numarası.'],
+['🧯','Küçük bir tava yangını başladı.','Yağ yangınında ne yapılır?','Kapağı üzerine kapatıp ocağı kapatırım','Üzerine su dökerim','Tavayı lavaboya taşırım','Yağ yangınına su dökmek alevlerin yayılmasına neden olur. Oksijen kesilmelidir.','Ateş neye ihtiyaç duyar?'],
+['👕','Üzerindeki kıyafet tutuştu (ama sen güvendesin).','Hangi yöntem doğrudur?','Dur, yere yat, yuvarlan','Koş','Üflerim','Koşmak alevi büyütür. Dur-Yat-Yuvarlan oksijeni keser.','Üç kelime: D…, Y…, Y…'],
+['🧯','Okulda yangın tatbikatı var.','Tatbikatta ne yapmalısın?','Sakin kalıp sırayla toplanma alanına gitmek','Çantamı almak için sınıfa dönmek','Asansörle inmek','Tatbikatlarda sakin kalınır, itişilmez, asansör kullanılmaz ve toplanma alanında yoklama beklenir.','Sıraya uymak panik riskini azaltır.']]},
+sel:{t:'Sel Baskını',e:'🌊',d:'Şiddetli yağış sonrası dere taşıyor!',who:'Rehber Aylin',steps:[
+['🌧️','Günlerdir yağmur yağıyor ve dere kenarında oturuyorsun.','Uyarı geldiğinde ne yaparsın?','Yüksek ve güvenli bir yere çıkarım','Dere kenarında fotoğraf çekerim','Alt kattaki eşyaları kurtarırım','Sel hızla yükselir. Önce can güvenliği için yüksek yere çıkılır.','Su nereye akar?'],
+['🚗','Yolda su birikmiş.','Arabayla geçmeli misin?','Hayır, başka yol seçerim','Evet, hızlı geçerim','Evet, yavaş geçerim','30 cm hareketli su bile araçları sürükleyebilir.','Su araca güç uygular.'],
+['⚡','Evde elektrik panosu su altında kalmak üzere.','Ne yaparsın?','Elektriği güvenli yerden kapatır, ıslak elle dokunmam','Islak elle şalteri indiririm','Prizlere dokunurum','Su ve elektrik birleşince ölümcül risk oluşur.','Islaklık iletkenlik demektir.'],
+['🚶','Sel suyu bacaklarına kadar çıktı.','Suya girmeli misin?','Hayır, akıntı ve gizli engeller tehlikeli','Evet, yürüyerek geçerim','Yüzerek geçerim','Selde su altındaki çukurlar ve kapaklar görünmez; akıntı güçlüdür.','Gördüğün kadarı yok.'],
+['🥤','Sel sonrası musluk suyu bulanık.','İçmeden önce ne yapılmalı?','Resmî duyuruyu beklemek, şişe su veya kaynatmak','Direkt içmek','Sadece soğutmak','Selde kanalizasyon karışabilir; su kaynatılmalı veya şişe su kullanılmalı.','Mikropları ne öldürür?'],
+['🧱','Evleri sel sonrası temizliyorsun.','Önce ne yaparsın?','Eldiven ve bot giyerim','Çıplak elle temizlerim','Hemen elektrikleri açarım','Sel artıkları mikrop barındırır; koruyucu ekipman gerekir.','Koruyucu kıyafet.']]},
+heyelan:{t:'Heyelan Riski',e:'⛰️',d:'Dağ yamacında toprak kayıyor!',who:'Jeoloji mühendisi Ece',steps:[
+['🏞️','Yamaçta evin var ve şiddetli yağmur başladı.','Heyelan belirtileri nelerdir?','Duvarlarda çatlak, eğilen ağaçlar, bulanık kaynak suyu','Bol çiçek açması','Hava çok sıcak olması','Eğilmiş ağaçlar, çatlaklar ve bulanık su toprak hareketinin işaretidir.','Toprağın oynadığını gösteren işaretler.'],
+['🚪','Gece gürültü duyuyorsun.','Ne yaparsın?','Hemen evi terk edip yamaçtan uzaklaşırım','Yatağa dönerim','Sabaha kadar beklerim','Heyelan hızlı olabilir; tehlike hâlinde hemen uzaklaşılmalıdır.','Zaman değerlidir.'],
+['↔️','Toprak sana doğru kayıyor.','Hangi yöne kaçarsın?','Kayma yönüne dik, yan tarafa','Aşağı doğru','Yukarı doğru','Heyelan yönüne dik kaçmak kurtulma şansını artırır.','Önünden değil yanına çekil.'],
+['🌲','Bir tepeyi korumak istiyorsun.','Heyelanı azaltan önlem hangisidir?','Ağaçlandırma ve doğru drenaj','Ağaçları kesmek','Yamacı çıplak bırakmak','Kökler toprağı tutar; drenaj suyun birikmesini önler.','Kökler ne yapar?'],
+['📞','Yol toprakla kapandı.','Kimi ararsın?','112 / AFAD','Arkadaşlarımı','Kimseyi aramam','Resmî ekiplerin haberi olmalı.','Acil numara.'],
+['🏠','Yeni ev yapılacak.','En güvenli yer neresi?','Zemini sağlam, eğimi düşük bölge','Dik yamaç','Dere yatağı','Yapı yeri seçerken zemin etüdü yapılır.','Sağlam zemin.']]},
+cig:{t:'Çığ Tehlikesi',e:'🏔️',d:'Karlı dağlarda doğru güvenlik adımlarını öğren!',who:'Dağ rehberi Kaan',steps:[
+['⛷️','Kayak yaparken yamacın üstünde çatlaklar gördün.','Ne yapmalısın?','Bölgeden uzaklaşır, görevlilere haber veririm','Üzerinden kayarım','Bağırarak çığı tetiklerim','Çığ riskinde riskli bölgeye girilmez, yetkililere haber verilir.','Riskten uzak dur.'],
+['🌨️','Yoğun kar yağdı.','Çığ riski ne zaman artar?','Yoğun kar, eğim ve ısınma','Hava açık ve soğukken','Düz arazide','Taze kar, eğim ve ani ısınma çığ riskini artırır.','Kar yığılması + eğim.'],
+['📡','Çığa yakalandın!','Ne yapmaya çalışırsın?','Yüzme hareketleri yapıp yüzeyde kalmaya çalışırım','Hareketsiz beklerim','Gözlerimi kapatırım','Yüzme hareketi yüzeye yakın kalmaya yardımcı olabilir.','Hareket et.'],
+['🕳️','Kar altında kaldın.','Durma anında ne yaparsın?','Yüzümün önünde nefes boşluğu açarım','Çok bağırırım','Hemen uyurum','Nefes boşluğu oksijeni korur; enerji için bağırma azaltılır.','Hava önemli.'],
+['🎒','Kış sporu çantası.','Hangisi güvenlik ekipmanıdır?','Çığ vericisi (tranşe), kürek, prob','Oyun konsolu','Şemsiye','Tranşe konum verir; kürek ve prob kurtarmada kullanılır.','Aranmak için sinyal.'],
+['👥','Arkadaşın çığa gömüldü.','Önce ne yaparsın?','112’yi arayıp kaybolduğu yeri işaretlerim','Hemen eve dönerim','Beklerim','Yardım çağır ve son görüldüğü yeri işaretle.','Yardım ve konum.']]},
+tsunami:{t:'Tsunami Uyarısı',e:'🌊',d:'Deniz çekildi! Kıyıda ne yapmalı?',who:'Kıyı bekçisi Defne',steps:[
+['🏖️','Güçlü bir sarsıntı hissettin, ardından deniz geri çekildi.','Bu ne anlama gelir?','Tsunami işareti olabilir; hemen yükseğe kaçmalıyım','Balık toplamaya giderim','Fotoğraf çekerim','Denizin çekilmesi tsunami öncesi doğal bir uyarıdır.','Denizin davranışı garip.'],
+['🏃','Hangi yöne gitmelisin?','En doğru yön?','Kıyıdan uzağa ve yükseğe','Kıyı boyunca','Denize doğru','Yükseklik ve uzaklık hayat kurtarır.','Su yükselir.'],
+['⏱️','Dalga geçti.','Tekrar kıyıya ne zaman dönülür?','Resmî izin gelene kadar dönülmez','İlk dalgadan hemen sonra','Gece','Tsunami birden fazla dalga olabilir.','Dalgalar peş peşe.'],
+['📢','Uyarı sirenleri çalıyor.','Ne yaparsın?','Tahliye talimatlarına uyarım','Siren görmezden gelirim','Evde beklerim','Sirenler ve resmi duyurular hayat kurtarır.','Talimat var.'],
+['🗺️','Tatilde bir otel seçiyorsun.','Hangisi güvenli bilgidir?','Tahliye yollarını öğrenmek','Hiç bakmamak','Denize yakın odayı seçmek','Tatilde bile tahliye yolunu bilmek faydalıdır.','Bilgi güvenlik.'],
+['🧪','Tsunami nedir?','Tsunami neden olur?','Deniz tabanındaki deprem, volkan veya heyelan','Sadece rüzgâr','Ay’ın hareketi','Tsunami deniz altında büyük hareketle oluşur.','Yer altı hareketi.']]},
+ormanyangin:{t:'Orman Yangını',e:'🌲',d:'Kamp yaparken duman gördün!',who:'Orman muhafaza memuru Selin',steps:[
+['🏕️','Kamp yerinde uzakta duman gördün.','İlk yapman gereken?','Hemen 112 veya 177 Orman Yangını hattını aramak','Fotoğraf çekmek','Yaklaşıp bakmak','Orman yangınlarını bildirmek için 112 veya 177 aranır.','Hızlı bildirim.'],
+['🌬️','Rüzgâr senin yönüne esiyor.','Hangi yöne kaçmalısın?','Rüzgâra ve yangına dik, açık alana','Rüzgâr yönünde','Ağaçlık alana','Yangın rüzgârla ilerler. Yan yöne ve açık alana kaçılır.','Alev rüzgârla gider.'],
+['🔥','Kamp ateşi söndürülürken.','Doğru yöntem hangisi?','Suyla söndürüp küllerin soğuduğundan emin olmak','Üstünü toprakla örtüp gitmek','Yanarken bırakmak','Ateş tamamen soğumadan terk edilmemelidir.','Kül soğuk mu?'],
+['🚬','Biri sigara izmaritini yere attı.','Neden tehlikelidir?','Kuru otları tutuşturabilir','Hiç risk yok','Sadece koku yapar','Küçük bir kıvılcım büyük yangına dönüşebilir.','Kıvılcım.'],
+['😷','Duman arttı.','Ne yaparsın?','Islak bezle ağzımı kapatıp uzaklaşırım','Derin nefes alırım','Duman içinde dururum','Islak bez dumanı süzmeye yardım eder, ama en önemlisi uzaklaşmaktır.','Solunum güvenliği.'],
+['🌱','Yangın sonrası.','Ormanı nasıl koruruz?','Fidan dikmek ve bilinçlenmek','Çöp bırakmak','Ateşle oynamak','Yeniden ağaçlandırma ve bilinç çevreyi korur.','Doğa dostu.']]},
+kuraklik:{t:'Kuraklık ve Su Tasarrufu',e:'🏜️',d:'Barajlar azalıyor! Suyu nasıl koruruz?',who:'Çevre mühendisi Mert',steps:[
+['🚰','Musluk sürekli akıyor.','Diş fırçalarken ne yapmalısın?','Musluğu kapatıp bardak kullanmak','Musluğu açık bırakmak','Sürekli yıkamak','Dişini fırçalarken musluğu kapatmak dakikalarca su kazandırır.','Akan su boşa gider.'],
+['🌱','Bahçeyi sulayacaksın.','En verimli yol?','Sabah/akşam damlama sulama','Öğlen sıcakta çok su','Yağmurda sulamak','Damlama sulama ve serin saatler buharlaşmayı azaltır.','Güneş suyu buharlaştırır.'],
+['🌧️','Yağmur suyu.','Yağmur suyu nasıl kullanılır?','Biriktirip bahçede kullanmak','Hiç kullanılmaz','Sadece içilir','Biriktirilen yağmur suyu bahçe için kullanılabilir.','Geri kazan.'],
+['🚿','Duş süresi.','Hangi davranış tasarrufludur?','Kısa duş','Uzun duş','Duşu açık bırakmak','Kısa duş su ve enerji tasarrufu sağlar.','Zaman azalt.'],
+['🔧','Musluk damlatıyor.','Ne yapmalı?','Tamir ettirmek','Görmezden gelmek','Daha çok açmak','Damlayan musluk yılda binlerce litre su kaybettirir.','Küçük kayıp büyük olur.'],
+['🌍','Su tasarrufu.','Neden önemlidir?','Tatlı su sınırlıdır','Su hiç bitmez','Sadece şehirlerde önemlidir','Dünyadaki tatlı su kaynakları sınırlıdır.','Sınırlı kaynak.']]},
+ilkyardim:{t:'İlk Yardım Kahramanı',e:'🩹',d:'Acil durumda doğru ilk yardım adımlarını öğren!',who:'Hemşire Zehra',steps:[
+['🚑','Parkta biri yere yığıldı.','İlk önce ne yaparsın?','Çevre güvenli mi bakar, 112’yi ararım','Hemen su içiririm','Uzaklaşırım','Önce güvenlik, sonra 112 aranır.','Önce güvenlik.'],
+['🩸','Arkadaşının elinden kan akıyor.','Ne yaparsın?','Temiz bezle yaraya baskı uygularım','Yarayı toprağa bastırırım','Hiç dokunmam','Kanamada temiz bezle doğrudan baskı uygulanır.','Basınç.'],
+['🔥','Kolunu sıcak suya değdirdi.','Yanığa ilk yardım?','Akan serin suyun altında tutmak','Diş macunu sürmek','Buz koymak','Hafif yanıklarda serin su 10-20 dk tutulur; diş macunu sürülmez.','Serin su.'],
+['🤧','Biri boğazına bir şey kaçırdı ve konuşamıyor.','Ne yaparsın?','Yardım çağırır, uygun yöntemle müdahale ederim','Su içiririm','Sırtına vurmadan beklerim','Nefes yolu tıkanıklığında acil yardım çağrılır; eğitimli kişi Heimlich uygular.','Hava yolu.'],
+['🦴','Düşen arkadaşının kolu eğri.','Ne yaparsın?','Hareket ettirmeden 112’yi ararım','Kolu düzeltirim','Hemen yürütürüm','Kırık şüphesinde hareket ettirmeden acil yardım çağrılır.','Oynatma.'],
+['💊','Sınıfta biri bayıldı.','Ne yapmalısın?','Güvenli şekilde yatırıp 112’yi ararım','Yüzüne su dökerim','Ayakta tutarım','Bilinç kaybında 112 aranır, nefes kontrol edilir.','Önce yardım iste.']]},
+trafik:{t:'Güvenli Yol: Trafik Kahramanı',e:'🚦',d:'Yaya ve bisiklet kuralları ile güvenli yolculuk!',who:'Polis Amca Orhan',steps:[
+['🚶','Karşıdan karşıya geçeceksin.','Nereden geçmelisin?','Yaya geçidinden, yeşil ışıkta','Arabaların arasından','Koşarak her yerden','Yaya geçidi ve ışıklar yaya güvenliği için vardır.','Işık rengi.'],
+['🚲','Bisiklete bineceksin.','Mutlaka ne takmalısın?','Kask','Kulaklık','Şapka','Kask baş yaralanmalarını azaltır.','Başını koru.'],
+['🚗','Arabada arka koltuktasın.','Ne yapmalısın?','Emniyet kemeri takmak','Ayakta durmak','Camdan sarkmak','Emniyet kemeri çarpışmada hayat kurtarır.','Kemer.'],
+['📱','Yolda yürürken mesaj geldi.','Ne yaparsın?','Durup güvenli yerde bakarım','Yürürken bakarım','Karşıya koşarım','Dikkat dağıtıcılar kazaya yol açar.','Dikkat.'],
+['🚏','Otobüsten indin.','Karşıya ne zaman geçersin?','Otobüs gittikten ve görüş açıldıktan sonra','Hemen otobüsün önünden','Arkasından koşarak','Araç arkasından aniden çıkmak tehlikelidir.','Görüş.'],
+['🌙','Gece yürüyorsun.','Ne giymek iyidir?','Yansıtıcı/açık renkli','Siyah','Hiç fark etmez','Yansıtıcılar sürücülerin seni görmesini sağlar.','Görünür ol.']]},
+siber:{t:'Siber Güvenlik Dedektifi',e:'🛡️',d:'İnternette güvende kal!',who:'Bilişim uzmanı Tuna',steps:[
+['🔑','Yeni hesap açıyorsun.','Hangi şifre güçlüdür?','Uzun, harf-rakam-sembol karışık','12345','Doğum günün','Güçlü şifre uzun ve tahmin edilemezdir.','Tahmin zor olmalı.'],
+['📧','Bir e-posta "ödül kazandın, tıkla" diyor.','Ne yaparsın?','Tıklamam, silerim/bildiririm','Tıklarım','Arkadaşlara yollarım','Kimlik avı (phishing) şüpheli bağlantılarla yapılır.','Çok iyi teklif.'],
+['👤','Tanımadığın biri mesaj atıyor.','Ne yapmalısın?','Bilgi paylaşmam, aileme söylerim','Adresimi veririm','Buluşurum','Kişisel bilgiler paylaşılmaz; güvendiğin yetişkine söylenir.','Güvenilir yetişkin.'],
+['📸','Fotoğraf paylaşacaksın.','Dikkat etmelisin?','Konum/özel bilgi görünmesin','Her şeyi paylaş','Adresi yaz','Paylaşım izidir, konum ve okul bilgisi korunmalı.','Dijital iz.'],
+['🧱','Bilgisayarında güncelleme var.','Ne yaparsın?','Güncellerim','Hep ertelerim','Kapatırım','Güncellemeler güvenlik açıklarını kapatır.','Yama.'],
+['🤝','Arkadaşın şifresini istiyor.','Ne yaparsın?','Paylaşmam','Veririm','Tahtaya yazarım','Şifre kişiseldir ve paylaşılmaz.','Sır.']]},
+volkan:{t:'Yanardağ Keşfi',e:'🌋',d:'Magma, lav ve kül bulutu!',who:'Jeolog Nehir',steps:[
+['🌋','Bir yanardağ yakınındasın.','Yanardağ neyle oluşur?','Magmanın yer yüzüne çıkmasıyla','Rüzgârla','Yağmurla','Magma yüzeye lav olarak çıkar.','Kızgın kayaç.'],
+['☁️','Kül bulutu yayılıyor.','Ne yapmalısın?','Maske takıp içeride kalmak','Dışarıda gezmek','Gözleri açık beklemek','Volkanik kül solunum için zararlıdır.','Solunum.'],
+['🔥','Lav akıyor.','Lavdan nasıl korunulur?','Uzaklaşmak, yüksek zemine çıkmak','Yaklaşıp fotoğraf çekmek','Üstünden geçmek','Lav yavaş olsa da çok sıcaktır.','Sıcak.'],
+['🗺️','Türkiye’de bir yanardağ.','Hangisi Türkiye’de yanardağdır?','Ağrı Dağı','Everest','Etna','Ağrı ve Erciyes Türkiye’deki volkanik dağlardır.','Doğu Anadolu.'],
+['🧪','Volkan sonrası toprak.','Neden verimli?','Mineral bakımından zengin olduğu için','Çok kuru olduğu için','Çok soğuk olduğu için','Volkanik toprak mineral zengindir.','Besin.'],
+['📈','Sismik izleme.','Volkan nasıl izlenir?','Sismograf ve gaz ölçümü','Hiç izlenmez','Sadece gözle','Bilimsel ölçümler erken uyarı sağlar.','Ölçüm.']]}
+};
+
+function dslToAdv(k,d){const n={};d.steps.forEach((x,i)=>{const id=k+i,nx=i+1<d.steps.length?k+(i+1):k+'W';
+ n[id]={e:x[0],t:x[1]+(i===0?' '+(d.who?d.who+' yanında: "Hazır mısın?"':''):''),q:{s:x[2],o:[x[3],x[4],x[5]],a:0,ok:nx,no:nx,learn:x[6],h:x[7]}}});
+ n[k+'W']={e:'🏆',end:'win',t:d.win||('Tebrikler! '+d.t+' macerasını tamamladın ve öğrendiklerin gerçek hayatta işine yarayacak.')};
+ n[k+'L']={e:'💤',end:'lose',t:'Enerjin bitti. Hata yapmak öğrenmenin parçasıdır, yeniden dene!'};
+ return{t:d.t,e:d.e,d:d.d,s:k+'0',n,cat:d.cat||'Güvenlik'}}
+for(const k in DSL)ADV[k]=dslToAdv(k,DSL[k]);
+try{(window.AI_PACK||[]).forEach((d,i)=>{if(d&&d.steps&&d.steps.length>=3&&d.steps.every(x=>x.length>=7)){const k='ai'+i;ADV[k]=dslToAdv(k,d);ADV[k].ai=true}})}catch(e){}
+let A,node,st,learned,hist,hints,akey;
+function menu(){app.innerHTML='';const played=store('adv_played')||[];const keys=Object.keys(ADV);
+ const fresh=keys.filter(k=>!played.includes(k));
+ const rand=()=>{const pool=fresh.length?fresh:keys;start(pick(pool))};
+ app.append(h('div',{class:'top'},h('h2',{},'🧭 İnteraktif Macera'),h('span',{class:'sp'}),h('button',{class:'btn',onclick:rand},'🎲 Bana yeni macera seç'),h('span',{class:'chip'},'✅ '+played.filter(k=>ADV[k]).length+'/'+keys.length)),
+ h('div',{class:'center'},h('div',{class:'msg'},'Bir macera seç; seçimlerin hikâyeyi değiştirir. İpucu için AdenMind yanında! Oynamadıkların önce gelir.'),
+ h('div',{class:'row'},[...fresh,...keys.filter(k=>played.includes(k))].map(k=>{const a=ADV[k];return h('div',{class:'cardA',onclick:()=>start(k)},h('div',{style:'font-size:44px'},a.e),h('b',{},a.t),h('span',{},a.d),h('div',{style:'margin-top:6px;font-size:12px;color:var(--gold)'},(a.ai?'🤖 Yapay zekâ · ':'')+(played.includes(k)?'✅ oynandı':'🆕 yeni')))}))))}
+function start(k){A=ADV[k];akey=k;node=A.s;st={enerji:3,bilgi:0,hazine:0};learned=[];hints=2;draw()}
 function fx(f){if(!f)return;for(const k in f)st[k]=(st[k]||0)+f[k]}
 function bar(){return h('div',{class:'top'},h('h2',{},A.e+' '+A.t),h('span',{class:'sp'}),h('div',{class:'stats'},h('span',{class:'chip'},'❤️ '+st.enerji),h('span',{class:'chip'},'🧠 '+st.bilgi),h('span',{class:'chip'},'🪙 '+st.hazine)),h('button',{class:'btn alt',onclick:menu},'☰'))}
 function go(to){if(st.enerji<=0){const L=Object.keys(A.n).find(k=>A.n[k].end==='lose');node=L;draw();return}node=to;draw()}
 function draw(){app.innerHTML='';app.append(bar());const n=A.n[node];const box=h('div',{class:'story pop'},h('div',{class:'em'},n.e),h('p',{},n.t));
- if(n.end){sfx[n.end==='win'?'win':'bad']();const score=st.bilgi*10+st.hazine*5+st.enerji*5;
+ if(n.end){if(n.end==='win'){const pl=store('adv_played')||[];if(!pl.includes(akey)){pl.push(akey);store('adv_played',pl)}}sfx[n.end==='win'?'win':'bad']();const score=Math.max(0,st.bilgi*10+st.hazine*5+st.enerji*5-(st.hintUsed||0)*5);
   box.append(h('div',{class:'msg '+(n.end==='win'?'ok':'bad')},n.end==='win'?'🎉 Macera tamamlandı! Puan: '+score:'Macera yarıda kaldı'),learned.length?h('div',{class:'learn'},h('b',{},'📚 Öğrendiklerin:'),h('ul',{},learned.map(x=>h('li',{},x)))):'',h('div',{class:'row'},h('button',{class:'btn',onclick:()=>start(Object.keys(ADV).find(k=>ADV[k]===A))},'🔄 Tekrar'),h('button',{class:'btn alt',onclick:menu},'Maceralar')));if(n.end==='win')window.__won=true}
  else if(n.q){const q=n.q;box.append(h('p',{style:'font-weight:800;color:var(--gold)'},'❓ '+q.s));const opts=shuf(q.o.map((t,i)=>({t,i})));let answered=false;
-  const wrap=h('div');opts.forEach(o=>wrap.append(h('button',{class:'opt',onclick:e=>{if(answered)return;answered=true;const ok=o.i===q.a;e.target.classList.add(ok?'good':'bad');if(ok){st.bilgi++;sfx.ok()}else{st.enerji--;sfx.bad();[...wrap.children][opts.findIndex(x=>x.i===q.a)].classList.add('good')}
-   learned.push(q.learn);box.append(h('div',{class:'learn'},(ok?'✅ Doğru! ':'❌ Doğrusu: '+q.o[q.a]+'. ')+q.learn),h('button',{class:'btn',style:'margin-top:10px',onclick:()=>go(ok?q.ok:q.no)},'Devam ▶'));$('#ms')}},o.t)));box.append(wrap)}
+  const wrap=h('div');const hb=h('button',{class:'btn alt',style:'margin:6px 0',onclick:()=>{if(answered||hints<=0||hb.disabled)return;hints--;const bad=opts.map((o,ix)=>({o,ix})).filter(x=>x.o.i!==q.a&&!x.o.gone);const r=pick(bad);if(r){r.o.gone=true;wrap.children[r.ix].classList.add('bad');wrap.children[r.ix].disabled=true;wrap.children[r.ix].style.opacity='.35'}st.hintUsed=(st.hintUsed||0)+1;hb.disabled=true;tip.textContent='🤖 AdenMind: '+(q.h||'Önce mantıklı ve güvenli olanı düşün.')+' Bir yanlış şıkkı eledim.';hb.textContent='💡 İpucu ('+hints+' hak)'}},'💡 AdenMind ipucu ('+hints+' hak)');const tip=h('div',{class:'learn',style:'margin-top:6px;background:rgba(94,234,212,.12);border-color:rgba(94,234,212,.4)'},'');opts.forEach(o=>wrap.append(h('button',{class:'opt',onclick:e=>{if(answered)return;answered=true;const ok=o.i===q.a;e.target.classList.add(ok?'good':'bad');if(ok){st.bilgi++;sfx.ok()}else{st.enerji--;sfx.bad();[...wrap.children][opts.findIndex(x=>x.i===q.a)].classList.add('good')}
+   learned.push(q.learn);box.append(h('div',{class:'learn'},(ok?'✅ Doğru! ':'❌ Doğrusu: '+q.o[q.a]+'. ')+q.learn),h('button',{class:'btn',style:'margin-top:10px',onclick:()=>go(ok?q.ok:q.no)},'Devam ▶'));$('#ms')}},o.t)));if(hints<=0)hb.disabled=true;box.append(hb,tip,wrap)}
  else n.c.forEach(c=>box.append(h('button',{class:'opt',onclick:()=>{fx(c.fx);sfx.tap();go(c.to)}},c.t)));
  app.append(box,h('div',{class:'msg',id:'ms'},''))}
 menu();
@@ -993,4 +1099,119 @@ menu();
 </script></body></html>
 '''
 
-ARCADES = [('uno', '🃏', 'UNO', 'linear-gradient(135deg, #ef4444, #f59e0b)', 'Robot rakiplere karşı kart savaşı'), ('sudoku', '🔢', 'Sudoku', 'linear-gradient(135deg, #0ea5e9, #6366f1)', '4×4, 6×6, 9×9 mantık bulmacası'), ('satranc', '♞', 'Satranç', 'linear-gradient(135deg, #334155, #0f766e)', 'Yapay zekâya karşı tam kurallı'), ('kelimeler', '🔤', 'Kelime Bulmacaları', 'linear-gradient(135deg, #f97316, #db2777)', 'Kelime avı, çapraz bulmaca, eksik harf'), ('macera', '🧭', 'İnteraktif Macera', 'linear-gradient(135deg, #0d9488, #4f46e5)', 'Seçimlerinle hikâyeyi yönlendir'), ('kultur', '🗺️', 'Kültür & Coğrafya Puzzle', 'linear-gradient(135deg, #ca8a04, #dc2626)', 'Gerçek fotoğraflarla dünya harikaları'), ('cark', '🎡', 'Bilgi Çarkı', 'linear-gradient(135deg, #8b5cf6, #ec4899)', 'Çarkı çevir, soruyu bil'), ('sirala', '⏳', 'Zaman Şeridi & Sırala', 'linear-gradient(135deg, #0891b2, #2563eb)', 'Olayları ve sayıları doğru sıraya diz'), ('sinema', '🤫', 'Sessiz Sinema', 'linear-gradient(135deg, #f43f5e, #9333ea)', 'Mimikle anlat, takımın bilsin'), ('kesir', '🍫', 'Kesir Dilimleme', 'linear-gradient(135deg, #f59e0b, #b45309)', 'Kes, böl, karşılaştır, topla'), ('cebir', '🐉', 'Ejderha Cebir', 'linear-gradient(135deg, #a855f7, #6366f1)', 'Denklemi oyunla çöz'), ('canavar', '👾', 'Sayı Canavarları', 'linear-gradient(135deg, #22c55e, #0d9488)', 'Sayı çubuklarıyla doyur'), ('buyuk', '🔟', 'Büyük Sayılar', 'linear-gradient(135deg, #ec4899, #8b5cf6)', 'Basamak blokları, eldeli işlem'), ('zihin', '🧠', 'Zihin Antrenmanı', 'linear-gradient(135deg, #14b8a6, #06b6d4)', 'Hafıza, dikkat, hız, mantık')]
+ARCADE_HTML['bilbakalim'] = r'''<!DOCTYPE html><html lang="tr"><head><!--SHARED--><!--AIPACK--><style>
+.qbox{width:min(96%,760px);margin:auto;border-radius:26px;border:3px solid var(--ac);background:linear-gradient(160deg,#0b4a55,#052a31);padding:18px;box-shadow:0 14px 40px rgba(0,0,0,.4)}
+.qbox .qt{font-size:clamp(17px,2.8vw,22px);font-weight:800;line-height:1.45;margin:8px 0 12px}
+.opt{display:flex;gap:10px;align-items:center;width:100%;text-align:left;margin:7px 0;padding:12px 14px;border-radius:16px;border:2px solid var(--line);background:rgba(255,255,255,.08);color:var(--t);font-size:16px;font-weight:700;cursor:pointer;font-family:inherit}
+.opt:hover{background:rgba(45,212,191,.25);border-color:var(--ac)}.opt b{color:var(--gold);min-width:22px}
+.opt.good{background:rgba(74,222,128,.4)}.opt.bad{background:rgba(251,113,133,.4)}.opt.gone{opacity:.25;pointer-events:none}
+.lad{display:flex;gap:4px;flex-wrap:wrap;justify-content:center}.lad i{width:22px;height:8px;border-radius:4px;background:rgba(255,255,255,.15)}.lad i.on{background:var(--ac)}.lad i.cur{background:var(--gold)}
+.tm{height:8px;border-radius:6px;background:rgba(255,255,255,.12);overflow:hidden;margin:4px 0}.tm div{height:100%;background:linear-gradient(90deg,#4ade80,#fbbf24,#fb7185);transition:width 1s linear}
+.joks{display:flex;gap:8px;flex-wrap:wrap;justify-content:center;margin:6px 0}
+.aud{display:flex;gap:6px;align-items:flex-end;height:60px;justify-content:center;margin:6px 0}.aud div{width:44px;background:var(--ac);border-radius:6px 6px 0 0;text-align:center;font-size:12px;color:#042f2e;font-weight:800}
+.learn{margin-top:8px;padding:10px 12px;border-radius:14px;background:rgba(251,191,36,.15);border:1px solid rgba(251,191,36,.5);font-size:14px}
+</style></head><body><div id="app"></div><script>
+// [kategori, zorluk 1-3, soru, DOĞRU, yanlış1, yanlış2, yanlış3, açıklama, ipucu]
+const BANK=[
+['🔬 Fen',1,'Işığın bir ortamdan geçerken doğrultusunu değiştirmesine ne denir?','Kırılma','Yansıma','Soğurma','Dağılma','Işık farklı saydam ortama geçerken yön değiştirir; buna kırılma denir.','Su dolu bardaktaki kalem kırık görünür.'],
+['🔬 Fen',1,'Hangisi bir tür fiziksel değişimdir?','Buzun erimesi','Demirin paslanması','Odunun yanması','Sütün ekşimesi','Erime hâl değişimidir; maddenin cinsi değişmez.','Madde cinsi değişmiyorsa fiziksel.'],
+['🔬 Fen',1,'Dünya\'nın Güneş etrafındaki bir turu yaklaşık ne kadar sürer?','1 yıl','1 gün','1 ay','1 hafta','Dünya Güneş etrafında yaklaşık 365 günde bir tur atar.','Takvimin temeli.'],
+['🔬 Fen',2,'Bitkilerin besin üretmesi olayına ne ad verilir?','Fotosentez','Solunum','Terleme','Sindirim','Fotosentezde bitki ışık, su ve karbondioksitle besin ve oksijen üretir.','Foto = ışık.'],
+['🔬 Fen',2,'Güneş sisteminin en büyük gezegeni hangisidir?','Jüpiter','Satürn','Dünya','Neptün','Jüpiter, Güneş sistemindeki en büyük gezegendir.','Gaz devi ve çok büyük.'],
+['🔬 Fen',2,'Ses hangi ortamda yayılamaz?','Boşlukta','Suda','Havada','Demirde','Ses titreşimle yayılır; yayılması için madde ortamı gerekir.','Uzayda ses duyulmaz.'],
+['🔬 Fen',3,'Hangisi saf maddedir?','Su','Tuzlu su','Hava','Çorba','Su tek tür maddeden oluşur; diğerleri karışımdır.','Karışım değil, tek cins.'],
+['🔬 Fen',3,'Mıknatıs hangisini çeker?','Demir çivi','Plastik kalem','Cam bilye','Tahta kaşık','Mıknatıs demir, nikel, kobalt gibi maddeleri çeker.','Metal ve manyetik.'],
+['🔬 Fen',2,'Ay\'ın Dünya etrafında dönmesiyle oluşan olay hangisidir?','Ay\'ın evreleri','Mevsimler','Gece ve gündüz','Gelgit yok','Ay Dünya etrafında dönerken Güneş\'ten aldığı ışığın bize görünen kısmı değişir.','Hilal, dolunay...'],
+['🔬 Fen',3,'Canlıların temel yapı birimi nedir?','Hücre','Doku','Organ','Sistem','Tüm canlılar hücrelerden oluşur.','Mikroskopla görülür.'],
+['➗ Matematik',1,'25 × 4 kaçtır?','100','80','120','90','25 × 4 = 100.','25 liranın dört tanesi.'],
+['➗ Matematik',1,'1/2 + 1/4 kaçtır?','3/4','2/6','1/8','1/6','Paydaları eşitle: 2/4 + 1/4 = 3/4.','Önce paydayı eşitle.'],
+['➗ Matematik',1,'Bir üçgenin iç açıları toplamı kaç derecedir?','180°','90°','360°','270°','Her üçgenin iç açıları toplamı 180°\'dir.','Düz açı.'],
+['➗ Matematik',2,'Kenarı 5 cm olan karenin çevresi kaç cm\'dir?','20','25','10','15','Çevre = 4 × 5 = 20.','4 kenar.'],
+['➗ Matematik',2,'80\'in %25\'i kaçtır?','20','25','40','10','%25 = 1/4; 80 ÷ 4 = 20.','Dörtte bir.'],
+['➗ Matematik',2,'En küçük asal sayı hangisidir?','2','1','3','0','Asal sayı yalnızca 1 ve kendisine bölünür; en küçüğü 2\'dir.','1 asal değildir.'],
+['➗ Matematik',3,'3,5 + 2,75 kaçtır?','6,25','5,25','6,15','5,75','3,50 + 2,75 = 6,25.','Virgülleri alt alta yaz.'],
+['➗ Matematik',3,'12 ile 18\'in en büyük ortak böleni (OBEB) kaçtır?','6','3','9','36','Ortak bölenlerin en büyüğü 6\'dır.','İkisini de bölen en büyük sayı.'],
+['➗ Matematik',2,'Bir dikdörtgenin kenarları 8 ve 5 ise alanı kaç cm²?','40','26','13','80','Alan = 8 × 5 = 40.','Çarp.'],
+['➗ Matematik',3,'7, 9, 11, 13 örüntüsünde sıradaki sayı hangisidir?','15','14','16','17','Her adım 2 artıyor: 13 + 2 = 15.','Farka bak.'],
+['📖 Türkçe',1,'"Güzel" sözcüğü hangi tür sözcüktür?','Sıfat (ad)','Fiil','Zarf','Edat','"Güzel", adın niteliğini bildiren bir sıfattır (güzel ev).','Adı niteler.'],
+['📖 Türkçe',1,'"Soğuk" sözcüğünün zıt anlamlısı hangisidir?','Sıcak','Buz','Kış','Serin','Soğuk – sıcak zıt anlamlıdır.','Karşıtı.'],
+['📖 Türkçe',2,'"Gözü açık" deyimi hangi anlama gelir?','Uyanık, kolay kandırılmayan','Uykusuz','Gözleri hasta','Cesur','"Gözü açık" uyanık ve dikkatli demektir.','Uyanık.'],
+['📖 Türkçe',2,'Hangisi bir atasözüdür?','Damlaya damlaya göl olur','Kafayı yemek','Göz atmak','Ağzı kulaklarına varmak','Atasözleri öğüt veren kalıplaşmış sözlerdir.','Öğüt veriyor.'],
+['📖 Türkçe',2,'"Kitap" sözcüğü kaç hecelidir?','2','1','3','4','ki-tap → 2 hece.','Sesli harfleri say.'],
+['📖 Türkçe',3,'Hangisi birleşik sözcüktür?','Hanımeli','Kitaplık','Gözlük','Okul','Hanım + eli birleşerek yeni anlam kazanmış birleşik sözcüktür.','İki sözcük kaynaşmış.'],
+['📖 Türkçe',3,'"Çabuk gel!" cümlesi hangi cümle türüdür?','Emir','Soru','Dilek','Haber','Bir iş yapılmasını isteyen cümleler emir cümlesidir.','Komut.'],
+['📖 Türkçe',2,'Yazım yanlışı olmayan hangisidir?','Herkes','Herkez','Hergün (bitişik)','Birşey (bitişik)','"Herkes" doğru yazılışıdır; "her gün", "bir şey" ayrı yazılır.','s ile.'],
+['📖 Türkçe',1,'"Ali topu attı." cümlesinde yüklem hangisidir?','attı','Ali','topu','Ali topu','Yüklem eylemi bildiren sözcüktür: attı.','İş, oluş, durum.'],
+['📖 Türkçe',3,'"Gül" sözcüğü hem çiçek hem eylem olarak kullanılır; bu tür sözcüğe ne denir?','Eş sesli','Zıt anlamlı','Eş anlamlı','Birleşik','Yazılışı ve okunuşu aynı, anlamı farklı sözcüklere eş sesli denir.','Aynı yazılış, farklı anlam.'],
+['🏛️ Sosyal',1,'Türkiye Cumhuriyeti hangi tarihte ilan edilmiştir?','29 Ekim 1923','23 Nisan 1920','30 Ağustos 1922','10 Kasım 1938','Cumhuriyet 29 Ekim 1923\'te ilan edildi.','Cumhuriyet Bayramı.'],
+['🏛️ Sosyal',1,'TBMM hangi tarihte açılmıştır?','23 Nisan 1920','29 Ekim 1923','19 Mayıs 1919','1 Kasım 1922','TBMM 23 Nisan 1920\'de Ankara\'da açıldı.','Çocuk Bayramı.'],
+['🏛️ Sosyal',2,'Türkiye\'nin başkenti neresidir?','Ankara','İstanbul','İzmir','Bursa','Ankara 13 Ekim 1923\'te başkent olmuştur.','Anıtkabir orada.'],
+['🏛️ Sosyal',2,'Çanakkale Savaşı hangi yıllar arasında yaşanmıştır?','1915–1916','1920–1922','1912–1913','1939–1945','Çanakkale Savaşları 1915\'te yaşandı, 1916 başında sona erdi.','Birinci Dünya Savaşı.'],
+['🏛️ Sosyal',2,'Göbeklitepe hangi ilimizdedir?','Şanlıurfa','Nevşehir','Antalya','Çanakkale','Göbeklitepe Şanlıurfa\'dadır.','Güneydoğu Anadolu.'],
+['🏛️ Sosyal',3,'Hangisi yazıyı bulan uygarlıktır?','Sümerler','Romalılar','Vikingler','Aztekler','Sümerler çivi yazısını buldu.','Mezopotamya.'],
+['🏛️ Sosyal',3,'Atatürk\'ün doğduğu şehir hangisidir?','Selanik','İzmir','Ankara','Sivas','Mustafa Kemal 1881\'de Selanik\'te doğdu.','Bugün Yunanistan\'da.'],
+['🏛️ Sosyal',3,'Hangisi Türk devletlerinden biridir?','Selçuklu','Roma','Maya','İnka','Selçuklular Anadolu\'ya Türk yurdu kurdu.','Malazgirt 1071.'],
+['🏛️ Sosyal',2,'Hangisi bir sivil toplum kuruluşudur (STK)?','Kızılay','Meclis','Belediye','Okul müdürlüğü','Kızılay gönüllülük esasıyla çalışan bir kuruluştur.','Hilal.'],
+['🏛️ Sosyal',1,'Bir toplumda çocukların haklarını koruyan sözleşmenin adı nedir?','Çocuk Hakları Sözleşmesi','Lozan Antlaşması','Anayasa Mahkemesi','Misak-ı Millî','Birleşmiş Milletler Çocuk Hakları Sözleşmesi çocukların haklarını korur.','Çocuklar için.'],
+['🌍 Coğrafya',1,'Türkiye\'nin en yüksek dağı hangisidir?','Ağrı Dağı','Erciyes','Uludağ','Kaçkar','Ağrı Dağı 5137 m ile en yüksek dağımızdır.','Nuh\'un gemisi efsanesi.'],
+['🌍 Coğrafya',1,'Dünya\'nın en büyük okyanusu hangisidir?','Pasifik','Atlas','Hint','Arktik','Pasifik Okyanusu en büyük okyanustur.','Sakin Okyanus.'],
+['🌍 Coğrafya',2,'Türkiye\'nin en uzun nehri hangisidir?','Kızılırmak','Sakarya','Fırat','Dicle','Kızılırmak tamamı Türkiye sınırları içinde en uzun nehirdir.','Tamamı Türkiye\'de.'],
+['🌍 Coğrafya',2,'Kapadokya hangi ilimizin çevresindedir?','Nevşehir','Antalya','Samsun','Edirne','Kapadokya\'nın merkezi Nevşehir çevresidir.','Peri bacaları.'],
+['🌍 Coğrafya',2,'Hangi kıtada Türkiye yer alır?','Asya ve Avrupa','Sadece Afrika','Okyanusya','Antarktika','Türkiye iki kıtada yer alır.','Boğaz.'],
+['🌍 Coğrafya',3,'Dünya\'nın en uzun nehri hangisidir (yaygın kabul)?','Nil','Amazon','Tuna','Mississippi','Nil ~6650 km ile yaygın biçimde en uzun nehir kabul edilir.','Mısır\'dan geçer.'],
+['🌍 Coğrafya',3,'Ekvator çizgisi Dünya\'yı hangi iki yarım küreye böler?','Kuzey ve Güney','Doğu ve Batı','Sıcak ve Soğuk','Kara ve Deniz','Ekvator Kuzey ve Güney Yarım Küre\'yi ayırır.','Enlem.'],
+['🌍 Coğrafya',2,'Hangisi Türkiye\'nin komşusu değildir?','İspanya','Yunanistan','Gürcistan','Irak','İspanya Türkiye\'nin komşusu değildir.','Batı Avrupa uzak.'],
+['🌍 Coğrafya',3,'Mısır\'ın ünlü yapıları hangileridir?','Piramitler','Kolezyum','Eyfel','Machu Picchu','Gize Piramitleri Mısır\'dadır.','Firavunlar.'],
+['🌍 Coğrafya',1,'Pusulanın iğnesi hangi yönü gösterir?','Kuzey','Güney','Doğu','Batı','Pusula iğnesi Dünya\'nın manyetik kuzeyini gösterir.','N harfi.'],
+['🎭 Genel Kültür',1,'Satrançta kaç taş vardır (iki oyuncu toplam)?','32','16','24','64','Her oyuncunun 16 taşı vardır; toplam 32.','16 × 2.'],
+['🎭 Genel Kültür',1,'Bir yılda kaç ay vardır?','12','10','11','13','Bir yıl 12 aydır.','Takvim.'],
+['🎭 Genel Kültür',2,'Olimpiyat halkaları kaç tanedir?','5','4','6','7','Olimpiyat bayrağında 5 halka vardır.','Kıtalar.'],
+['🎭 Genel Kültür',2,'Mimar Sinan hangi dönemin mimarıdır?','Osmanlı','Selçuklu','Roma','Cumhuriyet','Mimar Sinan Osmanlı\'nın baş mimarıdır.','Süleymaniye.'],
+['🎭 Genel Kültür',2,'Dünyada en çok konuşulan ana dillerden biri hangisidir?','Çince','Fince','İzlandaca','Macarca','Mandarin Çincesi en çok konuşulan ana dildir.','Çok nüfus.'],
+['🎭 Genel Kültür',3,'"Dede Korkut Hikâyeleri" hangi milletin destanıdır?','Türk','Yunan','İran','Çin','Dede Korkut Oğuz Türklerinin hikâyeleridir.','Oğuz.'],
+['🎭 Genel Kültür',3,'Notalar arasında "Do" ile başlayan dizi kaç sesten oluşur?','7','5','8','12','Do-Re-Mi-Fa-Sol-La-Si 7 ses.','Gam.'],
+['🎭 Genel Kültür',2,'Bilgisayar faresi (mouse) ne işe yarar?','İmleci hareket ettirmek','Yazı yazmak','Ses kaydetmek','Yazıcıya güç vermek','Fare ekrandaki imleci yönlendirir.','Tıkla.'],
+['🎭 Genel Kültür',1,'Gökkuşağında kaç renk vardır?','7','5','6','9','Gökkuşağında 7 renk vardır.','Kırmızıdan mora.'],
+['🎭 Genel Kültür',3,'Dünyanın en büyük sıcak çölü hangisidir?','Sahra','Gobi','Kalahari','Atacama','Sahra en büyük sıcak çöldür.','Afrika.']];
+const BANKALL=BANK.slice();
+try{(window.AI_PACK||[]).forEach(q=>{if(Array.isArray(q)&&q.length>=8&&q.slice(2,7).every(x=>typeof x==='string'&&x))BANKALL.push(q)})}catch(e){}
+const N=12,TIME=30;
+let Q,qi,pts,jok,locked,timer,tl,corr,hist2;
+function menu(){app.innerHTML='';const aiN=BANKALL.length-BANK.length;
+ app.append(h('div',{class:'top'},h('h2',{},'🏆 Bil Bakalım: Yarışma')),
+ h('div',{class:'center'},h('div',{style:'font-size:64px'},'🎤'),h('div',{class:'big'},'Bil Bakalım!'),
+ h('div',{class:'msg'},N+' soru • her soruda '+TIME+' sn • sorular zorlaşır • 4 joker: 50:50, seyirci, AdenMind ipucu, soru değiştir'+(aiN?(' • 🤖 '+aiN+' yapay zekâ sorusu havuzda'):'')+' • havuz: '+BANKALL.length+' soru'),
+ h('button',{class:'btn',onclick:startGame},'▶ Yarışmaya Başla'),h('div',{class:'msg'},'En yüksek puan: '+(store('bb_best')||0))))}
+function pickQs(){const seen=store('bb_seen')||[];let pool=BANKALL.map((q,i)=>({q,i,k:q[2]}));
+ let fresh=pool.filter(x=>!seen.includes(x.k));if(fresh.length<N+4){store('bb_seen',[]);fresh=pool}
+ const by=d=>shuf(fresh.filter(x=>x.q[1]===d));const e=by(1),m=by(2),z=by(3);
+ const take=(a,n,rest)=>{const r=a.slice(0,n);if(r.length<n)r.push(...rest.filter(x=>!r.includes(x)).slice(0,n-r.length));return r};
+ const all=shuf(fresh);const out=[...take(e,4,all),...take(m,4,all),...take(z,4,all)];const uniq=[];out.forEach(x=>{if(!uniq.some(u=>u.k===x.k))uniq.push(x)});
+ for(const x of all){if(uniq.length>=N)break;if(!uniq.some(u=>u.k===x.k))uniq.push(x)}
+ store('bb_seen',[...seen,...uniq.map(x=>x.k)].slice(-200));return uniq.slice(0,N).map(x=>x.q)}
+function startGame(){Q=pickQs();qi=0;pts=0;corr=0;jok={f:1,a:1,h:1,s:1};hist2=Q.map(q=>q[2]);show()}
+function bar(){const l=h('div',{class:'lad'},Q.map((_,i)=>h('i',{class:i<qi?'on':i===qi?'cur':''})));return h('div',{},h('div',{class:'top'},h('h2',{},'🏆 Bil Bakalım'),h('span',{class:'sp'}),h('span',{class:'chip'},'Soru '+(qi+1)+'/'+N),h('span',{class:'chip'},'⭐ '+pts)),l)}
+function show(){clearInterval(timer);locked=false;if(qi>=Q.length)return end();app.innerHTML='';const q=Q[qi];const opts=shuf([q[3],q[4],q[5],q[6]].map((t,i)=>({t,ok:i===0})));tl=TIME;
+ const tm=h('div',{class:'tm'},h('div',{style:'width:100%'}));const tip=h('div',{class:'learn',style:'display:none'},'');const aud=h('div',{class:'aud'});const box=h('div',{class:'qbox pop'});const fb=h('div');
+ const btns=opts.map((o,i)=>h('button',{class:'opt',onclick:()=>ans(o,i)},h('b',{},'ABCD'[i]),o.t));
+ function reveal(sel,timeout){if(locked)return;locked=true;clearInterval(timer);const ok=sel&&sel.ok;btns.forEach((b,i)=>{if(opts[i].ok)b.classList.add('good');else if(opts[i]===sel)b.classList.add('bad')});
+  if(ok){const g=q[1]*10+Math.max(0,Math.round(tl/3));pts+=g;corr++;sfx.ok();fb.append(h('div',{class:'msg ok'},'✅ Doğru! +'+g+' puan'))}else{sfx.bad();fb.append(h('div',{class:'msg bad'},timeout?'⏰ Süre doldu!':'❌ Yanlış!'))}
+  fb.append(h('div',{class:'learn'},'💡 '+q[7]),h('button',{class:'btn',style:'margin-top:10px',onclick:()=>{qi++;show()}},qi+1>=N?'Sonucu gör ▶':'Sonraki soru ▶'))}
+ function ans(o,i){reveal(o,false)}
+ const J=(k,label,fn)=>{const b=h('button',{class:'btn alt',onclick:()=>{if(locked||!jok[k])return;jok[k]=0;b.disabled=true;fn()}},label);if(!jok[k])b.disabled=true;return b};
+ const jb=h('div',{class:'joks'},
+  J('f','✂️ 50:50',()=>{const bad=opts.map((o,i)=>i).filter(i=>!opts[i].ok&&!btns[i].classList.contains('gone'));shuf(bad).slice(0,2).forEach(i=>btns[i].classList.add('gone'))}),
+  J('a','👥 Seyirci',()=>{const right=opts.findIndex(o=>o.ok);const base=q[1]===1?60:q[1]===2?45:35;let rem=100-base;const v=[0,0,0,0];opts.forEach((o,i)=>{if(btns[i].classList.contains('gone'))return;v[i]=o.ok?base:0});const alive=opts.map((o,i)=>i).filter(i=>!opts[i].ok&&!btns[i].classList.contains('gone'));alive.forEach((i,j)=>{const x=j===alive.length-1?rem:rnd(0,rem);v[i]=x;rem-=x});v[right]+=rem;aud.innerHTML='';v.forEach((p,i)=>{if(!btns[i].classList.contains('gone'))aud.append(h('div',{style:'height:'+Math.max(14,p*.6)+'px'},'ABCD'[i]+' %'+p))})}),
+  J('h','🤖 AdenMind ipucu',()=>{tip.style.display='block';tip.textContent='🤖 AdenMind: '+(q[8]||'Önce elemeyle ilerle.')}),
+  J('s','⏭️ Soru değiştir',()=>{const used=new Set(hist2);const pool=BANKALL.filter(x=>!used.has(x[2])&&x[1]===q[1]);const r=pick(pool.length?pool:BANKALL.filter(x=>!used.has(x[2])));if(r){hist2.push(r[2]);Q[qi]=r;show()}}));
+ box.append(h('div',{style:'color:var(--gold);font-weight:800'},q[0]+' • '+'⭐'.repeat(q[1])),h('div',{class:'qt'},q[2]),tm,jb,tip,aud,...btns,fb);
+ app.append(bar(),box);
+ timer=setInterval(()=>{tl--;tm.firstChild.style.width=(tl/TIME*100)+'%';if(tl<=0)reveal(null,true)},1000)}
+function end(){clearInterval(timer);app.innerHTML='';const best=Math.max(store('bb_best')||0,pts);store('bb_best',best);sfx.win();
+ const rank=corr>=11?'🏆 Bilgi Şampiyonu':corr>=8?'🥇 Süper Yarışmacı':corr>=5?'🥈 Gayretli Yarışmacı':'🥉 Yeni Yarışmacı';
+ app.append(h('div',{class:'top'},h('h2',{},'🏆 Bil Bakalım')),h('div',{class:'center'},h('div',{style:'font-size:64px'},'🎉'),h('div',{class:'big'},rank),h('div',{class:'msg ok'},corr+'/'+N+' doğru • '+pts+' puan'+(pts>=best?' • 🌟 Yeni rekor!':' • Rekor: '+best)),h('div',{class:'row'},h('button',{class:'btn',onclick:startGame},'🔄 Yeni yarışma (farklı sorular)'),h('button',{class:'btn alt',onclick:menu},'Menü'))))}
+const app=$('#app');menu();
+</script></body></html>
+'''
+
+ARCADES = [('uno', '🃏', 'UNO', 'linear-gradient(135deg, #ef4444, #f59e0b)', 'Robot rakiplere karşı kart savaşı'), ('sudoku', '🔢', 'Sudoku', 'linear-gradient(135deg, #0ea5e9, #6366f1)', '4×4, 6×6, 9×9 mantık bulmacası'), ('satranc', '♞', 'Satranç', 'linear-gradient(135deg, #334155, #0f766e)', 'Yapay zekâya karşı tam kurallı'), ('kelimeler', '🔤', 'Kelime Bulmacaları', 'linear-gradient(135deg, #f97316, #db2777)', 'Kelime avı, çapraz bulmaca, eksik harf'), ('macera', '🧭', 'İnteraktif Macera', 'linear-gradient(135deg, #0d9488, #4f46e5)', 'Deprem, yangın, sel dâhil 19 macera + AdenMind ipucu'), ('bilbakalim', '🎤', 'Bil Bakalım Yarışması', 'linear-gradient(135deg, #eab308, #ea580c)', 'Jokerli, süreli, 12 soruluk yarışma'), ('kultur', '🗺️', 'Kültür & Coğrafya Puzzle', 'linear-gradient(135deg, #ca8a04, #dc2626)', 'Gerçek fotoğraflarla dünya harikaları'), ('cark', '🎡', 'Bilgi Çarkı', 'linear-gradient(135deg, #8b5cf6, #ec4899)', 'Çarkı çevir, soruyu bil'), ('sirala', '⏳', 'Zaman Şeridi & Sırala', 'linear-gradient(135deg, #0891b2, #2563eb)', 'Olayları ve sayıları doğru sıraya diz'), ('sinema', '🤫', 'Sessiz Sinema', 'linear-gradient(135deg, #f43f5e, #9333ea)', 'Mimikle anlat, takımın bilsin'), ('kesir', '🍫', 'Kesir Dilimleme', 'linear-gradient(135deg, #f59e0b, #b45309)', 'Kes, böl, karşılaştır, topla'), ('cebir', '🐉', 'Ejderha Cebir', 'linear-gradient(135deg, #a855f7, #6366f1)', 'Denklemi oyunla çöz'), ('canavar', '👾', 'Sayı Canavarları', 'linear-gradient(135deg, #22c55e, #0d9488)', 'Sayı çubuklarıyla doyur'), ('buyuk', '🔟', 'Büyük Sayılar', 'linear-gradient(135deg, #ec4899, #8b5cf6)', 'Basamak blokları, eldeli işlem'), ('zihin', '🧠', 'Zihin Antrenmanı', 'linear-gradient(135deg, #14b8a6, #06b6d4)', 'Hafıza, dikkat, hız, mantık')]

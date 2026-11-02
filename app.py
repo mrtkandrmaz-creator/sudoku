@@ -8,6 +8,11 @@ from html import escape as esc
 import streamlit as st
 import streamlit.components.v1 as components
 
+try:  # AdenMind sohbet motoru ayrı dosyada: adenmind.py (aynı klasörde olmalı)
+    import adenmind as AM
+except Exception:
+    AM = None
+
 # =============================================================================
 # SAYFA AYARI
 # =============================================================================
@@ -945,6 +950,8 @@ def render_question_visual(tip, param):
 
 
 def chat_bubble(role, content):
+    if role == "assistant" and AM is not None:
+        return f'<div class="msg ai">{adenmind_avatar(30)}<div class="bub">{AM.format_html(content)}</div></div>'
     text = esc(content).replace("\n", "<br>")
     text = re.sub(r"\*\*(.+?)\*\*", r"<b>\1</b>", text)
     if role == "assistant":
@@ -953,6 +960,61 @@ def chat_bubble(role, content):
 
 
 def render_adenmind(ns):
+    if AM is None:
+        return render_adenmind_old(ns)
+    import time as _t
+    st.markdown(
+        f'<div class="am-card"><div class="am-wrap">{adenmind_avatar(64)}<span class="am-dot"></span></div>'
+        '<div><div class="am-name">AdenMind</div><div class="am-sub">Her konuda yapay zekâ asistanın · çevrimiçi</div></div></div>'
+        f"<style>{AM.CSS}</style>",
+        unsafe_allow_html=True,
+    )
+    msgs = st.session_state["coach_messages"]
+    box = st.container(height=380)
+    with st.form(f"chat_form_{ns}", clear_on_submit=True):
+        user_msg = st.text_input("Mesaj", label_visibility="collapsed", key=f"chat_in_{ns}",
+                                 placeholder="Bana istediğin her şeyi sor...")
+        c1, c2 = st.columns([3, 1])
+        sent = c1.form_submit_button("Gönder 🚀", use_container_width=True)
+        clear = c2.form_submit_button("🗑️ Yeni", use_container_width=True)
+    if clear:
+        del msgs[1:]
+        st.session_state["last_ai_error"] = ""
+    q = user_msg.strip() if (sent and user_msg.strip()) else ""
+    with box:
+        st.markdown("".join(chat_bubble(m["role"], m["content"]) for m in msgs), unsafe_allow_html=True)
+        if q:
+            msgs.append({"role": "user", "content": q})
+            st.markdown(chat_bubble("user", q), unsafe_allow_html=True)
+            ph = st.empty()
+            n = now_tr()
+            ctx = (f"Bugün: {n.day} {TR_MONTHS[n.month - 1]} {n.year}, {TR_DAYS[n.weekday()]}, saat {n:%H:%M} (Türkiye). "
+                   f"Öğrenci şu an uygulamada {st.session_state.get('selected_subject') or 'genel'} / "
+                   f"{st.session_state.get('selected_unit') or 'genel'} bölümünde; soru bununla ilgili değilse bunu yok say.")
+            reply = time_answer(q) or weather_answer(q)
+            if reply:
+                ph.markdown(chat_bubble("assistant", reply), unsafe_allow_html=True)
+            else:
+                acc, last = "", 0.0
+                ph.markdown('<div class="msg ai"><div class="bub"><span class="am-typing">● ● ●</span></div></div>', unsafe_allow_html=True)
+                for chunk in AM.stream_answer(msgs[-21:], gemini_keys if has_gemini else [], groq_keys, ctx):
+                    acc += chunk
+                    if _t.time() - last > 0.08:
+                        ph.markdown(chat_bubble("assistant", acc), unsafe_allow_html=True)
+                        last = _t.time()
+                reply = acc.strip()
+                if reply:
+                    st.session_state["last_ai_error"] = ""
+                else:
+                    reply = wiki_answer(q) or local_coach_reply(q, st.session_state.get("selected_subject"), st.session_state.get("selected_unit"))
+                    st.session_state["last_ai_error"] = "; ".join(AM.LAST_ERRORS[-3:]) or "API anahtarı bulunamadı"
+                ph.markdown(chat_bubble("assistant", reply), unsafe_allow_html=True)
+            msgs.append({"role": "assistant", "content": reply})
+    if st.session_state.get("last_ai_error"):
+        st.caption("⚠️ Yapay zekâ servisi yanıt vermedi (yerel cevap kullanıldı): " + esc(st.session_state["last_ai_error"])[:160])
+
+
+def render_adenmind_old(ns):
     st.markdown(
         f'<div class="am-card"><div class="am-wrap">{adenmind_avatar(64)}<span class="am-dot"></span></div>'
         '<div><div class="am-name">AdenMind</div><div class="am-sub">Canlı Asistan · çevrimiçi</div></div></div>',
@@ -2754,6 +2816,34 @@ except Exception:  # dosya eksik/bozuksa uygulama yine açılır, yalnızca salo
     ARCADE_HTML, ARCADE_SHARED, ARCADES = {}, "", []
 
 
+def ai_make_pack(key):
+    """Oyun salonu için yapay zekâdan yeni senaryo/soru üretir; doğrulanırsa döndürür."""
+    seed = random.choice(["deprem", "sel", "uzay", "deniz canlıları", "antik uygarlıklar", "robotlar", "enerji tasarrufu", "ilk yardım", "dinozorlar",
+                          "müzik aletleri", "spor", "ormanlar", "kutuplar", "icatlar", "Türk mutfağı", "bilim insanları", "iklim değişikliği", "okul güvenliği"])
+    if key == "macera":
+        p = ("10-15 yaş için eğitici bir İNTERAKTİF MACERA senaryosu yaz. Konu: " + seed + " (rastgele ilham no " + str(random.randint(1, 99999)) + "). "
+             "SADECE JSON döndür: {\"t\":\"başlık\",\"e\":\"emoji\",\"d\":\"tek cümle açıklama\",\"who\":\"yardımcı karakter adı ve unvanı\",\"steps\":[ 6 adet dizi ]}. "
+             "Her dizi tam 8 metin: [emoji, 1-2 cümlelik durum, soru, DOĞRU cevap, yanlış1, yanlış2, öğretici açıklama, kısa ipucu]. "
+             "Doğru cevap her zaman 4. sırada olsun, şıklar kısa ve birbirine yakın uzunlukta olsun. Bilgiler doğru olsun, Türkçe yaz.")
+        d = parse_json(ai_generate_content(p))
+        if isinstance(d, dict) and isinstance(d.get("steps"), list) and len(d["steps"]) >= 4 and d.get("t") \
+                and all(isinstance(x, list) and len(x) >= 7 and all(isinstance(y, str) and y for y in x[:7]) for x in d["steps"]):
+            d["steps"] = [[str(y) for y in x[:8]] + ([""] if len(x) < 8 else []) for x in d["steps"]]
+            d["e"], d["d"], d["who"] = str(d.get("e", "🧭")), str(d.get("d", "")), str(d.get("who", ""))
+            d["cat"] = "Yapay zekâ"
+            return d
+        return None
+    p = ("10-14 yaş (5-8. sınıf) için 12 adet 'Bil Bakalım' yarışma sorusu üret. Karışık kategori; ilham konu: " + seed + " (no " + str(random.randint(1, 99999)) + "). "
+         "SADECE JSON dizi döndür: [[kategori,zorluk(1-3 sayı),soru,DOĞRU,yanlış1,yanlış2,yanlış3,açıklama,ipucu], ...]. "
+         "Kategori şunlardan biri: '🔬 Fen','➗ Matematik','📖 Türkçe','🏛️ Sosyal','🌍 Coğrafya','🎭 Genel Kültür'. Doğru cevap 4. sırada olsun. Bilgiler kesin doğru olsun.")
+    d = parse_json(ai_generate_content(p))
+    if isinstance(d, list):
+        ok = [x for x in d if isinstance(x, list) and len(x) >= 9 and isinstance(x[1], int) and 1 <= x[1] <= 3
+              and all(isinstance(y, str) and y for y in x[2:9]) and len({x[3], x[4], x[5], x[6]}) == 4]
+        return ok[:12] or None
+    return None
+
+
 def pick_arcade(k):
     st.session_state["selected_arcade"] = k
 
@@ -2771,7 +2861,19 @@ def arcade_page(key):
         components.html(FS_BUTTON, height=52)
     with c3:
         st.markdown(f'<div class="gamebar-title">{info[1]} {esc(info[2])} · Oyun Salonu</div>', unsafe_allow_html=True)
+    pack = st.session_state.setdefault("ai_pack", {}).setdefault(key, [])
+    if key in ("macera", "bilbakalim"):
+        what = "yeni macera senaryosu" if key == "macera" else "12 yeni yarışma sorusu"
+        if st.button(f"🤖 Yapay zekâ {what} üretsin (havuza eklenir: {len(pack)})", key=f"aigen_{key}"):
+            with loading("Yapay zekâ içerik hazırlıyor", 12, kind="gen"):
+                item = ai_make_pack(key)
+            if item:
+                pack.extend(item if key == "bilbakalim" else [item])
+                st.rerun()
+            else:
+                st.warning("Yapay zekâ şu an yanıt vermedi; hazır havuzla devam edebilirsin.")
     html = ARCADE_HTML[key].replace("<!--SHARED-->", ARCADE_SHARED)
+    html = html.replace("<!--AIPACK-->", "<script>window.AI_PACK=" + json.dumps(pack, ensure_ascii=False).replace("</", "<\\/") + ";</script>")
     with st.container(key="balloon_wrap"):
         components.html(html, height=760)
 
